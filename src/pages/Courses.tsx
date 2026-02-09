@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { coursesService, Course } from '@/services/courses.service';
+import { resolveMediaUrl } from '@/lib/media';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,8 +52,8 @@ const Courses = () => {
     id: course.id,
     title: course.title,
     instructor: `${course.instructor.firstName} ${course.instructor.lastName}`,
-    instructorAvatar: course.instructor.avatarUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-    thumbnail: course.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=450&fit=crop',
+    instructorAvatar: resolveMediaUrl(course.instructor.avatarUrl) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+    thumbnail: resolveMediaUrl(course.thumbnailUrl) || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=450&fit=crop',
     rating: course.ratingAvg,
     reviewCount: course.ratingCount,
     price: course.discountPrice || course.price,

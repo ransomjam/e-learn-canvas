@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { enrollmentsService, Enrollment } from '@/services/enrollments.service';
+import { resolveMediaUrl } from '@/lib/media';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -113,7 +114,7 @@ const Dashboard = () => {
                           className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/50 sm:flex-row"
                         >
                           <img
-                            src={enrollment.course.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=225&fit=crop'}
+                            src={resolveMediaUrl(enrollment.course.thumbnailUrl) || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=225&fit=crop'}
                             alt={enrollment.course.title}
                             className="h-40 w-full flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-40"
                           />

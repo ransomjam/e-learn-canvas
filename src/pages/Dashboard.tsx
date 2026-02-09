@@ -79,12 +79,12 @@ const Dashboard = () => {
                   <Link
                     key={course.id}
                     to={`/player/${course.id}`}
-                    className="group flex gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/50"
+                    className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/50 sm:flex-row"
                   >
                     <img
                       src={course.thumbnail}
                       alt={course.title}
-                      className="h-24 w-40 flex-shrink-0 rounded-lg object-cover"
+                      className="h-40 w-full flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-40"
                     />
                     <div className="flex flex-1 flex-col justify-between">
                       <div>

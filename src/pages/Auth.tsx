@@ -14,7 +14,7 @@ const Auth = () => {
   return (
     <div className="flex min-h-screen">
       {/* Left Side - Form */}
-      <div className="flex w-full flex-col justify-center px-8 py-12 lg:w-1/2 lg:px-16">
+      <div className="flex w-full flex-col justify-center px-6 py-12 sm:px-8 lg:w-1/2 lg:px-16">
         <div className="mx-auto w-full max-w-md">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
@@ -39,7 +39,7 @@ const Auth = () => {
           </div>
 
           {/* Social Login */}
-          <div className="mt-8 grid grid-cols-2 gap-4">
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Button variant="outline" className="w-full">
               <Chrome className="mr-2 h-5 w-5" />
               Google

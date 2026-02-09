@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { coursesService, Course, Section } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
 import { paymentsService } from '@/services/payments.service';
+import { resolveMediaUrl } from '@/lib/media';
 
 const CourseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -175,7 +176,7 @@ const CourseDetail = () => {
               {/* Instructor */}
               <div className="mt-6 flex items-center gap-3">
                 <img
-                  src={course.instructor.avatarUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
+                  src={resolveMediaUrl(course.instructor.avatarUrl) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
                   alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
                   className="h-12 w-12 rounded-full object-cover"
                 />
@@ -212,7 +213,7 @@ const CourseDetail = () => {
             <div className="lg:row-start-1 lg:col-start-3">
               <div className="overflow-hidden rounded-xl border border-border bg-card lg:sticky lg:top-24">
                 <img
-                  src={course.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=450&fit=crop'}
+                  src={resolveMediaUrl(course.thumbnailUrl) || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=450&fit=crop'}
                   alt={course.title}
                   className="aspect-video w-full object-cover"
                 />
@@ -414,7 +415,7 @@ const CourseDetail = () => {
                 </h2>
                 <div className="mt-6 flex flex-col gap-6 sm:flex-row">
                   <img
-                    src={course.instructor.avatarUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
+                    src={resolveMediaUrl(course.instructor.avatarUrl) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
                     alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
                     className="h-24 w-24 rounded-full object-cover"
                   />

@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { coursesService, Section, Lesson } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
+import { resolveMediaUrl } from '@/lib/media';
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -187,13 +188,13 @@ const Player = () => {
                   src={currentLesson.videoUrl}
                   className="h-full w-full"
                   controls
-                  poster={course.thumbnailUrl}
+                  poster={resolveMediaUrl(course.thumbnailUrl)}
                 />
               )
             ) : (
               <>
                 <img
-                  src={course.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=675&fit=crop'}
+                  src={resolveMediaUrl(course.thumbnailUrl) || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=675&fit=crop'}
                   alt="Video thumbnail"
                   className="h-full w-full object-cover opacity-50"
                 />

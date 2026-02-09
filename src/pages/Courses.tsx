@@ -63,7 +63,7 @@ const Courses = () => {
           {/* Search & Filters */}
           <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             {/* Search */}
-            <div className="relative max-w-md flex-1">
+            <div className="relative w-full max-w-none flex-1 sm:max-w-md">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search courses or instructors..."
@@ -78,7 +78,7 @@ const Courses = () => {
               {/* Category Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="min-w-[140px]">
+                  <Button variant="outline" className="w-full min-w-[140px] justify-between sm:w-auto">
                     <Filter className="mr-2 h-4 w-4" />
                     {selectedCategory === 'All Categories' ? 'Category' : selectedCategory}
                     <ChevronDown className="ml-2 h-4 w-4" />
@@ -100,7 +100,7 @@ const Courses = () => {
               {/* Sort */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" className="w-full justify-between sm:w-auto">
                     Sort by
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>

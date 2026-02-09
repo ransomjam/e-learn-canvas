@@ -106,7 +106,7 @@ const CourseDetail = () => {
 
             {/* Price Card */}
             <div className="lg:row-start-1 lg:col-start-3">
-              <div className="sticky top-24 overflow-hidden rounded-xl border border-border bg-card">
+              <div className="overflow-hidden rounded-xl border border-border bg-card lg:sticky lg:top-24">
                 <img
                   src={course.thumbnail}
                   alt={course.title}
@@ -174,7 +174,7 @@ const CourseDetail = () => {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <div className="grid gap-12 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-12">
+            <div className="space-y-12 lg:col-span-2">
               {/* What you'll learn */}
               <div className="rounded-xl border border-border bg-card p-6">
                 <h2 className="font-display text-2xl font-bold text-foreground">
@@ -223,8 +223,8 @@ const CourseDetail = () => {
                       value={section.id}
                       className="rounded-lg border border-border bg-card px-4"
                     >
-                      <AccordionTrigger className="hover:no-underline">
-                        <div className="flex items-center gap-3">
+                    <AccordionTrigger className="hover:no-underline">
+                        <div className="flex flex-wrap items-center gap-3">
                           <span className="font-semibold text-foreground">{section.title}</span>
                           <span className="text-sm text-muted-foreground">
                             {section.lessons.length} lessons
@@ -236,9 +236,9 @@ const CourseDetail = () => {
                           {section.lessons.map((lesson) => (
                             <div
                               key={lesson.id}
-                              className="flex items-center justify-between rounded-lg p-3 hover:bg-secondary/50"
+                              className="flex flex-col gap-2 rounded-lg p-3 hover:bg-secondary/50 sm:flex-row sm:items-center sm:justify-between"
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex min-w-0 items-center gap-3">
                                 {lesson.isLocked ? (
                                   <Lock className="h-4 w-4 text-muted-foreground" />
                                 ) : lesson.type === 'video' ? (
@@ -267,7 +267,7 @@ const CourseDetail = () => {
                 <h2 className="font-display text-2xl font-bold text-foreground">
                   Your Instructor
                 </h2>
-                <div className="mt-6 flex gap-6">
+                <div className="mt-6 flex flex-col gap-6 sm:flex-row">
                   <img
                     src={course.instructorAvatar}
                     alt={course.instructor}

@@ -80,10 +80,10 @@ const Index = () => {
                 <img
                   src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=600&fit=crop"
                   alt="Students learning"
-                  className="rounded-xl"
+                  className="w-full rounded-xl object-cover"
                 />
                 {/* Floating Card */}
-                <div className="absolute -left-8 bottom-8 rounded-xl border border-border bg-card p-4 shadow-lg">
+                <div className="absolute -left-4 bottom-4 rounded-xl border border-border bg-card p-3 shadow-lg sm:-left-8 sm:bottom-8 sm:p-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/20">
                       <TrendingUp className="h-6 w-6 text-accent" />
@@ -120,7 +120,7 @@ const Index = () => {
       {/* Featured Courses */}
       <section className="py-20">
         <div className="container mx-auto px-4">
-          <div className="mb-12 flex items-end justify-between">
+          <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="font-display text-3xl font-bold text-foreground md:text-4xl">
                 Featured Courses

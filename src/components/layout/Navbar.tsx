@@ -37,7 +37,7 @@ const Navbar = () => {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search courses..."
-                className="w-64 bg-secondary pl-10 focus:w-80 transition-all duration-300"
+                className="w-40 bg-secondary pl-10 transition-all duration-300 focus:w-44 sm:w-56 sm:focus:w-64 lg:w-64 lg:focus:w-72"
               />
             </div>
 

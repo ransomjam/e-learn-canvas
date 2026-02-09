@@ -35,12 +35,12 @@ const Profile = () => {
           </div>
 
           <Tabs defaultValue="profile" className="space-y-8">
-            <TabsList className="w-full justify-start border-b border-border bg-transparent p-0">
+            <TabsList className="w-full justify-start gap-2 overflow-x-auto border-b border-border bg-transparent p-0">
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.id}
                   value={tab.id}
-                  className="relative rounded-none border-b-2 border-transparent px-4 pb-4 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                  className="relative whitespace-nowrap rounded-none border-b-2 border-transparent px-4 pb-4 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
                 >
                   <tab.icon className="mr-2 h-4 w-4" />
                   {tab.label}
@@ -56,7 +56,7 @@ const Profile = () => {
                   Update your profile details and public information
                 </p>
 
-                <div className="mt-6 flex items-center gap-6">
+                <div className="mt-6 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
                   <div className="relative">
                     <img
                       src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop"
@@ -175,7 +175,7 @@ const Profile = () => {
                 </p>
 
                 <div className="mt-6 space-y-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="font-medium text-foreground">Course Updates</p>
                       <p className="text-sm text-muted-foreground">
@@ -184,7 +184,7 @@ const Profile = () => {
                     </div>
                     <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="font-medium text-foreground">Weekly Digest</p>
                       <p className="text-sm text-muted-foreground">
@@ -193,7 +193,7 @@ const Profile = () => {
                     </div>
                     <Switch checked={weeklyDigest} onCheckedChange={setWeeklyDigest} />
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="font-medium text-foreground">Push Notifications</p>
                       <p className="text-sm text-muted-foreground">
@@ -209,7 +209,7 @@ const Profile = () => {
             {/* Billing Tab */}
             <TabsContent value="billing" className="space-y-6">
               <div className="rounded-xl border border-border bg-card p-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="font-semibold text-foreground">Current Plan</h2>
                     <p className="text-sm text-muted-foreground">
@@ -221,7 +221,7 @@ const Profile = () => {
                   </div>
                 </div>
 
-                <div className="mt-6 flex items-center justify-between border-t border-border pt-6">
+                <div className="mt-6 flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Next billing date</p>
                     <p className="font-medium text-foreground">March 15, 2024</p>
@@ -241,7 +241,7 @@ const Profile = () => {
                   Manage your payment methods
                 </p>
 
-                <div className="mt-6 flex items-center justify-between">
+                <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
                       <CreditCard className="h-5 w-5 text-foreground" />
@@ -267,7 +267,7 @@ const Profile = () => {
                   ].map((invoice, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                      className="flex flex-col gap-2 border-b border-border pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div>
                         <p className="font-medium text-foreground">{invoice.date}</p>

@@ -26,7 +26,7 @@ const Player = () => {
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Top Bar */}
-      <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
+      <header className="flex h-14 items-center justify-between border-b border-border bg-card px-3 sm:px-4">
         <div className="flex items-center gap-4">
           <Link to={`/course/${id}`}>
             <Button variant="ghost" size="sm">
@@ -116,7 +116,7 @@ const Player = () => {
           </div>
 
           {/* Lesson Info */}
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-4 sm:p-6">
             <div className="max-w-3xl">
               <h1 className="font-display text-2xl font-bold text-foreground">
                 {currentLesson.title}
@@ -137,7 +137,7 @@ const Player = () => {
                 </p>
               </div>
 
-              <div className="mt-8 flex gap-4">
+              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button>
                   <CheckCircle className="mr-2 h-4 w-4" />
                   Mark as Complete
@@ -152,9 +152,9 @@ const Player = () => {
 
         {/* Sidebar - Course Content */}
         <div
-          className={`w-80 flex-shrink-0 border-l border-border bg-card transition-all ${
+          className={`w-full flex-shrink-0 border-l border-border bg-card transition-all sm:w-80 ${
             isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-          } fixed right-0 top-14 bottom-0 lg:static lg:translate-x-0`}
+          } fixed bottom-0 right-0 top-14 z-20 lg:static lg:translate-x-0`}
         >
           <div className="p-4 border-b border-border">
             <h2 className="font-semibold text-foreground">Course Content</h2>

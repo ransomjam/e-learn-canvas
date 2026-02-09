@@ -6,12 +6,15 @@ const {
     getCourseById,
     createCourse,
     updateCourse,
+    submitForReview,
     publishCourse,
     archiveCourse,
     deleteCourse,
     getInstructorCourses,
     getCategories
 } = require('../controllers/course.controller');
+
+const { createSection } = require('../controllers/lesson.controller');
 
 const {
     createCourseValidation,
@@ -53,6 +56,16 @@ router.get('/', optionalAuth, listCoursesValidation, validate, getCourses);
 router.get('/:id', optionalAuth, getCourseById);
 
 /**
+ * @route   POST /api/v1/courses/:id/sections
+ * @desc    Create a section for a course
+ * @access  Private/Instructor
+ */
+router.post('/:id/sections', authenticate, authorize('instructor', 'admin'), (req, res, next) => {
+    req.body.courseId = req.params.id;
+    next();
+}, createSection);
+
+/**
  * @route   POST /api/v1/courses
  * @desc    Create a new course
  * @access  Private/Instructor
@@ -65,6 +78,13 @@ router.post('/', authenticate, authorize('instructor', 'admin'), createCourseVal
  * @access  Private/Instructor
  */
 router.put('/:id', authenticate, authorize('instructor', 'admin'), updateCourseValidation, validate, updateCourse);
+
+/**
+ * @route   PUT /api/v1/courses/:id/submit-review
+ * @desc    Submit course for review
+ * @access  Private/Instructor
+ */
+router.put('/:id/submit-review', authenticate, authorize('instructor', 'admin'), courseIdValidation, validate, submitForReview);
 
 /**
  * @route   PUT /api/v1/courses/:id/publish

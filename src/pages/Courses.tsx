@@ -19,7 +19,7 @@ const Courses = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState('popular');
+  const [sortBy, setSortBy] = useState('created_at');
   const [page, setPage] = useState(1);
 
   const levels = ['beginner', 'intermediate', 'advanced'];
@@ -143,11 +143,11 @@ const Courses = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setSortBy('popular')}>Most Popular</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy('rating')}>Highest Rated</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy('newest')}>Newest</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy('price-low')}>Price: Low to High</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy('price-high')}>Price: High to Low</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('enrollment_count')}>Most Popular</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('rating_avg')}>Highest Rated</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('created_at')}>Newest</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('price')}>Price: Low to High</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {setSortBy('price'); /* Add sortOrder state for desc */}}>Price: High to Low</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

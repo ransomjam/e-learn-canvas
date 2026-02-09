@@ -175,12 +175,21 @@ const Player = () => {
           {/* Video Player */}
           <div className="relative aspect-video w-full bg-black">
             {currentLesson?.videoUrl ? (
-              <video
-                src={currentLesson.videoUrl}
-                className="h-full w-full"
-                controls
-                poster={course.thumbnailUrl}
-              />
+              currentLesson.videoUrl.includes('drive.google.com') ? (
+                <iframe
+                  src={currentLesson.videoUrl.replace('/view', '/preview')}
+                  className="h-full w-full"
+                  allow="autoplay"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={currentLesson.videoUrl}
+                  className="h-full w-full"
+                  controls
+                  poster={course.thumbnailUrl}
+                />
+              )
             ) : (
               <>
                 <img

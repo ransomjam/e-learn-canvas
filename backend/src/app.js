@@ -15,6 +15,8 @@ const paymentRoutes = require('./routes/payment.routes');
 const certificateRoutes = require('./routes/certificate.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const adminRoutes = require('./routes/admin.routes');
+const instructorRoutes = require('./routes/instructor.routes');
+const uploadRoutes = require('./routes/upload.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/error.middleware');
@@ -30,7 +32,7 @@ app.use(helmet({
             scriptSrcAttr: ["'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "https:"],
+            imgSrc: ["'self'", "data:", "https:", "http://localhost:*"],
             connectSrc: ["'self'", "http://localhost:*", "https://cdn.jsdelivr.net"],
         },
     },
@@ -76,6 +78,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Dashboard route
@@ -108,6 +111,8 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/certificates', certificateRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/instructor', instructorRoutes);
+app.use('/api/v1/upload', uploadRoutes);
 
 // API documentation endpoint
 app.get('/api/v1', (req, res) => {

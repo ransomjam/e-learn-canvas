@@ -40,7 +40,7 @@ const getCourses = asyncHandler(async (req, res) => {
 
     // Public users can only see published courses
     if (!req.user || req.user.role === 'learner') {
-        whereClause += ` AND c.status = 'published'`;
+        whereClause += ` AND c.status = 'published' AND c.moderation_status = 'approved'`;
     } else if (status) {
         whereClause += ` AND c.status = $${paramIndex++}`;
         params.push(status);
@@ -396,18 +396,71 @@ const updateCourse = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'No fields to update');
     }
 
+    // Reset moderation status if instructor updates published course
+    if (req.user.role !== 'admin' && courseResult.rows[0].status === 'published') {
+        updates.push(`moderation_status = 'pending_review'`);
+        updates.push(`status = 'draft'`);
+    }
+
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
     params.push(id);
 
     const result = await query(
         `UPDATE courses SET ${updates.join(', ')} WHERE id = $${paramIndex}
-     RETURNING id, title, slug, status, updated_at`,
+     RETURNING id, title, slug, status, moderation_status, updated_at`,
         params
     );
 
     res.json({
         success: true,
-        message: 'Course updated successfully',
+        message: req.user.role !== 'admin' && courseResult.rows[0].status === 'published' 
+            ? 'Course updated and sent for re-approval' 
+            : 'Course updated successfully',
+        data: result.rows[0]
+    });
+});
+
+/**
+ * @desc    Submit course for review
+ * @route   PUT /api/v1/courses/:id/submit-review
+ * @access  Private/Instructor
+ */
+const submitForReview = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const courseResult = await query(
+        'SELECT instructor_id, status FROM courses WHERE id = $1',
+        [id]
+    );
+
+    if (courseResult.rows.length === 0) {
+        throw new ApiError(404, 'Course not found');
+    }
+
+    if (req.user.role !== 'admin' && courseResult.rows[0].instructor_id !== req.user.id) {
+        throw new ApiError(403, 'You can only submit your own courses');
+    }
+
+    const lessonCount = await query(
+        'SELECT COUNT(*) FROM lessons WHERE course_id = $1',
+        [id]
+    );
+
+    if (parseInt(lessonCount.rows[0].count) === 0) {
+        throw new ApiError(400, 'Course must have at least one lesson before submission');
+    }
+
+    const result = await query(
+        `UPDATE courses 
+     SET moderation_status = 'pending_review', updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING id, title, status, moderation_status`,
+        [id]
+    );
+
+    res.json({
+        success: true,
+        message: 'Course submitted for review',
         data: result.rows[0]
     });
 });
@@ -420,9 +473,8 @@ const updateCourse = asyncHandler(async (req, res) => {
 const publishCourse = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    // Check ownership
     const courseResult = await query(
-        'SELECT instructor_id, status FROM courses WHERE id = $1',
+        'SELECT instructor_id, status, moderation_status FROM courses WHERE id = $1',
         [id]
     );
 
@@ -434,7 +486,11 @@ const publishCourse = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'You can only publish your own courses');
     }
 
-    // Check if course has at least one lesson
+    // Instructors need approval, admins can publish directly
+    if (req.user.role !== 'admin' && courseResult.rows[0].moderation_status !== 'approved') {
+        throw new ApiError(400, 'Course must be approved before publishing');
+    }
+
     const lessonCount = await query(
         'SELECT COUNT(*) FROM lessons WHERE course_id = $1',
         [id]
@@ -621,6 +677,7 @@ module.exports = {
     getCourseById,
     createCourse,
     updateCourse,
+    submitForReview,
     publishCourse,
     archiveCourse,
     deleteCourse,

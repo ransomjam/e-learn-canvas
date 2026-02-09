@@ -22,6 +22,16 @@ const { validate } = require('../middleware/validation.middleware');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 
 /**
+ * @route   PUT /api/v1/users/profile
+ * @desc    Update own profile
+ * @access  Private
+ */
+router.put('/profile', authenticate, updateUserValidation, validate, (req, res, next) => {
+    req.params.id = req.user.id;
+    next();
+}, updateUser);
+
+/**
  * @route   GET /api/v1/users/instructors
  * @desc    Get all instructors (public)
  * @access  Public

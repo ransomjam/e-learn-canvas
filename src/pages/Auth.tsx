@@ -1,15 +1,79 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { BookOpen, Mail, Lock, User, Eye, EyeOff, Github, Chrome } from 'lucide-react';
+import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { BookOpen, Mail, Lock, User, Eye, EyeOff, Github, Chrome, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { getErrorMessage } from '@/services/auth.service';
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, register, isAuthenticated } = useAuth();
+  const { toast } = useToast();
+
   const [isLogin, setIsLogin] = useState(searchParams.get('mode') !== 'signup');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+  });
+
+  // Redirect if already logged in
+  if (isAuthenticated) {
+    const from = (location.state as { from?: Location })?.from?.pathname || '/dashboard';
+    navigate(from, { replace: true });
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      if (isLogin) {
+        await login(formData.email, formData.password);
+        toast({
+          title: "Welcome back!",
+          description: "You have been logged in successfully.",
+        });
+      } else {
+        await register({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+        });
+        toast({
+          title: "Account created!",
+          description: "Welcome to LearnHub. Start exploring courses.",
+        });
+      }
+
+      const from = (location.state as { from?: Location })?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    } catch (error) {
+      toast({
+        title: isLogin ? "Login failed" : "Registration failed",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -40,11 +104,11 @@ const Auth = () => {
 
           {/* Social Login */}
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled>
               <Chrome className="mr-2 h-5 w-5" />
               Google
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled>
               <Github className="mr-2 h-5 w-5" />
               GitHub
             </Button>
@@ -62,18 +126,38 @@ const Auth = () => {
           </div>
 
           {/* Form */}
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {!isLogin && (
-              <div>
-                <Label htmlFor="name">Full Name</Label>
-                <div className="relative mt-2">
-                  <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="John Doe"
-                    className="pl-10"
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="firstName">First Name</Label>
+                  <div className="relative mt-2">
+                    <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="John"
+                      className="pl-10"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      required={!isLogin}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <div className="relative mt-2">
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Doe"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      required={!isLogin}
+                      disabled={isLoading}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -87,6 +171,10 @@ const Auth = () => {
                   type="email"
                   placeholder="you@example.com"
                   className="pl-10"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -100,6 +188,11 @@ const Auth = () => {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   className="pl-10 pr-10"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
@@ -125,7 +218,7 @@ const Auth = () => {
               </div>
             ) : (
               <div className="flex items-start gap-2">
-                <Checkbox id="terms" className="mt-1" />
+                <Checkbox id="terms" className="mt-1" required />
                 <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground">
                   I agree to the{' '}
                   <Link to="/terms" className="text-primary hover:underline">
@@ -139,11 +232,16 @@ const Auth = () => {
               </div>
             )}
 
-            <Link to="/dashboard">
-              <Button size="lg" className="w-full">
-                {isLogin ? 'Sign In' : 'Create Account'}
-              </Button>
-            </Link>
+            <Button size="lg" className="w-full" type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isLogin ? 'Signing in...' : 'Creating account...'}
+                </>
+              ) : (
+                isLogin ? 'Sign In' : 'Create Account'
+              )}
+            </Button>
           </form>
 
           {/* Toggle */}

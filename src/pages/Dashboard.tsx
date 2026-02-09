@@ -1,19 +1,43 @@
-import { Link } from 'react-router-dom';
-import { 
-  BookOpen, Clock, Award, Flame, Play, 
-  TrendingUp, Calendar, ChevronRight, Settings, LogOut
+import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import {
+  BookOpen, Clock, Award, Flame, Play,
+  TrendingUp, Calendar, ChevronRight, Settings, LogOut, Loader2
 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { userProgress } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { enrollmentsService, Enrollment } from '@/services/enrollments.service';
 
 const Dashboard = () => {
-  const stats = [
-    { icon: BookOpen, value: userProgress.enrolledCourses.length, label: 'Enrolled Courses', color: 'text-primary' },
-    { icon: Award, value: userProgress.certificates, label: 'Certificates', color: 'text-accent' },
-    { icon: Clock, value: `${userProgress.hoursLearned}h`, label: 'Hours Learned', color: 'text-emerald-400' },
-    { icon: Flame, value: userProgress.currentStreak, label: 'Day Streak', color: 'text-orange-400' },
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Fetch enrollments
+  const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
+    queryKey: ['enrollments'],
+    queryFn: () => enrollmentsService.getMyEnrollments('active'),
+  });
+
+  // Fetch learning stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['learningStats'],
+    queryFn: () => enrollmentsService.getLearningStats(),
+  });
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
+
+  const isLoading = enrollmentsLoading || statsLoading;
+
+  const statCards = [
+    { icon: BookOpen, value: stats?.totalEnrollments || 0, label: 'Enrolled Courses', color: 'text-primary' },
+    { icon: Award, value: stats?.certificates || 0, label: 'Certificates', color: 'text-accent' },
+    { icon: Clock, value: `${stats?.totalLessonsCompleted || 0}`, label: 'Lessons Completed', color: 'text-emerald-400' },
+    { icon: Flame, value: stats?.currentStreak || 0, label: 'Day Streak', color: 'text-orange-400' },
   ];
 
   return (
@@ -24,10 +48,12 @@ const Dashboard = () => {
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="font-display text-3xl font-bold text-foreground">
-                Welcome back, Alex! 👋
+                Welcome back, {user?.firstName}! 👋
               </h1>
               <p className="mt-1 text-muted-foreground">
-                You're on a {userProgress.currentStreak} day learning streak. Keep it up!
+                {(stats?.currentStreak || 0) > 0
+                  ? `You're on a ${stats?.currentStreak} day learning streak. Keep it up!`
+                  : 'Start learning today to build your streak!'}
               </p>
             </div>
             <div className="flex gap-3">
@@ -37,155 +63,188 @@ const Dashboard = () => {
                   Settings
                 </Button>
               </Link>
-              <Link to="/">
-                <Button variant="ghost" size="sm">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </Button>
-              </Link>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat, index) => (
-              <div
-                key={index}
-                className="rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50"
-              >
-                <div className={`flex h-12 w-12 items-center justify-center rounded-lg bg-secondary ${stat.color}`}>
-                  <stat.icon className="h-6 w-6" />
-                </div>
-                <p className="mt-4 font-display text-3xl font-bold text-foreground">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-8 lg:grid-cols-3">
-            {/* Continue Learning */}
-            <div className="lg:col-span-2">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="font-display text-2xl font-bold text-foreground">
-                  Continue Learning
-                </h2>
-                <Link to="/courses" className="text-sm text-primary hover:underline">
-                  View all courses
-                </Link>
-              </div>
-
-              <div className="space-y-4">
-                {userProgress.enrolledCourses.map((course) => (
-                  <Link
-                    key={course.id}
-                    to={`/player/${course.id}`}
-                    className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/50 sm:flex-row"
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              {/* Stats Grid */}
+              <div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {statCards.map((stat, index) => (
+                  <div
+                    key={index}
+                    className="rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50"
                   >
-                    <img
-                      src={course.thumbnail}
-                      alt={course.title}
-                      className="h-40 w-full flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-40"
-                    />
-                    <div className="flex flex-1 flex-col justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
-                          {course.title}
-                        </h3>
-                        <p className="mt-1 text-sm text-muted-foreground">{course.instructor}</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">{course.progress}% complete</span>
-                          <span className="text-muted-foreground">{course.lastAccessed}</span>
-                        </div>
-                        <Progress value={course.progress} className="mt-2 h-2" />
-                      </div>
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-lg bg-secondary ${stat.color}`}>
+                      <stat.icon className="h-6 w-6" />
                     </div>
-                    <div className="flex items-center">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary opacity-0 transition-opacity group-hover:opacity-100">
-                        <Play className="h-5 w-5 text-primary-foreground" fill="currentColor" />
-                      </div>
-                    </div>
-                  </Link>
+                    <p className="mt-4 font-display text-3xl font-bold text-foreground">{stat.value}</p>
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  </div>
                 ))}
               </div>
 
-              <Link to="/courses">
-                <Button variant="outline" className="mt-6 w-full">
-                  Browse More Courses
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Weekly Goal */}
-              <div className="rounded-xl border border-border bg-card p-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground">Weekly Goal</h3>
-                  <TrendingUp className="h-5 w-5 text-accent" />
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-end justify-between">
-                    <span className="font-display text-3xl font-bold text-foreground">8.5</span>
-                    <span className="text-sm text-muted-foreground">/ 10 hours</span>
+              <div className="grid gap-8 lg:grid-cols-3">
+                {/* Continue Learning */}
+                <div className="lg:col-span-2">
+                  <div className="mb-6 flex items-center justify-between">
+                    <h2 className="font-display text-2xl font-bold text-foreground">
+                      Continue Learning
+                    </h2>
+                    <Link to="/courses" className="text-sm text-primary hover:underline">
+                      View all courses
+                    </Link>
                   </div>
-                  <Progress value={85} className="mt-3 h-3" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Great progress! 1.5 more hours to hit your goal.
-                  </p>
+
+                  {enrollments && enrollments.length > 0 ? (
+                    <div className="space-y-4">
+                      {enrollments.map((enrollment: Enrollment) => (
+                        <Link
+                          key={enrollment.id}
+                          to={`/player/${enrollment.courseId}`}
+                          className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/50 sm:flex-row"
+                        >
+                          <img
+                            src={enrollment.course.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=225&fit=crop'}
+                            alt={enrollment.course.title}
+                            className="h-40 w-full flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-40"
+                          />
+                          <div className="flex flex-1 flex-col justify-between">
+                            <div>
+                              <h3 className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                                {enrollment.course.title}
+                              </h3>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {enrollment.course.instructor.firstName} {enrollment.course.instructor.lastName}
+                              </p>
+                            </div>
+                            <div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">{enrollment.progressPercentage}% complete</span>
+                                <span className="text-muted-foreground">
+                                  {new Date(enrollment.enrolledAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <Progress value={enrollment.progressPercentage} className="mt-2 h-2" />
+                            </div>
+                          </div>
+                          <div className="flex items-center">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary opacity-0 transition-opacity group-hover:opacity-100">
+                              <Play className="h-5 w-5 text-primary-foreground" fill="currentColor" />
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                      <BookOpen className="mx-auto h-12 w-12 text-muted-foreground" />
+                      <h3 className="mt-4 font-semibold text-foreground">No courses yet</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Start your learning journey by enrolling in a course.
+                      </p>
+                      <Link to="/courses">
+                        <Button className="mt-4">Browse Courses</Button>
+                      </Link>
+                    </div>
+                  )}
+
+                  <Link to="/courses">
+                    <Button variant="outline" className="mt-6 w-full">
+                      Browse More Courses
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Sidebar */}
+                <div className="space-y-6">
+                  {/* Weekly Goal */}
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">Weekly Goal</h3>
+                      <TrendingUp className="h-5 w-5 text-accent" />
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex items-end justify-between">
+                        <span className="font-display text-3xl font-bold text-foreground">
+                          {stats?.totalLessonsCompleted || 0}
+                        </span>
+                        <span className="text-sm text-muted-foreground">/ 10 lessons</span>
+                      </div>
+                      <Progress value={Math.min((stats?.totalLessonsCompleted || 0) * 10, 100)} className="mt-3 h-3" />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {(stats?.totalLessonsCompleted || 0) >= 10
+                          ? "🎉 Goal achieved! Great work!"
+                          : `${10 - (stats?.totalLessonsCompleted || 0)} more lessons to hit your goal.`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Upcoming */}
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">Upcoming</h3>
+                      <Calendar className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="mt-4 space-y-4">
+                      <div className="flex gap-3">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                          <Play className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">Continue Learning</p>
+                          <p className="text-sm text-muted-foreground">Pick up where you left off</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                          <Award className="h-5 w-5 text-accent" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">Complete a Course</p>
+                          <p className="text-sm text-muted-foreground">Earn your certificate</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Achievements */}
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <h3 className="font-semibold text-foreground">Achievements</h3>
+                    <div className="mt-4 flex gap-3">
+                      {(stats?.currentStreak || 0) >= 7 && (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500">
+                          <Flame className="h-6 w-6 text-background" />
+                        </div>
+                      )}
+                      {(stats?.certificates || 0) > 0 && (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent">
+                          <Award className="h-6 w-6 text-background" />
+                        </div>
+                      )}
+                      {(stats?.completedCourses || 0) > 0 && (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500">
+                          <BookOpen className="h-6 w-6 text-background" />
+                        </div>
+                      )}
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-border">
+                        <span className="text-xl text-muted-foreground">+</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {/* Upcoming */}
-              <div className="rounded-xl border border-border bg-card p-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground">Upcoming</h3>
-                  <Calendar className="h-5 w-5 text-primary" />
-                </div>
-                <div className="mt-4 space-y-4">
-                  <div className="flex gap-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <Play className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Live Q&A Session</p>
-                      <p className="text-sm text-muted-foreground">Tomorrow, 3:00 PM</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                      <Award className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Project Deadline</p>
-                      <p className="text-sm text-muted-foreground">Friday, 11:59 PM</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Achievements */}
-              <div className="rounded-xl border border-border bg-card p-6">
-                <h3 className="font-semibold text-foreground">Recent Achievements</h3>
-                <div className="mt-4 flex gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500">
-                    <Flame className="h-6 w-6 text-background" />
-                  </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent">
-                    <Award className="h-6 w-6 text-background" />
-                  </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500">
-                    <BookOpen className="h-6 w-6 text-background" />
-                  </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-border">
-                    <span className="text-xl text-muted-foreground">+5</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </Layout>

@@ -1,0 +1,133 @@
+import api from '@/lib/api';
+
+export interface Course {
+    id: string;
+    title: string;
+    slug: string;
+    shortDescription?: string;
+    description?: string;
+    thumbnailUrl?: string;
+    price: number;
+    discountPrice?: number;
+    currency: string;
+    level: 'beginner' | 'intermediate' | 'advanced';
+    status: 'draft' | 'published' | 'archived';
+    duration?: number;
+    lessonCount: number;
+    enrollmentCount: number;
+    ratingAvg: number;
+    ratingCount: number;
+    instructor: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        avatarUrl?: string;
+    };
+    category?: {
+        id: string;
+        name: string;
+    };
+    isFree: boolean;
+    createdAt: string;
+}
+
+export interface Category {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    courseCount: number;
+}
+
+export interface Section {
+    id: string;
+    title: string;
+    orderIndex: number;
+    lessons: Lesson[];
+}
+
+export interface Lesson {
+    id: string;
+    title: string;
+    type: 'video' | 'article' | 'quiz' | 'assignment';
+    duration?: number;
+    orderIndex: number;
+    isFree: boolean;
+    isCompleted?: boolean;
+    videoUrl?: string;
+    content?: string;
+}
+
+export interface CoursesParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    level?: string;
+    sortBy?: string;
+}
+
+export interface PaginatedResponse<T> {
+    data: T[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        pages: number;
+    };
+}
+
+export const coursesService = {
+    async getCourses(params: CoursesParams = {}): Promise<PaginatedResponse<Course>> {
+        const response = await api.get('/courses', { params });
+        return {
+            data: response.data.data.courses,
+            pagination: response.data.data.pagination,
+        };
+    },
+
+    async getCourseById(id: string): Promise<Course> {
+        const response = await api.get(`/courses/${id}`);
+        return response.data.data;
+    },
+
+    async getCourseBySlug(slug: string): Promise<Course> {
+        const response = await api.get(`/courses/${slug}`);
+        return response.data.data;
+    },
+
+    async getCategories(): Promise<Category[]> {
+        const response = await api.get('/courses/categories');
+        return response.data.data;
+    },
+
+    async getCourseLessons(courseId: string): Promise<Section[]> {
+        const response = await api.get(`/lessons/course/${courseId}`);
+        return response.data.data.sections || [];
+    },
+
+    async getLessonById(lessonId: string): Promise<Lesson> {
+        const response = await api.get(`/lessons/${lessonId}`);
+        return response.data.data;
+    },
+
+    // Instructor methods
+    async createCourse(data: Partial<Course>): Promise<Course> {
+        const response = await api.post('/courses', data);
+        return response.data.data;
+    },
+
+    async updateCourse(id: string, data: Partial<Course>): Promise<Course> {
+        const response = await api.put(`/courses/${id}`, data);
+        return response.data.data;
+    },
+
+    async publishCourse(id: string): Promise<void> {
+        await api.put(`/courses/${id}/publish`);
+    },
+
+    async getInstructorCourses(): Promise<Course[]> {
+        const response = await api.get('/courses/instructor/me');
+        return response.data.data.courses;
+    },
+};

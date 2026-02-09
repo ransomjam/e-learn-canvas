@@ -13,16 +13,49 @@ const enrollmentRoutes = require('./routes/enrollment.routes');
 const progressRoutes = require('./routes/progress.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const certificateRoutes = require('./routes/certificate.routes');
+const analyticsRoutes = require('./routes/analytics.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/error.middleware');
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - configure CSP for dashboard
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
+            scriptSrcAttr: ["'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "http://localhost:*", "https://cdn.jsdelivr.net"],
+        },
+    },
+}));
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: function (origin, callback) {
+        const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(o => o.trim());
+
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+
+        // Development: automatically allow local network IPs and localhost:3001
+        if (process.env.NODE_ENV === 'development') {
+            if (origin.startsWith('http://192.168.') || origin === 'http://localhost:3001' || origin === 'http://127.0.0.1:3001') {
+                return callback(null, true);
+            }
+        }
+
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.error(`Blocked CORS origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 
@@ -40,6 +73,15 @@ app.use('/api/', limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Dashboard route
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+});
 
 // Logging
 if (process.env.NODE_ENV !== 'test') {
@@ -64,6 +106,8 @@ app.use('/api/v1/enrollments', enrollmentRoutes);
 app.use('/api/v1/progress', progressRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/certificates', certificateRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // API documentation endpoint
 app.get('/api/v1', (req, res) => {

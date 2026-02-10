@@ -13,10 +13,6 @@ const Index = () => {
   });
 
   const courses = coursesData?.data || [];
-  const featuredCourses = courses.slice(0, 3);
-  const popularCourses = courses.slice(0, 4);
-
-
 
   return (
     <Layout>
@@ -56,16 +52,16 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Featured Courses */}
+      {/* Courses Section */}
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="font-display text-3xl font-bold text-foreground md:text-4xl">
-                Featured Courses
+                Popular Courses
               </h2>
               <p className="mt-2 text-muted-foreground">
-                Hand-picked courses to get you started
+                Trending courses picked by our community
               </p>
             </div>
             <Link to="/courses">
@@ -76,28 +72,8 @@ const Index = () => {
             </Link>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {featuredCourses.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Popular Courses */}
-      <section className="bg-card py-20">
-        <div className="container mx-auto px-4">
-          <div className="mb-12 text-center">
-            <h2 className="font-display text-3xl font-bold text-foreground md:text-4xl">
-              Popular This Week
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              Join thousands of learners in these trending courses
-            </p>
-          </div>
-
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {popularCourses.map((course) => (
+            {courses.slice(0, 4).map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>
@@ -124,9 +100,9 @@ const Index = () => {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link to="/pricing">
+            <Link to="/courses">
               <Button variant="outline" size="xl">
-                View Pricing
+                Browse Courses
               </Button>
             </Link>
           </div>

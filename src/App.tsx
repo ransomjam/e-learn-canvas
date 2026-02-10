@@ -11,7 +11,7 @@ import CourseDetail from "./pages/CourseDetail";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Player from "./pages/Player";
-import Pricing from "./pages/Pricing";
+
 import Profile from "./pages/Profile";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import CourseEditor from "./pages/CourseEditor";
@@ -39,7 +39,7 @@ const App = () => (
             <Route path="/courses" element={<Courses />} />
             <Route path="/course/:id" element={<CourseDetail />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/pricing" element={<Pricing />} />
+            
 
             {/* Protected Routes */}
             <Route

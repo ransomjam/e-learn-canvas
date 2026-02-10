@@ -22,7 +22,6 @@ const Navbar = () => {
 
   const navLinks = [
     { path: '/courses', label: 'Courses' },
-    { path: '/pricing', label: 'Pricing' },
   ];
 
   const isActive = (path: string) => location.pathname === path;

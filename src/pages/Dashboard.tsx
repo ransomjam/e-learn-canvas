@@ -157,13 +157,6 @@ const Dashboard = () => {
                       </Link>
                     </div>
                   )}
-
-                  <Link to="/courses">
-                    <Button variant="outline" className="mt-6 w-full">
-                      Browse More Courses
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
                 </div>
 
                 {/* Sidebar */}

@@ -55,6 +55,11 @@ const CourseDetail = () => {
       return;
     }
 
+    if (isEnrolled) {
+      navigate(`/player/${id}`);
+      return;
+    }
+
     setIsEnrolling(true);
     try {
       if (course?.isFree || course?.price === 0) {
@@ -80,29 +85,47 @@ const CourseDetail = () => {
         navigate(`/player/${id}`);
       }
     } catch (error: any) {
-      toast({
-        title: "Enrollment failed",
-        description: error.response?.data?.message || "Please try again.",
-        variant: "destructive",
-      });
+      const errorMsg = error.response?.data?.message || "Please try again.";
+      if (errorMsg.toLowerCase().includes('already enrolled')) {
+        queryClient.invalidateQueries({ queryKey: ['enrollment', id] });
+        navigate(`/player/${id}`);
+      } else {
+        toast({
+          title: "Enrollment failed",
+          description: errorMsg,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsEnrolling(false);
     }
   };
 
-  const whatYouLearn = [
-    'Build powerful, fast, user-friendly and reactive web apps',
-    'Apply for high-paid jobs or work as a freelancer',
-    'Understand the core concepts behind modern frameworks',
-    'Build modern, complex, responsive and scalable web applications',
-  ];
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+      try {
+        await coursesService.deleteCourse(id!);
+        toast({
+          title: "Course deleted",
+          description: "The course has been successfully removed.",
+        });
+        navigate('/courses');
+      } catch (error) {
+        toast({
+          title: "Error deleting course",
+          description: "Failed to delete the course. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
 
-  const requirements = [
-    'Basic understanding of JavaScript fundamentals',
-    'Familiarity with HTML and CSS',
-    'A computer with internet connection',
-    'No prior framework experience required',
-  ];
+  const handleEdit = () => {
+    // Navigate to edit page (to be implemented)
+    navigate(`/instructor/courses/${id}/edit`);
+  };
+
+
 
   if (courseLoading) {
     return (
@@ -176,7 +199,7 @@ const CourseDetail = () => {
               {/* Instructor */}
               <div className="mt-6 flex items-center gap-3">
                 <img
-                  src={resolveMediaUrl(course.instructor.avatarUrl) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
+                  src={resolveMediaUrl(course.instructor.avatarUrl) || ''}
                   alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
                   className="h-12 w-12 rounded-full object-cover"
                 />
@@ -207,13 +230,24 @@ const CourseDetail = () => {
                   <span>Certificate</span>
                 </div>
               </div>
+
+              {isAuthenticated && (user?.role === 'admin' || user?.id === course?.instructor?.id) && (
+                <div className="mt-8 flex gap-3">
+                  <Button variant="outline" onClick={handleEdit}>
+                    Edit Course
+                  </Button>
+                  <Button variant="destructive" onClick={handleDelete}>
+                    Delete Course
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Price Card */}
             <div className="lg:row-start-1 lg:col-start-3">
               <div className="overflow-hidden rounded-xl border border-border bg-card lg:sticky lg:top-24">
                 <img
-                  src={resolveMediaUrl(course.thumbnailUrl) || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=450&fit=crop'}
+                  src={resolveMediaUrl(course.thumbnailUrl) || ''}
                   alt={course.title}
                   className="aspect-video w-full object-cover"
                 />
@@ -317,34 +351,38 @@ const CourseDetail = () => {
           <div className="grid gap-12 lg:grid-cols-3">
             <div className="space-y-12 lg:col-span-2">
               {/* What you'll learn */}
-              <div className="rounded-xl border border-border bg-card p-6">
-                <h2 className="font-display text-2xl font-bold text-foreground">
-                  What you'll learn
-                </h2>
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {whatYouLearn.map((item, index) => (
-                    <div key={index} className="flex gap-3">
-                      <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
-                      <span className="text-muted-foreground">{item}</span>
-                    </div>
-                  ))}
+              {course.objectives && course.objectives.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <h2 className="font-display text-2xl font-bold text-foreground">
+                    What you'll learn
+                  </h2>
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    {course.objectives.map((item, index) => (
+                      <div key={index} className="flex gap-3">
+                        <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
+                        <span className="text-muted-foreground">{item}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Requirements */}
-              <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">
-                  Requirements
-                </h2>
-                <ul className="mt-4 space-y-2">
-                  {requirements.map((req, index) => (
-                    <li key={index} className="flex items-start gap-2 text-muted-foreground">
-                      <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
-                      {req}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {course.requirements && course.requirements.length > 0 && (
+                <div>
+                  <h2 className="font-display text-2xl font-bold text-foreground">
+                    Requirements
+                  </h2>
+                  <ul className="mt-4 space-y-2">
+                    {course.requirements.map((req, index) => (
+                      <li key={index} className="flex items-start gap-2 text-muted-foreground">
+                        <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
+                        {req}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Course Content */}
               <div>
@@ -415,7 +453,7 @@ const CourseDetail = () => {
                 </h2>
                 <div className="mt-6 flex flex-col gap-6 sm:flex-row">
                   <img
-                    src={resolveMediaUrl(course.instructor.avatarUrl) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
+                    src={resolveMediaUrl(course.instructor.avatarUrl) || ''}
                     alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
                     className="h-24 w-24 rounded-full object-cover"
                   />
@@ -431,9 +469,11 @@ const CourseDetail = () => {
                       </span>
                       <span>{course.enrollmentCount.toLocaleString()} Students</span>
                     </div>
-                    <p className="mt-4 text-muted-foreground">
-                      Passionate educator committed to making complex topics accessible and engaging for all learners.
-                    </p>
+                    {course.instructor.bio && (
+                      <p className="mt-4 text-muted-foreground">
+                        {course.instructor.bio}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

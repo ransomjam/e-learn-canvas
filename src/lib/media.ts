@@ -39,6 +39,11 @@ export const resolveMediaUrl = (url?: string | null) => {
     return `${apiOrigin}${uploadsPath}`;
   }
 
+  // If it already starts with /uploads, just prepend origin
+  if (value.startsWith('/uploads/')) {
+    return `${apiOrigin}${value}`;
+  }
+
   // Ensure leading slash and prepend /uploads
   const withLeadingSlash = value.startsWith('/') ? value : `/${value}`;
   return `${apiOrigin}/uploads${withLeadingSlash}`;

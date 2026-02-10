@@ -1,27 +1,22 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Play, Users, BookOpen, Award, TrendingUp, CheckCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import CourseCard from '@/components/courses/CourseCard';
 import { Button } from '@/components/ui/button';
-import { courses } from '@/data/mockData';
+import { coursesService } from '@/services/courses.service';
 
 const Index = () => {
-  const featuredCourses = courses.filter((c) => c.featured).slice(0, 3);
-  const popularCourses = courses.filter((c) => c.bestseller);
+  const { data: coursesData } = useQuery({
+    queryKey: ['courses', { limit: 8 }],
+    queryFn: () => coursesService.getCourses({ limit: 8, sortBy: 'enrollment_count' }),
+  });
 
-  const stats = [
-    { icon: Users, value: '500K+', label: 'Active Learners' },
-    { icon: BookOpen, value: '10K+', label: 'Expert-Led Courses' },
-    { icon: Award, value: '95%', label: 'Success Rate' },
-    { icon: TrendingUp, value: '150+', label: 'Countries' },
-  ];
+  const courses = coursesData?.data || [];
+  const featuredCourses = courses.slice(0, 3);
+  const popularCourses = courses.slice(0, 4);
 
-  const features = [
-    'Learn at your own pace with lifetime access',
-    'Expert instructors from top companies',
-    'Hands-on projects and real-world skills',
-    'Industry-recognized certificates',
-  ];
+
 
   return (
     <Layout>
@@ -34,85 +29,29 @@ const Index = () => {
         </div>
 
         <div className="container relative mx-auto px-4">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            {/* Content */}
-            <div className="animate-fade-in">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-                <span className="text-sm text-primary">New: AI-Powered Learning Paths</span>
-              </div>
+          <div className="mx-auto max-w-3xl text-center animate-fade-in">
+            <h1 className="font-display text-4xl font-bold leading-tight text-foreground md:text-5xl lg:text-6xl">
+              Unlock Your{' '}
+              <span className="text-gradient">Potential</span> with Expert-Led Courses
+            </h1>
 
-              <h1 className="font-display text-4xl font-bold leading-tight text-foreground md:text-5xl lg:text-6xl">
-                Unlock Your{' '}
-                <span className="text-gradient">Potential</span> with Expert-Led Courses
-              </h1>
+            <p className="mt-6 text-lg text-muted-foreground md:text-xl">
+              Master in-demand skills with courses taught by industry experts.
+            </p>
 
-              <p className="mt-6 text-lg text-muted-foreground md:text-xl">
-                Join over 500,000 learners worldwide. Master in-demand skills with courses taught by industry experts.
-              </p>
-
-              <ul className="mt-8 space-y-3">
-                {features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-3 text-foreground">
-                    <CheckCircle className="h-5 w-5 text-accent" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-                <Link to="/courses">
-                  <Button size="xl">
-                    Explore Courses
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Button variant="outline" size="xl">
-                  <Play className="mr-2 h-5 w-5" />
-                  Watch Demo
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Link to="/courses">
+                <Button size="xl">
+                  Explore Courses
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-              </div>
+              </Link>
+              <Link to="/auth?mode=signup">
+                <Button variant="outline" size="xl">
+                  Get Started Free
+                </Button>
+              </Link>
             </div>
-
-            {/* Hero Image */}
-            <div className="relative animate-fade-in [animation-delay:200ms]">
-              <div className="relative rounded-2xl border border-border bg-card p-2 shadow-2xl">
-                <img
-                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=600&fit=crop"
-                  alt="Students learning"
-                  className="w-full rounded-xl object-cover"
-                />
-                {/* Floating Card */}
-                <div className="absolute -left-4 bottom-4 rounded-xl border border-border bg-card p-3 shadow-lg sm:-left-8 sm:bottom-8 sm:p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/20">
-                      <TrendingUp className="h-6 w-6 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">12.5K</p>
-                      <p className="text-sm text-muted-foreground">New enrollments</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="border-y border-border bg-card py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-                  <stat.icon className="h-7 w-7 text-primary" />
-                </div>
-                <p className="font-display text-3xl font-bold text-foreground">{stat.value}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>

@@ -8,7 +8,6 @@
         "dev": "nodemon src/index.js",
         "migrate": "node src/database/migrate.js",
         "migrate:rollback": "node src/database/migrate.js rollback",
-        "seed": "node src/database/seed.js",
         "test": "jest"
     },
     "dependencies": {

@@ -78,17 +78,17 @@ const Dashboard = () => {
           ) : (
             <>
               {/* Stats Grid */}
-              <div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
                 {statCards.map((stat, index) => (
                   <div
                     key={index}
-                    className="rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50"
+                    className="rounded-xl border border-border bg-card p-3 transition-all hover:border-primary/50 lg:p-5"
                   >
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-lg bg-secondary ${stat.color}`}>
-                      <stat.icon className="h-6 w-6" />
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-secondary lg:h-10 lg:w-10 ${stat.color}`}>
+                      <stat.icon className="h-4 w-4 lg:h-5 lg:w-5" />
                     </div>
-                    <p className="mt-4 font-display text-3xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                    <p className="mt-2 font-display text-xl font-bold text-foreground lg:mt-3 lg:text-2xl">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground lg:text-sm">{stat.label}</p>
                   </div>
                 ))}
               </div>
@@ -114,7 +114,7 @@ const Dashboard = () => {
                           className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/50 sm:flex-row"
                         >
                           <img
-                            src={resolveMediaUrl(enrollment.course.thumbnailUrl) || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=225&fit=crop'}
+                            src={resolveMediaUrl(enrollment.course.thumbnailUrl) || ''}
                             alt={enrollment.course.title}
                             className="h-40 w-full flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-40"
                           />

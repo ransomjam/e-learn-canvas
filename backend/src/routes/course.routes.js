@@ -107,4 +107,47 @@ router.put('/:id/archive', authenticate, authorize('instructor', 'admin'), cours
  */
 router.delete('/:id', authenticate, authorize('instructor', 'admin'), courseIdValidation, validate, deleteCourse);
 
+const {
+    getResources,
+    addResource,
+    deleteResource,
+    getChatMessages,
+    postChatMessage
+} = require('../controllers/course-features.controller');
+
+/**
+ * @route   GET /api/v1/courses/:id/resources
+ * @desc    Get course resources
+ * @access  Private
+ */
+router.get('/:id/resources', authenticate, getResources);
+
+/**
+ * @route   POST /api/v1/courses/:id/resources
+ * @desc    Add a resource
+ * @access  Private/Instructor
+ */
+router.post('/:id/resources', authenticate, authorize('instructor', 'admin'), addResource);
+
+/**
+ * @route   DELETE /api/v1/courses/:id/resources/:resourceId
+ * @desc    Delete a resource
+ * @access  Private/Instructor
+ */
+router.delete('/:id/resources/:resourceId', authenticate, authorize('instructor', 'admin'), deleteResource);
+
+/**
+ * @route   GET /api/v1/courses/:id/chat
+ * @desc    Get chat messages
+ * @access  Private
+ */
+router.get('/:id/chat', authenticate, getChatMessages);
+
+/**
+ * @route   POST /api/v1/courses/:id/chat
+ * @desc    Post a chat message
+ * @access  Private
+ */
+router.post('/:id/chat', authenticate, postChatMessage);
+
 module.exports = router;

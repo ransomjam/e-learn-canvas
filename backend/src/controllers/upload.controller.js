@@ -20,16 +20,18 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB for video support
     fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|gif|webp/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        
-        if (mimetype && extname) {
+        const imageTypes = /jpeg|jpg|png|gif|webp/;
+        const videoTypes = /mp4|webm|ogg|mov|avi/;
+        const ext = path.extname(file.originalname).toLowerCase().slice(1);
+        const isImage = imageTypes.test(ext) && imageTypes.test(file.mimetype);
+        const isVideo = videoTypes.test(ext) || file.mimetype.startsWith('video/');
+
+        if (isImage || isVideo) {
             return cb(null, true);
         }
-        cb(new Error('Only image files are allowed'));
+        cb(new Error('Only image and video files are allowed'));
     }
 });
 
@@ -38,7 +40,7 @@ const uploadFile = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'No file uploaded');
     }
 
-    const fileUrl = `http://localhost:3001/uploads/${req.file.filename}`;
+    const fileUrl = `/uploads/${req.file.filename}`;
 
     res.json({
         success: true,

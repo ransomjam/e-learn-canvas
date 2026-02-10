@@ -23,8 +23,14 @@ const createLessonValidation = [
         .withMessage('Type must be video, text, quiz, or assignment'),
     body('videoUrl')
         .optional()
-        .isURL()
-        .withMessage('Video URL must be a valid URL'),
+        .trim()
+        .custom((value) => {
+            // Accept full URLs or relative paths starting with /uploads/
+            if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/uploads/') || value.startsWith('uploads/')) {
+                return true;
+            }
+            throw new Error('Video URL must be a valid URL or upload path');
+        }),
     body('videoDuration')
         .optional()
         .isInt({ min: 0 })
@@ -67,8 +73,13 @@ const updateLessonValidation = [
         .withMessage('Type must be video, text, quiz, or assignment'),
     body('videoUrl')
         .optional()
-        .isURL()
-        .withMessage('Video URL must be a valid URL'),
+        .trim()
+        .custom((value) => {
+            if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/uploads/') || value.startsWith('uploads/')) {
+                return true;
+            }
+            throw new Error('Video URL must be a valid URL or upload path');
+        }),
     body('videoDuration')
         .optional()
         .isInt({ min: 0 })

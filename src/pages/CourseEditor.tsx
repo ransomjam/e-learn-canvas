@@ -1,0 +1,1319 @@
+import { useState, useEffect, useRef } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    ArrowLeft, Save, Upload, Image, Video, Plus, Trash2, GripVertical,
+    ChevronDown, ChevronRight, Eye, Play, FileText, HelpCircle, Loader2,
+    X, Check, BookOpen, Settings2, Layers, Globe, DollarSign, Tag
+} from 'lucide-react';
+import Layout from '@/components/layout/Layout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { coursesService, Course, Section, Lesson } from '@/services/courses.service';
+import { instructorService } from '@/services/instructor.service';
+import { resolveMediaUrl } from '@/lib/media';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+const CourseEditor = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+    const { user } = useAuth();
+    const isNewCourse = !id || id === 'new';
+    const thumbnailInputRef = useRef<HTMLInputElement>(null);
+
+    // Form state
+    const [formData, setFormData] = useState({
+        title: '',
+        shortDescription: '',
+        description: '',
+        price: 0,
+        discountPrice: undefined as number | undefined,
+        level: 'beginner' as 'beginner' | 'intermediate' | 'advanced',
+        currency: 'USD',
+        thumbnailUrl: '',
+        objectives: [''] as string[],
+        requirements: [''] as string[],
+        categoryId: '',
+    });
+
+    const [activeTab, setActiveTab] = useState('details');
+    const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+
+    // Section/Lesson management state
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+    const [newSectionTitle, setNewSectionTitle] = useState('');
+    const [editingLesson, setEditingLesson] = useState<string | null>(null);
+    const [lessonForm, setLessonForm] = useState({
+        title: '',
+        type: 'video' as string,
+        content: '',
+        videoUrl: '',
+        duration: 0,
+        isFree: false,
+    });
+
+    // Fetch existing course
+    const { data: course, isLoading: courseLoading } = useQuery({
+        queryKey: ['course', id],
+        queryFn: () => coursesService.getCourseById(id!),
+        enabled: !isNewCourse,
+    });
+
+    // Fetch sections
+    const { data: sections = [], isLoading: sectionsLoading } = useQuery({
+        queryKey: ['courseLessons', id],
+        queryFn: () => coursesService.getCourseLessons(id!),
+        enabled: !isNewCourse,
+    });
+
+    // Fetch categories
+    const { data: categories = [] } = useQuery({
+        queryKey: ['categories'],
+        queryFn: () => coursesService.getCategories(),
+    });
+
+    // Populate form data from fetched course
+    useEffect(() => {
+        if (course) {
+            setFormData({
+                title: course.title || '',
+                shortDescription: course.shortDescription || '',
+                description: course.description || '',
+                price: course.price || 0,
+                discountPrice: course.discountPrice,
+                level: course.level || 'beginner',
+                currency: course.currency || 'USD',
+                thumbnailUrl: course.thumbnailUrl || '',
+                objectives: course.objectives?.length ? course.objectives : [''],
+                requirements: course.requirements?.length ? course.requirements : [''],
+                categoryId: course.category?.id || '',
+            });
+            if (course.thumbnailUrl) {
+                setThumbnailPreview(resolveMediaUrl(course.thumbnailUrl));
+            }
+        }
+    }, [course]);
+
+    // Create course mutation
+    const createCourseMutation = useMutation({
+        mutationFn: (data: Partial<Course>) => coursesService.createCourse(data),
+        onSuccess: (newCourse) => {
+            toast({ title: 'Course created!', description: 'Now add sections and lessons.' });
+            queryClient.invalidateQueries({ queryKey: ['instructorCourses'] });
+            navigate(`/instructor/courses/${newCourse.id}/edit`, { replace: true });
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Failed to create course',
+                description: error.response?.data?.message || 'Please try again.',
+                variant: 'destructive',
+            });
+        },
+    });
+
+    // Update course mutation
+    const updateCourseMutation = useMutation({
+        mutationFn: (data: Partial<Course>) => coursesService.updateCourse(id!, data),
+        onSuccess: () => {
+            toast({ title: 'Course updated!', description: 'Changes have been saved.' });
+            queryClient.invalidateQueries({ queryKey: ['course', id] });
+            queryClient.invalidateQueries({ queryKey: ['instructorCourses'] });
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Failed to update course',
+                description: error.response?.data?.message || 'Please try again.',
+                variant: 'destructive',
+            });
+        },
+    });
+
+    // Publish course mutation
+    const publishCourseMutation = useMutation({
+        mutationFn: () => coursesService.publishCourse(id!),
+        onSuccess: () => {
+            toast({ title: 'Course published!', description: 'Students can now enroll.' });
+            queryClient.invalidateQueries({ queryKey: ['course', id] });
+            queryClient.invalidateQueries({ queryKey: ['instructorCourses'] });
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Failed to publish',
+                description: error.response?.data?.message || 'Please try again.',
+                variant: 'destructive',
+            });
+        },
+    });
+
+    // Section mutations
+    const createSectionMutation = useMutation({
+        mutationFn: (data: { title: string }) => instructorService.createSection(id!, data),
+        onSuccess: () => {
+            toast({ title: 'Section added!' });
+            setNewSectionTitle('');
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', id] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to add section', variant: 'destructive' });
+        },
+    });
+
+    const deleteSectionMutation = useMutation({
+        mutationFn: (sectionId: string) => instructorService.deleteSection(sectionId),
+        onSuccess: () => {
+            toast({ title: 'Section deleted' });
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', id] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to delete section', variant: 'destructive' });
+        },
+    });
+
+    // Lesson mutations
+    const createLessonMutation = useMutation({
+        mutationFn: (data: any) => instructorService.createLesson(data),
+        onSuccess: () => {
+            toast({ title: 'Lesson added!' });
+            resetLessonForm();
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', id] });
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Failed to add lesson',
+                description: error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Please try again.',
+                variant: 'destructive',
+            });
+        },
+    });
+
+    const updateLessonMutation = useMutation({
+        mutationFn: ({ lessonId, data }: { lessonId: string; data: any }) =>
+            instructorService.updateLesson(lessonId, data),
+        onSuccess: () => {
+            toast({ title: 'Lesson updated!' });
+            setEditingLesson(null);
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', id] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to update lesson', variant: 'destructive' });
+        },
+    });
+
+    const deleteLessonMutation = useMutation({
+        mutationFn: (lessonId: string) => instructorService.deleteLesson(lessonId),
+        onSuccess: () => {
+            toast({ title: 'Lesson deleted' });
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', id] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to delete lesson', variant: 'destructive' });
+        },
+    });
+
+    const resetLessonForm = () => {
+        setLessonForm({
+            title: '',
+            type: 'video',
+            content: '',
+            videoUrl: '',
+            duration: 0,
+            isFree: false,
+        });
+    };
+
+    // Handle thumbnail upload
+    const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Show preview immediately
+        const reader = new FileReader();
+        reader.onloadend = () => setThumbnailPreview(reader.result as string);
+        reader.readAsDataURL(file);
+
+        setIsUploading(true);
+        try {
+            const result = await instructorService.uploadFile(file);
+            setFormData((prev) => ({ ...prev, thumbnailUrl: result.url }));
+            toast({ title: 'Thumbnail uploaded!' });
+        } catch {
+            toast({ title: 'Upload failed', variant: 'destructive' });
+            setThumbnailPreview(null);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    // Handle video upload for lessons
+    const handleVideoUpload = async (file: File) => {
+        setIsUploading(true);
+        try {
+            const result = await instructorService.uploadFile(file);
+            setLessonForm((prev) => ({ ...prev, videoUrl: result.url }));
+            toast({ title: 'Video uploaded!' });
+        } catch {
+            toast({ title: 'Video upload failed', variant: 'destructive' });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    // Handle form submission
+    const handleSaveCourse = () => {
+        const data: any = {
+            title: formData.title,
+            shortDescription: formData.shortDescription,
+            description: formData.description,
+            price: formData.price,
+            level: formData.level,
+            currency: formData.currency,
+            thumbnailUrl: formData.thumbnailUrl,
+            objectives: formData.objectives.filter((o) => o.trim()),
+            requirements: formData.requirements.filter((r) => r.trim()),
+        };
+
+        if (formData.discountPrice !== undefined && formData.discountPrice > 0) {
+            data.discountPrice = formData.discountPrice;
+        }
+
+        if (formData.categoryId) {
+            data.categoryId = formData.categoryId;
+        }
+
+        if (isNewCourse) {
+            createCourseMutation.mutate(data);
+        } else {
+            updateCourseMutation.mutate(data);
+        }
+    };
+
+    // Objectives / Requirements helpers
+    const addObjective = () => setFormData((prev) => ({ ...prev, objectives: [...prev.objectives, ''] }));
+    const removeObjective = (index: number) =>
+        setFormData((prev) => ({
+            ...prev,
+            objectives: prev.objectives.filter((_, i) => i !== index),
+        }));
+    const updateObjective = (index: number, value: string) =>
+        setFormData((prev) => ({
+            ...prev,
+            objectives: prev.objectives.map((o, i) => (i === index ? value : o)),
+        }));
+
+    const addRequirement = () => setFormData((prev) => ({ ...prev, requirements: [...prev.requirements, ''] }));
+    const removeRequirement = (index: number) =>
+        setFormData((prev) => ({
+            ...prev,
+            requirements: prev.requirements.filter((_, i) => i !== index),
+        }));
+    const updateRequirement = (index: number, value: string) =>
+        setFormData((prev) => ({
+            ...prev,
+            requirements: prev.requirements.map((r, i) => (i === index ? value : r)),
+        }));
+
+    // Toggle section expansion
+    const toggleSection = (sectionId: string) => {
+        setExpandedSections((prev) => {
+            const next = new Set(prev);
+            if (next.has(sectionId)) next.delete(sectionId);
+            else next.add(sectionId);
+            return next;
+        });
+    };
+
+    // Add lesson to section
+    const handleAddLesson = (sectionId: string) => {
+        if (!lessonForm.title.trim()) {
+            toast({ title: 'Lesson title is required', variant: 'destructive' });
+            return;
+        }
+        createLessonMutation.mutate({
+            sectionId,
+            courseId: id!,
+            title: lessonForm.title,
+            type: lessonForm.type,
+            content: lessonForm.content,
+            videoUrl: lessonForm.videoUrl || undefined,
+            videoDuration: lessonForm.duration,
+            isFree: lessonForm.isFree,
+        });
+    };
+
+    const isSaving = createCourseMutation.isPending || updateCourseMutation.isPending;
+
+    if (!isNewCourse && courseLoading) {
+        return (
+            <Layout>
+                <div className="flex items-center justify-center py-20">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            </Layout>
+        );
+    }
+
+    return (
+        <Layout>
+            <div className="py-6 lg:py-10">
+                <div className="container mx-auto px-4">
+                    {/* Header */}
+                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <Button variant="ghost" size="icon" onClick={() => navigate('/instructor')}>
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                            <div>
+                                <h1 className="font-display text-2xl font-bold text-foreground">
+                                    {isNewCourse ? 'Create New Course' : 'Edit Course'}
+                                </h1>
+                                {!isNewCourse && course && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant={course.status === 'published' ? 'default' : 'outline'}>
+                                            {course.status}
+                                        </Badge>
+                                        {course.status === 'draft' && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => publishCourseMutation.mutate()}
+                                                disabled={publishCourseMutation.isPending}
+                                                className="text-xs"
+                                            >
+                                                {publishCourseMutation.isPending ? (
+                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                ) : null}
+                                                Publish
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            {!isNewCourse && (
+                                <Link to={`/course/${id}`} target="_blank">
+                                    <Button variant="outline" size="sm">
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        Preview
+                                    </Button>
+                                </Link>
+                            )}
+                            <Button onClick={handleSaveCourse} disabled={isSaving}>
+                                {isSaving ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Save className="mr-2 h-4 w-4" />
+                                )}
+                                {isNewCourse ? 'Create Course' : 'Save Changes'}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                        <TabsList className="grid w-full max-w-lg grid-cols-3">
+                            <TabsTrigger value="details" className="gap-2">
+                                <Settings2 className="h-4 w-4" />
+                                Details
+                            </TabsTrigger>
+                            <TabsTrigger value="content" className="gap-2" disabled={isNewCourse}>
+                                <Layers className="h-4 w-4" />
+                                Content
+                            </TabsTrigger>
+                            <TabsTrigger value="resources" className="gap-2" disabled={isNewCourse}>
+                                <FileText className="h-4 w-4" />
+                                Resources
+                            </TabsTrigger>
+                        </TabsList>
+
+                        {/* ========== DETAILS TAB ========== */}
+                        <TabsContent value="details" className="space-y-6">
+                            <div className="grid gap-6 lg:grid-cols-3">
+                                {/* Main Form */}
+                                <div className="lg:col-span-2 space-y-6">
+                                    {/* Course Title */}
+                                    <div className="rounded-xl border border-border bg-card p-6">
+                                        <h3 className="font-semibold text-foreground mb-4">Basic Information</h3>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <Label htmlFor="title">Course Title *</Label>
+                                                <Input
+                                                    id="title"
+                                                    value={formData.title}
+                                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                                    placeholder="e.g., Complete React Developer Course"
+                                                    className="mt-2"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="shortDescription">Short Description</Label>
+                                                <Input
+                                                    id="shortDescription"
+                                                    value={formData.shortDescription}
+                                                    onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
+                                                    placeholder="A brief summary of the course"
+                                                    className="mt-2"
+                                                    maxLength={500}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="description">Full Description</Label>
+                                                <textarea
+                                                    id="description"
+                                                    rows={6}
+                                                    value={formData.description}
+                                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                                    placeholder="Detailed course description..."
+                                                    className="mt-2 w-full rounded-lg border border-border bg-secondary px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Objectives */}
+                                    <div className="rounded-xl border border-border bg-card p-6">
+                                        <h3 className="font-semibold text-foreground mb-4">What Students Will Learn</h3>
+                                        <div className="space-y-3">
+                                            {formData.objectives.map((obj, index) => (
+                                                <div key={index} className="flex items-center gap-2">
+                                                    <Check className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                                                    <Input
+                                                        value={obj}
+                                                        onChange={(e) => updateObjective(index, e.target.value)}
+                                                        placeholder={`Learning objective ${index + 1}`}
+                                                        className="flex-1"
+                                                    />
+                                                    {formData.objectives.length > 1 && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => removeObjective(index)}
+                                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <Button variant="outline" size="sm" onClick={addObjective} className="gap-2">
+                                                <Plus className="h-4 w-4" />
+                                                Add Objective
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* Requirements */}
+                                    <div className="rounded-xl border border-border bg-card p-6">
+                                        <h3 className="font-semibold text-foreground mb-4">Requirements</h3>
+                                        <div className="space-y-3">
+                                            {formData.requirements.map((req, index) => (
+                                                <div key={index} className="flex items-center gap-2">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                                                    <Input
+                                                        value={req}
+                                                        onChange={(e) => updateRequirement(index, e.target.value)}
+                                                        placeholder={`Requirement ${index + 1}`}
+                                                        className="flex-1"
+                                                    />
+                                                    {formData.requirements.length > 1 && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => removeRequirement(index)}
+                                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <Button variant="outline" size="sm" onClick={addRequirement} className="gap-2">
+                                                <Plus className="h-4 w-4" />
+                                                Add Requirement
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Sidebar */}
+                                <div className="space-y-6">
+                                    {/* Thumbnail */}
+                                    <div className="rounded-xl border border-border bg-card p-6">
+                                        <h3 className="font-semibold text-foreground mb-4">Course Thumbnail</h3>
+                                        <div
+                                            className="relative cursor-pointer overflow-hidden rounded-lg border-2 border-dashed border-border bg-secondary transition-colors hover:border-primary/50"
+                                            onClick={() => thumbnailInputRef.current?.click()}
+                                        >
+                                            {thumbnailPreview ? (
+                                                <img
+                                                    src={thumbnailPreview}
+                                                    alt="Thumbnail preview"
+                                                    className="aspect-video w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex aspect-video flex-col items-center justify-center gap-2 text-muted-foreground">
+                                                    <Image className="h-8 w-8" />
+                                                    <p className="text-sm">Click to upload thumbnail</p>
+                                                    <p className="text-xs">16:9 ratio recommended</p>
+                                                </div>
+                                            )}
+                                            {isUploading && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <input
+                                            ref={thumbnailInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleThumbnailUpload}
+                                        />
+                                    </div>
+
+                                    {/* Pricing */}
+                                    <div className="rounded-xl border border-border bg-card p-6">
+                                        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                                            <DollarSign className="h-4 w-4" />
+                                            Pricing
+                                        </h3>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <Label htmlFor="price">Price ($)</Label>
+                                                <Input
+                                                    id="price"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={formData.price}
+                                                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                                                    className="mt-2"
+                                                />
+                                                <p className="text-xs text-muted-foreground mt-1">Set to 0 for a free course</p>
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="discountPrice">Discount Price ($)</Label>
+                                                <Input
+                                                    id="discountPrice"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={formData.discountPrice || ''}
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            discountPrice: e.target.value ? parseFloat(e.target.value) : undefined,
+                                                        })
+                                                    }
+                                                    placeholder="Optional"
+                                                    className="mt-2"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Category & Level */}
+                                    <div className="rounded-xl border border-border bg-card p-6">
+                                        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                                            <Tag className="h-4 w-4" />
+                                            Category & Level
+                                        </h3>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <Label htmlFor="category">Category</Label>
+                                                <select
+                                                    id="category"
+                                                    value={formData.categoryId}
+                                                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                                                    className="mt-2 w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                                >
+                                                    <option value="">Select a category</option>
+                                                    {categories.map((cat) => (
+                                                        <option key={cat.id} value={cat.id}>
+                                                            {cat.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="level">Level</Label>
+                                                <select
+                                                    id="level"
+                                                    value={formData.level}
+                                                    onChange={(e) =>
+                                                        setFormData({ ...formData, level: e.target.value as any })
+                                                    }
+                                                    className="mt-2 w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                                >
+                                                    <option value="beginner">Beginner</option>
+                                                    <option value="intermediate">Intermediate</option>
+                                                    <option value="advanced">Advanced</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        {/* ========== CONTENT TAB ========== */}
+                        <TabsContent value="content" className="space-y-6">
+                            <div className="rounded-xl border border-border bg-card p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h3 className="font-display text-xl font-bold text-foreground">Course Content</h3>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Organize your course into sections and lessons
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Sections */}
+                                <div className="space-y-4">
+                                    {sections.map((section: Section, sectionIndex: number) => (
+                                        <div key={section.id} className="rounded-lg border border-border bg-secondary/30">
+                                            {/* Section Header */}
+                                            <div
+                                                className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/60 transition-colors"
+                                                onClick={() => toggleSection(section.id)}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                                    {expandedSections.has(section.id) ? (
+                                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                                    ) : (
+                                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                                    )}
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                                            Section {sectionIndex + 1}
+                                                        </p>
+                                                        <p className="font-semibold text-foreground">{section.title}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline">{section.lessons?.length || 0} lessons</Badge>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (window.confirm('Delete this section and all its lessons?')) {
+                                                                deleteSectionMutation.mutate(section.id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Section Content (Lessons) */}
+                                            {expandedSections.has(section.id) && (
+                                                <div className="border-t border-border p-4">
+                                                    {/* Existing Lessons */}
+                                                    {section.lessons && section.lessons.length > 0 && (
+                                                        <div className="space-y-2 mb-4">
+                                                            {section.lessons.map((lesson: Lesson, lessonIndex: number) => (
+                                                                <div
+                                                                    key={lesson.id}
+                                                                    className="flex items-center justify-between rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                                                        {lesson.type === 'video' ? (
+                                                                            <Play className="h-4 w-4 text-primary" />
+                                                                        ) : lesson.type === 'quiz' ? (
+                                                                            <HelpCircle className="h-4 w-4 text-accent" />
+                                                                        ) : (
+                                                                            <FileText className="h-4 w-4 text-primary" />
+                                                                        )}
+                                                                        <div>
+                                                                            <p className="text-sm font-medium text-foreground">{lesson.title}</p>
+                                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                                <Badge variant="outline" className="text-[10px] h-4">
+                                                                                    {lesson.type}
+                                                                                </Badge>
+                                                                                {lesson.duration && (
+                                                                                    <span className="text-xs text-muted-foreground">
+                                                                                        {lesson.duration} min
+                                                                                    </span>
+                                                                                )}
+                                                                                {lesson.isFree && (
+                                                                                    <Badge className="text-[10px] h-4 bg-emerald-500/20 text-emerald-400">
+                                                                                        Free
+                                                                                    </Badge>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7"
+                                                                            onClick={() => {
+                                                                                setEditingLesson(editingLesson === lesson.id ? null : lesson.id);
+                                                                                if (editingLesson !== lesson.id) {
+                                                                                    setLessonForm({
+                                                                                        title: lesson.title,
+                                                                                        type: lesson.type,
+                                                                                        content: lesson.content || '',
+                                                                                        videoUrl: lesson.videoUrl || '',
+                                                                                        duration: lesson.duration || 0,
+                                                                                        isFree: lesson.isFree,
+                                                                                    });
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Settings2 className="h-3 w-3" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                                            onClick={() => {
+                                                                                if (window.confirm('Delete this lesson?')) {
+                                                                                    deleteLessonMutation.mutate(lesson.id);
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+
+                                                            {/* Lesson Edit Form (inline) */}
+                                                            {editingLesson &&
+                                                                section.lessons.some((l: Lesson) => l.id === editingLesson) && (
+                                                                    <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                                                                        <h4 className="text-sm font-semibold text-foreground">Edit Lesson</h4>
+                                                                        <div className="grid gap-3 sm:grid-cols-2">
+                                                                            <div>
+                                                                                <Label className="text-xs">Title</Label>
+                                                                                <Input
+                                                                                    value={lessonForm.title}
+                                                                                    onChange={(e) =>
+                                                                                        setLessonForm((p) => ({ ...p, title: e.target.value }))
+                                                                                    }
+                                                                                    className="mt-1"
+                                                                                />
+                                                                            </div>
+                                                                            <div>
+                                                                                <Label className="text-xs">Type</Label>
+                                                                                <select
+                                                                                    value={lessonForm.type}
+                                                                                    onChange={(e) =>
+                                                                                        setLessonForm((p) => ({ ...p, type: e.target.value }))
+                                                                                    }
+                                                                                    className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground"
+                                                                                >
+                                                                                    <option value="video">Video</option>
+                                                                                    <option value="text">Article</option>
+                                                                                    <option value="quiz">Quiz</option>
+                                                                                    <option value="assignment">Assignment</option>
+                                                                                </select>
+                                                                            </div>
+                                                                        </div>
+                                                                        {lessonForm.type === 'video' && (
+                                                                            <div>
+                                                                                <Label className="text-xs">Video URL</Label>
+                                                                                <div className="flex gap-2 mt-1">
+                                                                                    <Input
+                                                                                        value={lessonForm.videoUrl}
+                                                                                        onChange={(e) =>
+                                                                                            setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))
+                                                                                        }
+                                                                                        placeholder="Video URL or upload a file"
+                                                                                        className="flex-1"
+                                                                                    />
+                                                                                    <Button
+                                                                                        variant="outline"
+                                                                                        size="sm"
+                                                                                        onClick={() => {
+                                                                                            const input = document.createElement('input');
+                                                                                            input.type = 'file';
+                                                                                            input.accept = 'video/*';
+                                                                                            input.onchange = (e) => {
+                                                                                                const file = (e.target as HTMLInputElement).files?.[0];
+                                                                                                if (file) handleVideoUpload(file);
+                                                                                            };
+                                                                                            input.click();
+                                                                                        }}
+                                                                                        disabled={isUploading}
+                                                                                    >
+                                                                                        {isUploading ? (
+                                                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                        ) : (
+                                                                                            <Video className="h-4 w-4" />
+                                                                                        )}
+                                                                                    </Button>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                        <div>
+                                                                            <Label className="text-xs">Content / Description</Label>
+                                                                            <textarea
+                                                                                value={lessonForm.content}
+                                                                                onChange={(e) =>
+                                                                                    setLessonForm((p) => ({ ...p, content: e.target.value }))
+                                                                                }
+                                                                                rows={3}
+                                                                                className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y"
+                                                                                placeholder="Lesson content or description..."
+                                                                            />
+                                                                        </div>
+                                                                        <div className="grid gap-3 sm:grid-cols-2">
+                                                                            <div>
+                                                                                <Label className="text-xs">Duration (minutes)</Label>
+                                                                                <Input
+                                                                                    type="number"
+                                                                                    value={lessonForm.duration}
+                                                                                    onChange={(e) =>
+                                                                                        setLessonForm((p) => ({
+                                                                                            ...p,
+                                                                                            duration: parseInt(e.target.value) || 0,
+                                                                                        }))
+                                                                                    }
+                                                                                    className="mt-1"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex items-end gap-2">
+                                                                                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={lessonForm.isFree}
+                                                                                        onChange={(e) =>
+                                                                                            setLessonForm((p) => ({ ...p, isFree: e.target.checked }))
+                                                                                        }
+                                                                                        className="rounded border-border"
+                                                                                    />
+                                                                                    Free Preview
+                                                                                </label>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex gap-2">
+                                                                            <Button
+                                                                                size="sm"
+                                                                                onClick={() =>
+                                                                                    updateLessonMutation.mutate({
+                                                                                        lessonId: editingLesson!,
+                                                                                        data: {
+                                                                                            title: lessonForm.title,
+                                                                                            type: lessonForm.type,
+                                                                                            content: lessonForm.content,
+                                                                                            videoUrl: lessonForm.videoUrl || undefined,
+                                                                                            videoDuration: lessonForm.duration,
+                                                                                            isFree: lessonForm.isFree,
+                                                                                        },
+                                                                                    })
+                                                                                }
+                                                                                disabled={updateLessonMutation.isPending}
+                                                                            >
+                                                                                {updateLessonMutation.isPending ? (
+                                                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                                                ) : (
+                                                                                    <Save className="mr-1 h-3 w-3" />
+                                                                                )}
+                                                                                Save
+                                                                            </Button>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                onClick={() => {
+                                                                                    setEditingLesson(null);
+                                                                                    resetLessonForm();
+                                                                                }}
+                                                                            >
+                                                                                Cancel
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Add New Lesson Form */}
+                                                    {!editingLesson && (
+                                                        <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+                                                            <h4 className="text-sm font-semibold text-muted-foreground">
+                                                                Add New Lesson
+                                                            </h4>
+                                                            <div className="grid gap-3 sm:grid-cols-2">
+                                                                <div>
+                                                                    <Label className="text-xs">Title *</Label>
+                                                                    <Input
+                                                                        value={lessonForm.title}
+                                                                        onChange={(e) =>
+                                                                            setLessonForm((p) => ({ ...p, title: e.target.value }))
+                                                                        }
+                                                                        placeholder="Lesson title"
+                                                                        className="mt-1"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <Label className="text-xs">Type</Label>
+                                                                    <select
+                                                                        value={lessonForm.type}
+                                                                        onChange={(e) =>
+                                                                            setLessonForm((p) => ({ ...p, type: e.target.value }))
+                                                                        }
+                                                                        className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground"
+                                                                    >
+                                                                        <option value="video">Video</option>
+                                                                        <option value="text">Article</option>
+                                                                        <option value="quiz">Quiz</option>
+                                                                        <option value="assignment">Assignment</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                            {lessonForm.type === 'video' && (
+                                                                <div>
+                                                                    <Label className="text-xs">Video URL</Label>
+                                                                    <div className="flex gap-2 mt-1">
+                                                                        <Input
+                                                                            value={lessonForm.videoUrl}
+                                                                            onChange={(e) =>
+                                                                                setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))
+                                                                            }
+                                                                            placeholder="Paste URL or upload"
+                                                                            className="flex-1"
+                                                                        />
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={() => {
+                                                                                const input = document.createElement('input');
+                                                                                input.type = 'file';
+                                                                                input.accept = 'video/*';
+                                                                                input.onchange = (e) => {
+                                                                                    const file = (e.target as HTMLInputElement).files?.[0];
+                                                                                    if (file) handleVideoUpload(file);
+                                                                                };
+                                                                                input.click();
+                                                                            }}
+                                                                            disabled={isUploading}
+                                                                        >
+                                                                            {isUploading ? (
+                                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                                            ) : (
+                                                                                <Upload className="h-4 w-4" />
+                                                                            )}
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            <div>
+                                                                <Label className="text-xs">Content</Label>
+                                                                <textarea
+                                                                    value={lessonForm.content}
+                                                                    onChange={(e) =>
+                                                                        setLessonForm((p) => ({ ...p, content: e.target.value }))
+                                                                    }
+                                                                    rows={2}
+                                                                    className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y"
+                                                                    placeholder="Lesson description..."
+                                                                />
+                                                            </div>
+                                                            <div className="grid gap-3 sm:grid-cols-2">
+                                                                <div>
+                                                                    <Label className="text-xs">Duration (min)</Label>
+                                                                    <Input
+                                                                        type="number"
+                                                                        value={lessonForm.duration}
+                                                                        onChange={(e) =>
+                                                                            setLessonForm((p) => ({
+                                                                                ...p,
+                                                                                duration: parseInt(e.target.value) || 0,
+                                                                            }))
+                                                                        }
+                                                                        className="mt-1"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex items-end">
+                                                                    <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={lessonForm.isFree}
+                                                                            onChange={(e) =>
+                                                                                setLessonForm((p) => ({ ...p, isFree: e.target.checked }))
+                                                                            }
+                                                                            className="rounded border-border"
+                                                                        />
+                                                                        Free Preview
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={() => handleAddLesson(section.id)}
+                                                                disabled={createLessonMutation.isPending}
+                                                            >
+                                                                {createLessonMutation.isPending ? (
+                                                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                                                ) : (
+                                                                    <Plus className="mr-2 h-3 w-3" />
+                                                                )}
+                                                                Add Lesson
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {/* Add new section */}
+                                    <div className="rounded-lg border-2 border-dashed border-border bg-secondary/10 p-4">
+                                        <h4 className="text-sm font-semibold text-foreground mb-3">
+                                            Add New Section
+                                        </h4>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                value={newSectionTitle}
+                                                onChange={(e) => setNewSectionTitle(e.target.value)}
+                                                placeholder="Section title (e.g., Introduction)"
+                                                className="flex-1"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && newSectionTitle.trim()) {
+                                                        createSectionMutation.mutate({ title: newSectionTitle });
+                                                    }
+                                                }}
+                                            />
+                                            <Button
+                                                onClick={() => {
+                                                    if (newSectionTitle.trim()) {
+                                                        createSectionMutation.mutate({ title: newSectionTitle });
+                                                    }
+                                                }}
+                                                disabled={createSectionMutation.isPending || !newSectionTitle.trim()}
+                                            >
+                                                {createSectionMutation.isPending ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Plus className="mr-2 h-4 w-4" />
+                                                )}
+                                                Add Section
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        {/* ========== RESOURCES TAB ========== */}
+                        <TabsContent value="resources" className="space-y-6">
+                            <ResourcesManager courseId={id!} />
+                        </TabsContent>
+                    </Tabs>
+                </div>
+            </div>
+        </Layout>
+    );
+};
+
+// Resources Manager Sub-component
+const ResourcesManager = ({ courseId }: { courseId: string }) => {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+    const [resourceForm, setResourceForm] = useState({
+        title: '',
+        url: '',
+        type: 'link',
+        description: '',
+    });
+
+    const { data: resources = [], isLoading } = useQuery({
+        queryKey: ['courseResources', courseId],
+        queryFn: () => coursesService.getResources(courseId),
+        enabled: !!courseId,
+    });
+
+    const addResourceMutation = useMutation({
+        mutationFn: (data: { title: string; url: string; type?: string; description?: string }) =>
+            coursesService.addResource(courseId, data),
+        onSuccess: () => {
+            toast({ title: 'Resource added!' });
+            setResourceForm({ title: '', url: '', type: 'link', description: '' });
+            queryClient.invalidateQueries({ queryKey: ['courseResources', courseId] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to add resource', variant: 'destructive' });
+        },
+    });
+
+    const deleteResourceMutation = useMutation({
+        mutationFn: (resourceId: string) => coursesService.deleteResource(courseId, resourceId),
+        onSuccess: () => {
+            toast({ title: 'Resource deleted' });
+            queryClient.invalidateQueries({ queryKey: ['courseResources', courseId] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to delete resource', variant: 'destructive' });
+        },
+    });
+
+    const handleUploadResource = async (file: File) => {
+        try {
+            const result = await instructorService.uploadFile(file);
+            setResourceForm((prev) => ({
+                ...prev,
+                url: result.url,
+                title: prev.title || file.name,
+            }));
+            toast({ title: 'File uploaded!' });
+        } catch {
+            toast({ title: 'Upload failed', variant: 'destructive' });
+        }
+    };
+
+    return (
+        <div className="rounded-xl border border-border bg-card p-6">
+            <h3 className="font-display text-xl font-bold text-foreground mb-6">
+                Course Resources
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+                Add supplementary materials like PDFs, links, or downloads for students.
+            </p>
+
+            {/* Existing Resources */}
+            {isLoading ? (
+                <div className="flex justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+            ) : resources.length > 0 ? (
+                <div className="space-y-3 mb-6">
+                    {resources.map((resource: any) => (
+                        <div
+                            key={resource.id}
+                            className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-3"
+                        >
+                            <div className="flex items-center gap-3 min-w-0">
+                                <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="font-medium text-foreground text-sm truncate">{resource.title}</p>
+                                    {resource.description && (
+                                        <p className="text-xs text-muted-foreground truncate">{resource.description}</p>
+                                    )}
+                                </div>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                onClick={() => {
+                                    if (window.confirm('Delete this resource?')) {
+                                        deleteResourceMutation.mutate(resource.id);
+                                    }
+                                }}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+
+            {/* Add Resource Form */}
+            <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+                <h4 className="text-sm font-semibold text-muted-foreground">Add Resource</h4>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <Label className="text-xs">Title *</Label>
+                        <Input
+                            value={resourceForm.title}
+                            onChange={(e) => setResourceForm((p) => ({ ...p, title: e.target.value }))}
+                            placeholder="Resource name"
+                            className="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label className="text-xs">Type</Label>
+                        <select
+                            value={resourceForm.type}
+                            onChange={(e) => setResourceForm((p) => ({ ...p, type: e.target.value }))}
+                            className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground"
+                        >
+                            <option value="link">Link</option>
+                            <option value="pdf">PDF</option>
+                            <option value="file">File</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <Label className="text-xs">URL / File</Label>
+                    <div className="flex gap-2 mt-1">
+                        <Input
+                            value={resourceForm.url}
+                            onChange={(e) => setResourceForm((p) => ({ ...p, url: e.target.value }))}
+                            placeholder="URL or upload a file"
+                            className="flex-1"
+                        />
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.onchange = (e) => {
+                                    const file = (e.target as HTMLInputElement).files?.[0];
+                                    if (file) handleUploadResource(file);
+                                };
+                                input.click();
+                            }}
+                        >
+                            <Upload className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+                <div>
+                    <Label className="text-xs">Description</Label>
+                    <Input
+                        value={resourceForm.description}
+                        onChange={(e) => setResourceForm((p) => ({ ...p, description: e.target.value }))}
+                        placeholder="Optional description"
+                        className="mt-1"
+                    />
+                </div>
+                <Button
+                    size="sm"
+                    onClick={() => {
+                        if (!resourceForm.title.trim() || !resourceForm.url.trim()) {
+                            toast({ title: 'Title and URL are required', variant: 'destructive' });
+                            return;
+                        }
+                        addResourceMutation.mutate(resourceForm);
+                    }}
+                    disabled={addResourceMutation.isPending}
+                >
+                    {addResourceMutation.isPending ? (
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    ) : (
+                        <Plus className="mr-2 h-3 w-3" />
+                    )}
+                    Add Resource
+                </Button>
+            </div>
+        </div>
+    );
+};
+
+
+export default CourseEditor;

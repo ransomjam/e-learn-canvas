@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { coursesService, Course } from '@/services/courses.service';
-import { resolveMediaUrl } from '@/lib/media';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,27 +45,6 @@ const Courses = () => {
 
   const courses = coursesData?.data || [];
   const pagination = coursesData?.pagination;
-
-  // Map API course to CourseCard format
-  const mapCourse = (course: Course) => ({
-    id: course.id,
-    title: course.title,
-    instructor: `${course.instructor.firstName} ${course.instructor.lastName}`,
-    instructorAvatar: resolveMediaUrl(course.instructor.avatarUrl) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-    thumbnail: resolveMediaUrl(course.thumbnailUrl) || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=450&fit=crop',
-    rating: course.ratingAvg,
-    reviewCount: course.ratingCount,
-    price: course.discountPrice || course.price,
-    originalPrice: course.discountPrice ? course.price : undefined,
-    category: course.category?.name || 'General',
-    level: (course.level.charAt(0).toUpperCase() + course.level.slice(1)) as 'Beginner' | 'Intermediate' | 'Advanced',
-    duration: course.duration ? `${Math.floor(course.duration / 60)} hours` : 'Self-paced',
-    lessonsCount: course.lessonCount,
-    studentsCount: course.enrollmentCount,
-    description: course.shortDescription || '',
-    bestseller: course.enrollmentCount > 1000,
-    featured: course.ratingAvg >= 4.5,
-  });
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -148,7 +126,7 @@ const Courses = () => {
                   <DropdownMenuItem onClick={() => setSortBy('rating_avg')}>Highest Rated</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSortBy('created_at')}>Newest</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSortBy('price')}>Price: Low to High</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {setSortBy('price'); /* Add sortOrder state for desc */}}>Price: High to Low</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setSortBy('price'); /* Add sortOrder state for desc */ }}>Price: High to Low</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -196,7 +174,7 @@ const Courses = () => {
             <>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {courses.map((course) => (
-                  <CourseCard key={course.id} course={mapCourse(course)} />
+                  <CourseCard key={course.id} course={course} />
                 ))}
               </div>
 

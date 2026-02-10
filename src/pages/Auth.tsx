@@ -76,9 +76,9 @@ const Auth = () => {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen items-center justify-center">
       {/* Left Side - Form */}
-      <div className="flex w-full flex-col justify-center px-6 py-12 sm:px-8 lg:w-1/2 lg:px-16">
+      <div className="flex w-full max-w-lg flex-col justify-center px-6 py-12 sm:px-8">
         <div className="mx-auto w-full max-w-md">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
@@ -257,34 +257,6 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* Right Side - Image */}
-      <div className="relative hidden lg:block lg:w-1/2">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20" />
-        <img
-          src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=1600&fit=crop"
-          alt="Learning"
-          className="h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-        <div className="absolute bottom-12 left-12 right-12">
-          <blockquote className="rounded-xl border border-border/50 bg-background/80 p-6 backdrop-blur-xl">
-            <p className="text-lg text-foreground">
-              "LearnHub transformed my career. The quality of courses and the community support are unmatched."
-            </p>
-            <footer className="mt-4 flex items-center gap-3">
-              <img
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
-                alt="User"
-                className="h-10 w-10 rounded-full object-cover"
-              />
-              <div>
-                <p className="font-semibold text-foreground">Alex Thompson</p>
-                <p className="text-sm text-muted-foreground">Software Engineer at Google</p>
-              </div>
-            </footer>
-          </blockquote>
-        </div>
-      </div>
     </div>
   );
 };

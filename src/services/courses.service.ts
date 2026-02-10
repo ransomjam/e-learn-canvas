@@ -22,6 +22,7 @@ export interface Course {
         firstName: string;
         lastName: string;
         avatarUrl?: string;
+        bio?: string;
     };
     category?: {
         id: string;
@@ -29,6 +30,9 @@ export interface Course {
     };
     isFree: boolean;
     createdAt: string;
+    objectives?: string[];
+    requirements?: string[];
+    isEnrolled?: boolean;
 }
 
 export interface Category {
@@ -49,7 +53,7 @@ export interface Section {
 export interface Lesson {
     id: string;
     title: string;
-    type: 'video' | 'article' | 'quiz' | 'assignment';
+    type: 'video' | 'text' | 'quiz' | 'assignment';
     duration?: number;
     orderIndex: number;
     isFree: boolean;
@@ -129,5 +133,35 @@ export const coursesService = {
     async getInstructorCourses(): Promise<Course[]> {
         const response = await api.get('/courses/instructor/me');
         return response.data.data.courses;
+    },
+
+    async deleteCourse(id: string): Promise<void> {
+        await api.delete(`/courses/${id}`);
+    },
+
+    // Resource methods
+    async getResources(courseId: string): Promise<any[]> {
+        const response = await api.get(`/courses/${courseId}/resources`);
+        return response.data.data;
+    },
+
+    async addResource(courseId: string, data: { title: string, url: string, type?: string, description?: string }): Promise<any> {
+        const response = await api.post(`/courses/${courseId}/resources`, data);
+        return response.data.data;
+    },
+
+    async deleteResource(courseId: string, resourceId: string): Promise<void> {
+        await api.delete(`/courses/${courseId}/resources/${resourceId}`);
+    },
+
+    // Chat methods
+    async getChatMessages(courseId: string): Promise<any[]> {
+        const response = await api.get(`/courses/${courseId}/chat`);
+        return response.data.data;
+    },
+
+    async postChatMessage(courseId: string, message: string): Promise<any> {
+        const response = await api.post(`/courses/${courseId}/chat`, { message });
+        return response.data.data;
     },
 };

@@ -152,7 +152,7 @@ async function fetchCurrentUser() {
             document.getElementById('userRole').textContent = currentUser.role === 'admin' ? 'Administrator' : 'Instructor';
             document.getElementById('userAvatar').textContent = currentUser.firstName[0];
             document.getElementById('loginOverlay').classList.add('hidden');
-            
+
             // Show/hide nav items based on role
             if (currentUser.role === 'instructor') {
                 document.getElementById('usersNav').style.display = 'none';
@@ -161,7 +161,7 @@ async function fetchCurrentUser() {
             } else {
                 document.getElementById('myCoursesNav').style.display = 'none';
             }
-            
+
             loadDashboard();
         } else {
             logout();
@@ -619,10 +619,14 @@ async function loadCourses() {
                         <td>$${(course.price || 0).toFixed(2)}</td>
                         <td>${course.enrollmentCount || 0}</td>
                         <td>
-                            ${course.moderationStatus === 'pending_review' ? `
-                                <button class="btn" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-right: 0.25rem;" onclick="approveCourse('${course.id}')">Approve</button>
-                                <button class="btn" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--danger);" onclick="rejectCourse('${course.id}')">Reject</button>
-                            ` : '-'}
+                            <div style="display: flex; gap: 0.25rem;">
+                                <button class="btn btn-sm" onclick="editCourse('${course.id}')">Edit</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteCourse('${course.id}')">Delete</button>
+                                ${course.moderationStatus === 'pending_review' ? `
+                                    <button class="btn btn-sm btn-success" onclick="approveCourse('${course.id}')">Approve</button>
+                                    <button class="btn btn-sm btn-danger" onclick="rejectCourse('${course.id}')">Reject</button>
+                                ` : ''}
+                            </div>
                         </td>
                     </tr>
                 `).join('');
@@ -876,14 +880,14 @@ function showCreateCourse() {
     document.getElementById('createCourseForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        
+
         // Upload thumbnail first if provided
         let thumbnailUrl = '';
         const thumbnailFile = formData.get('thumbnail');
         if (thumbnailFile && thumbnailFile.size > 0) {
             const uploadFormData = new FormData();
             uploadFormData.append('file', thumbnailFile);
-            
+
             try {
                 const uploadRes = await fetchWithAuth(`${API_URL}/upload`, {
                     method: 'POST',
@@ -897,7 +901,7 @@ function showCreateCourse() {
                 console.error('Upload failed:', err);
             }
         }
-        
+
         const courseData = {
             title: formData.get('title'),
             shortDescription: formData.get('shortDescription'),
@@ -933,24 +937,26 @@ function editCourse(courseId) {
 }
 
 async function loadCourseEditor(courseId) {
-    setActiveNav('mycourses');
-    
+    const backNav = currentUser.role === 'admin' ? 'courses' : 'mycourses';
+    setActiveNav(backNav);
+
     try {
         const res = await fetchWithAuth(`${API_URL}/courses/${courseId}`);
         const data = await res.json();
-        
+
         if (!data.success) {
             alert('Failed to load course');
             return;
         }
-        
+
         const course = data.data;
         const mainContent = document.getElementById('mainContent');
-        
+        const backAction = currentUser.role === 'admin' ? 'loadCourses()' : 'loadMyCourses()';
+
         mainContent.innerHTML = `
             <div class="header">
                 <h1>Edit Course: ${course.title}</h1>
-                <button class="btn" style="width: auto;" onclick="loadMyCourses()">← Back</button>
+                <button class="btn" style="width: auto;" onclick="${backAction}">← Back</button>
             </div>
             
             <div class="stat-card" style="margin-bottom: 1.5rem;">
@@ -995,36 +1001,36 @@ async function loadCourseEditor(courseId) {
                     <button class="btn" style="width: auto;" onclick="showAddLesson('${courseId}')">+ Add Lesson</button>
                 </div>
                 <div id="lessonsContainer">
-                    ${course.sections && course.sections.length > 0 ? 
-                        course.sections.map(section => `
+                    ${course.sections && course.sections.length > 0 ?
+                course.sections.map(section => `
                             <div style="margin-bottom: 1rem;">
                                 <h4>${section.title}</h4>
-                                ${section.lessons && section.lessons.length > 0 ? 
-                                    section.lessons.map(lesson => `
+                                ${section.lessons && section.lessons.length > 0 ?
+                        section.lessons.map(lesson => `
                                         <div style="padding: 0.5rem; background: var(--bg-dark); margin: 0.5rem 0; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
                                             <span>${lesson.title} (${lesson.type})</span>
                                             <button class="btn btn-sm btn-danger" onclick="deleteLesson('${lesson.id}', '${courseId}')">Delete</button>
                                         </div>
                                     `).join('') : '<p style="color: var(--text-muted);">No lessons</p>'
-                                }
+                    }
                             </div>
                         `).join('') : '<p style="color: var(--text-muted);">No sections yet. Add a lesson to create a section.</p>'
-                    }
+            }
                 </div>
             </div>
         `;
-        
+
         document.getElementById('editCourseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            
+
             // Upload thumbnail if new file provided
             let thumbnailUrl = course.thumbnailUrl;
             const thumbnailFile = formData.get('thumbnail');
             if (thumbnailFile && thumbnailFile.size > 0) {
                 const uploadFormData = new FormData();
                 uploadFormData.append('file', thumbnailFile);
-                
+
                 try {
                     const uploadRes = await fetchWithAuth(`${API_URL}/upload`, {
                         method: 'POST',
@@ -1038,7 +1044,7 @@ async function loadCourseEditor(courseId) {
                     console.error('Upload failed:', err);
                 }
             }
-            
+
             const updateData = {
                 title: formData.get('title'),
                 shortDescription: formData.get('shortDescription'),
@@ -1047,7 +1053,7 @@ async function loadCourseEditor(courseId) {
                 price: parseFloat(formData.get('price')),
                 level: formData.get('level')
             };
-            
+
             try {
                 const res = await fetchWithAuth(`${API_URL}/courses/${courseId}`, {
                     method: 'PUT',
@@ -1055,7 +1061,7 @@ async function loadCourseEditor(courseId) {
                     body: JSON.stringify(updateData)
                 });
                 const data = await res.json();
-                
+
                 if (data.success) {
                     alert('Course updated!');
                     loadCourseEditor(courseId);
@@ -1113,22 +1119,22 @@ function showAddLesson(courseId) {
             </form>
         </div>
     `;
-    
+
     document.getElementById('addLessonForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        
+
         // First, create or get section
         const sectionTitle = formData.get('sectionTitle');
         let sectionId;
-        
+
         try {
             const sectionRes = await fetchWithAuth(`${API_URL}/courses/${courseId}`);
             const courseData = await sectionRes.json();
-            
+
             if (courseData.success) {
                 const existingSection = courseData.data.sections?.find(s => s.title === sectionTitle);
-                
+
                 if (existingSection) {
                     sectionId = existingSection.id;
                 } else {
@@ -1144,12 +1150,12 @@ function showAddLesson(courseId) {
                     }
                 }
             }
-            
+
             if (!sectionId) {
                 alert('Failed to create section');
                 return;
             }
-            
+
             // Create lesson
             const lessonData = {
                 sectionId,
@@ -1159,14 +1165,14 @@ function showAddLesson(courseId) {
                 videoUrl: formData.get('videoUrl'),
                 videoDuration: parseInt(formData.get('duration')) * 60
             };
-            
+
             const lessonRes = await fetchWithAuth(`${API_URL}/lessons`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lessonData)
             });
             const lessonResData = await lessonRes.json();
-            
+
             if (lessonResData.success) {
                 alert('Lesson added!');
                 loadCourseEditor(courseId);
@@ -1181,13 +1187,13 @@ function showAddLesson(courseId) {
 
 async function deleteLesson(lessonId, courseId) {
     if (!confirm('Delete this lesson?')) return;
-    
+
     try {
         const res = await fetchWithAuth(`${API_URL}/lessons/${lessonId}`, {
             method: 'DELETE'
         });
         const data = await res.json();
-        
+
         if (data.success) {
             alert('Lesson deleted');
             loadCourseEditor(courseId);
@@ -1196,6 +1202,30 @@ async function deleteLesson(lessonId, courseId) {
         }
     } catch (err) {
         alert('Failed to delete lesson');
+    }
+}
+
+async function deleteCourse(courseId) {
+    if (!confirm('Are you sure you want to delete this course? This cannot be undone.')) return;
+
+    try {
+        const res = await fetchWithAuth(`${API_URL}/courses/${courseId}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            alert('Course deleted successfully');
+            if (currentUser.role === 'admin') {
+                loadCourses();
+            } else {
+                loadMyCourses();
+            }
+        } else {
+            alert(data.message || 'Failed to delete course');
+        }
+    } catch (err) {
+        alert('Failed to delete course');
     }
 }
 

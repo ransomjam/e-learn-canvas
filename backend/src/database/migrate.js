@@ -2,17 +2,17 @@ require('dotenv').config();
 const { pool } = require('../config/database');
 
 const migrations = [
-    // Enable UUID extension
-    {
-        name: '001_enable_uuid',
-        up: `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
-        down: `DROP EXTENSION IF EXISTS "uuid-ossp";`
-    },
+  // Enable UUID extension
+  {
+    name: '001_enable_uuid',
+    up: `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
+    down: `DROP EXTENSION IF EXISTS "uuid-ossp";`
+  },
 
-    // Users table
-    {
-        name: '002_create_users',
-        up: `
+  // Users table
+  {
+    name: '002_create_users',
+    up: `
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -36,13 +36,13 @@ const migrations = [
       CREATE INDEX idx_users_email ON users(email);
       CREATE INDEX idx_users_role ON users(role);
     `,
-        down: `DROP TABLE IF EXISTS users CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS users CASCADE;`
+  },
 
-    // Refresh tokens table
-    {
-        name: '003_create_refresh_tokens',
-        up: `
+  // Refresh tokens table
+  {
+    name: '003_create_refresh_tokens',
+    up: `
       CREATE TABLE IF NOT EXISTS refresh_tokens (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -54,13 +54,13 @@ const migrations = [
       CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
       CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
     `,
-        down: `DROP TABLE IF EXISTS refresh_tokens CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS refresh_tokens CASCADE;`
+  },
 
-    // Categories table
-    {
-        name: '004_create_categories',
-        up: `
+  // Categories table
+  {
+    name: '004_create_categories',
+    up: `
       CREATE TABLE IF NOT EXISTS categories (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         name VARCHAR(100) NOT NULL,
@@ -74,13 +74,13 @@ const migrations = [
       CREATE INDEX idx_categories_slug ON categories(slug);
       CREATE INDEX idx_categories_parent ON categories(parent_id);
     `,
-        down: `DROP TABLE IF EXISTS categories CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS categories CASCADE;`
+  },
 
-    // Courses table
-    {
-        name: '005_create_courses',
-        up: `
+  // Courses table
+  {
+    name: '005_create_courses',
+    up: `
       CREATE TABLE IF NOT EXISTS courses (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         instructor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -116,13 +116,13 @@ const migrations = [
       CREATE INDEX idx_courses_status ON courses(status);
       CREATE INDEX idx_courses_level ON courses(level);
     `,
-        down: `DROP TABLE IF EXISTS courses CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS courses CASCADE;`
+  },
 
-    // Sections table (course chapters)
-    {
-        name: '006_create_sections',
-        up: `
+  // Sections table (course chapters)
+  {
+    name: '006_create_sections',
+    up: `
       CREATE TABLE IF NOT EXISTS sections (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
@@ -135,13 +135,13 @@ const migrations = [
       
       CREATE INDEX idx_sections_course ON sections(course_id);
     `,
-        down: `DROP TABLE IF EXISTS sections CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS sections CASCADE;`
+  },
 
-    // Lessons table
-    {
-        name: '007_create_lessons',
-        up: `
+  // Lessons table
+  {
+    name: '007_create_lessons',
+    up: `
       CREATE TABLE IF NOT EXISTS lessons (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         section_id UUID NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
@@ -166,13 +166,13 @@ const migrations = [
       CREATE INDEX idx_lessons_course ON lessons(course_id);
       CREATE INDEX idx_lessons_type ON lessons(type);
     `,
-        down: `DROP TABLE IF EXISTS lessons CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS lessons CASCADE;`
+  },
 
-    // Enrollments table
-    {
-        name: '008_create_enrollments',
-        up: `
+  // Enrollments table
+  {
+    name: '008_create_enrollments',
+    up: `
       CREATE TABLE IF NOT EXISTS enrollments (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -192,13 +192,13 @@ const migrations = [
       CREATE INDEX idx_enrollments_course ON enrollments(course_id);
       CREATE INDEX idx_enrollments_status ON enrollments(status);
     `,
-        down: `DROP TABLE IF EXISTS enrollments CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS enrollments CASCADE;`
+  },
 
-    // Progress tracking table
-    {
-        name: '009_create_progress',
-        up: `
+  // Progress tracking table
+  {
+    name: '009_create_progress',
+    up: `
       CREATE TABLE IF NOT EXISTS progress (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -218,13 +218,13 @@ const migrations = [
       CREATE INDEX idx_progress_lesson ON progress(lesson_id);
       CREATE INDEX idx_progress_enrollment ON progress(enrollment_id);
     `,
-        down: `DROP TABLE IF EXISTS progress CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS progress CASCADE;`
+  },
 
-    // Payments table
-    {
-        name: '010_create_payments',
-        up: `
+  // Payments table
+  {
+    name: '010_create_payments',
+    up: `
       CREATE TABLE IF NOT EXISTS payments (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -251,13 +251,13 @@ const migrations = [
       CREATE INDEX idx_payments_status ON payments(status);
       CREATE INDEX idx_payments_transaction ON payments(transaction_id);
     `,
-        down: `DROP TABLE IF EXISTS payments CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS payments CASCADE;`
+  },
 
-    // Certificates table
-    {
-        name: '011_create_certificates',
-        up: `
+  // Certificates table
+  {
+    name: '011_create_certificates',
+    up: `
       CREATE TABLE IF NOT EXISTS certificates (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -280,13 +280,13 @@ const migrations = [
       CREATE INDEX idx_certificates_course ON certificates(course_id);
       CREATE INDEX idx_certificates_number ON certificates(certificate_number);
     `,
-        down: `DROP TABLE IF EXISTS certificates CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS certificates CASCADE;`
+  },
 
-    // Reviews table
-    {
-        name: '012_create_reviews',
-        up: `
+  // Reviews table
+  {
+    name: '012_create_reviews',
+    up: `
       CREATE TABLE IF NOT EXISTS reviews (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -304,32 +304,70 @@ const migrations = [
       CREATE INDEX idx_reviews_user ON reviews(user_id);
       CREATE INDEX idx_reviews_rating ON reviews(rating);
     `,
-        down: `DROP TABLE IF EXISTS reviews CASCADE;`
-    },
+    down: `DROP TABLE IF EXISTS reviews CASCADE;`
+  },
 
-    // Migrations tracking table
-    {
-        name: '000_create_migrations',
-        up: `
+  // Course Resources table
+  {
+    name: '013_create_course_resources',
+    up: `
+      CREATE TABLE IF NOT EXISTS course_resources (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        url TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'link',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE INDEX idx_course_resources_course ON course_resources(course_id);
+    `,
+    down: `DROP TABLE IF EXISTS course_resources CASCADE;`
+  },
+
+  // Chat Messages table
+  {
+    name: '014_create_chat_messages',
+    up: `
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE INDEX idx_chat_messages_course ON chat_messages(course_id);
+      CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at);
+    `,
+    down: `DROP TABLE IF EXISTS chat_messages CASCADE;`
+  },
+
+  // Migrations tracking table
+  {
+    name: '000_create_migrations',
+    up: `
       CREATE TABLE IF NOT EXISTS migrations (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
         executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `,
-        down: `DROP TABLE IF EXISTS migrations CASCADE;`
-    }
+    down: `DROP TABLE IF EXISTS migrations CASCADE;`
+  }
 ];
 
 // Run migrations
 const migrate = async () => {
-    const client = await pool.connect();
+  const client = await pool.connect();
 
-    try {
-        console.log('🔄 Starting database migration...\n');
+  try {
+    console.log('🔄 Starting database migration...\n');
 
-        // Create migrations table first
-        await client.query(`
+    // Create migrations table first
+    await client.query(`
       CREATE TABLE IF NOT EXISTS migrations (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
@@ -337,94 +375,94 @@ const migrate = async () => {
       );
     `);
 
-        // Get executed migrations
-        const { rows: executedMigrations } = await client.query(
-            'SELECT name FROM migrations ORDER BY id'
-        );
-        const executedNames = executedMigrations.map(m => m.name);
+    // Get executed migrations
+    const { rows: executedMigrations } = await client.query(
+      'SELECT name FROM migrations ORDER BY id'
+    );
+    const executedNames = executedMigrations.map(m => m.name);
 
-        // Run pending migrations
-        for (const migration of migrations) {
-            if (migration.name === '000_create_migrations') continue;
+    // Run pending migrations
+    for (const migration of migrations) {
+      if (migration.name === '000_create_migrations') continue;
 
-            if (!executedNames.includes(migration.name)) {
-                console.log(`  ⬆️  Running migration: ${migration.name}`);
-                await client.query('BEGIN');
-                try {
-                    await client.query(migration.up);
-                    await client.query(
-                        'INSERT INTO migrations (name) VALUES ($1)',
-                        [migration.name]
-                    );
-                    await client.query('COMMIT');
-                    console.log(`  ✅ Migration completed: ${migration.name}`);
-                } catch (error) {
-                    await client.query('ROLLBACK');
-                    throw error;
-                }
-            } else {
-                console.log(`  ⏭️  Skipping (already executed): ${migration.name}`);
-            }
+      if (!executedNames.includes(migration.name)) {
+        console.log(`  ⬆️  Running migration: ${migration.name}`);
+        await client.query('BEGIN');
+        try {
+          await client.query(migration.up);
+          await client.query(
+            'INSERT INTO migrations (name) VALUES ($1)',
+            [migration.name]
+          );
+          await client.query('COMMIT');
+          console.log(`  ✅ Migration completed: ${migration.name}`);
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
         }
-
-        console.log('\n✅ All migrations completed successfully!');
-    } catch (error) {
-        console.error('\n❌ Migration failed:', error.message);
-        throw error;
-    } finally {
-        client.release();
+      } else {
+        console.log(`  ⏭️  Skipping (already executed): ${migration.name}`);
+      }
     }
+
+    console.log('\n✅ All migrations completed successfully!');
+  } catch (error) {
+    console.error('\n❌ Migration failed:', error.message);
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 // Rollback migrations
 const rollback = async (steps = 1) => {
-    const client = await pool.connect();
+  const client = await pool.connect();
 
-    try {
-        console.log(`🔄 Rolling back ${steps} migration(s)...\n`);
+  try {
+    console.log(`🔄 Rolling back ${steps} migration(s)...\n`);
 
-        const { rows: executedMigrations } = await client.query(
-            'SELECT name FROM migrations ORDER BY id DESC LIMIT $1',
-            [steps]
-        );
+    const { rows: executedMigrations } = await client.query(
+      'SELECT name FROM migrations ORDER BY id DESC LIMIT $1',
+      [steps]
+    );
 
-        for (const { name } of executedMigrations) {
-            const migration = migrations.find(m => m.name === name);
-            if (migration) {
-                console.log(`  ⬇️  Rolling back: ${name}`);
-                await client.query('BEGIN');
-                try {
-                    await client.query(migration.down);
-                    await client.query('DELETE FROM migrations WHERE name = $1', [name]);
-                    await client.query('COMMIT');
-                    console.log(`  ✅ Rollback completed: ${name}`);
-                } catch (error) {
-                    await client.query('ROLLBACK');
-                    throw error;
-                }
-            }
+    for (const { name } of executedMigrations) {
+      const migration = migrations.find(m => m.name === name);
+      if (migration) {
+        console.log(`  ⬇️  Rolling back: ${name}`);
+        await client.query('BEGIN');
+        try {
+          await client.query(migration.down);
+          await client.query('DELETE FROM migrations WHERE name = $1', [name]);
+          await client.query('COMMIT');
+          console.log(`  ✅ Rollback completed: ${name}`);
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
         }
-
-        console.log('\n✅ Rollback completed successfully!');
-    } catch (error) {
-        console.error('\n❌ Rollback failed:', error.message);
-        throw error;
-    } finally {
-        client.release();
+      }
     }
+
+    console.log('\n✅ Rollback completed successfully!');
+  } catch (error) {
+    console.error('\n❌ Rollback failed:', error.message);
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 // CLI handling
 const args = process.argv.slice(2);
 if (args[0] === 'rollback') {
-    const steps = parseInt(args[1]) || 1;
-    rollback(steps)
-        .then(() => process.exit(0))
-        .catch(() => process.exit(1));
+  const steps = parseInt(args[1]) || 1;
+  rollback(steps)
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
 } else {
-    migrate()
-        .then(() => process.exit(0))
-        .catch(() => process.exit(1));
+  migrate()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
 }
 
 module.exports = { migrate, rollback, migrations };

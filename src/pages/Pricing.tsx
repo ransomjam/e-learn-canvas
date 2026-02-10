@@ -3,7 +3,55 @@ import { Check, Sparkles } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { pricingPlans } from '@/data/mockData';
+
+const pricingPlans = [
+  {
+    id: 'basic',
+    name: 'Basic',
+    price: 0,
+    period: 'forever',
+    description: 'Perfect for getting started',
+    features: [
+      'Access to free courses',
+      'Basic community support',
+      'Course completion certificates',
+      'Mobile app access',
+    ],
+    highlighted: false,
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: 29,
+    period: 'month',
+    description: 'Best for serious learners',
+    features: [
+      'Unlimited course access',
+      'Priority support',
+      'Verified certificates',
+      'Offline downloads',
+      'Project-based learning',
+      'Exclusive webinars',
+    ],
+    highlighted: true,
+  },
+  {
+    id: 'team',
+    name: 'Team',
+    price: 99,
+    period: 'month',
+    description: 'For teams and organizations',
+    features: [
+      'Everything in Pro',
+      'Team analytics dashboard',
+      'Custom learning paths',
+      'Admin controls',
+      'SSO integration',
+      'Dedicated success manager',
+    ],
+    highlighted: false,
+  },
+];
 
 const Pricing = () => {
   return (

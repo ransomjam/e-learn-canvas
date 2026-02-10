@@ -13,6 +13,9 @@ import Dashboard from "./pages/Dashboard";
 import Player from "./pages/Player";
 import Pricing from "./pages/Pricing";
 import Profile from "./pages/Profile";
+import InstructorDashboard from "./pages/InstructorDashboard";
+import CourseEditor from "./pages/CourseEditor";
+import MyCourses from "./pages/MyCourses";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -60,6 +63,48 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-courses"
+              element={
+                <ProtectedRoute>
+                  <MyCourses />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/course/:id/learn"
+              element={
+                <ProtectedRoute>
+                  <Player />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Instructor Routes */}
+            <Route
+              path="/instructor"
+              element={
+                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                  <InstructorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/courses/new"
+              element={
+                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                  <CourseEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/courses/:id/edit"
+              element={
+                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                  <CourseEditor />
                 </ProtectedRoute>
               }
             />

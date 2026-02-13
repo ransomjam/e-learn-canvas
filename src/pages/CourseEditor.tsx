@@ -1027,7 +1027,7 @@ const CourseEditor = () => {
                                                                                 placeholder="Lesson content or description..."
                                                                             />
                                                                         </div>
-                                                                        <div className="grid gap-3 sm:grid-cols-2">
+                                                                        <div>
                                                                             <div>
                                                                                 <Label className="text-xs">Duration (minutes)</Label>
                                                                                 <Input
@@ -1042,26 +1042,18 @@ const CourseEditor = () => {
                                                                                     className="mt-1"
                                                                                 />
                                                                             </div>
-                                                                            <div className="flex items-end gap-2">
-                                                                                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                                                                                    <input
-                                                                                        type="checkbox"
-                                                                                        checked={lessonForm.isFree}
-                                                                                        onChange={(e) =>
-                                                                                            setLessonForm((p) => ({ ...p, isFree: e.target.checked }))
-                                                                                        }
-                                                                                        className="rounded border-border"
-                                                                                    />
-                                                                                    Free Preview
-                                                                                </label>
-                                                                            </div>
                                                                         </div>
 
                                                                         {/* Practice Files */}
                                                                         <div className="space-y-3 pt-4 border-t border-border">
-                                                                            <Label className="text-xs font-semibold">Practice Files</Label>
-                                                                            {lessonForm.resources && lessonForm.resources.length > 0 && (
-                                                                                <div className="space-y-2">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <Label className="text-xs font-semibold">Practice Files</Label>
+                                                                                <span className="text-[10px] text-muted-foreground bg-secondary rounded-full px-2 py-0.5">
+                                                                                    {lessonForm.resources.length} file{lessonForm.resources.length === 1 ? '' : 's'}
+                                                                                </span>
+                                                                            </div>
+                                                                            {lessonForm.resources && lessonForm.resources.length > 0 ? (
+                                                                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                                                                                     {lessonForm.resources.map((res: any, idx: number) => (
                                                                                         <div key={idx} className="flex items-center justify-between rounded bg-secondary/50 p-2 text-xs">
                                                                                             <div className="flex items-center gap-2 overflow-hidden">
@@ -1079,6 +1071,10 @@ const CourseEditor = () => {
                                                                                         </div>
                                                                                     ))}
                                                                                 </div>
+                                                                            ) : (
+                                                                                <p className="text-xs text-muted-foreground">
+                                                                                    No practice files added for this lesson yet.
+                                                                                </p>
                                                                             )}
                                                                             <Button
                                                                                 variant="outline"

@@ -385,7 +385,7 @@ const Player = () => {
         )}
         <div
           className={`fixed bottom-0 right-0 top-14 z-20 w-[92vw] max-w-md transform transition-transform duration-300 ease-in-out lg:static lg:block lg:w-96 lg:max-w-none lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-            } border-l bg-card shadow-2xl lg:shadow-none flex flex-col`}
+            } border-l bg-card shadow-2xl lg:shadow-none flex min-h-0 flex-col`}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="font-semibold text-foreground">Course Content</h2>
@@ -394,7 +394,7 @@ const Player = () => {
             </Button>
           </div>
 
-          <Tabs defaultValue="content" className="flex flex-1 flex-col overflow-hidden">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="border-b border-border px-3 py-1.5">
               <TabsList className="grid w-full grid-cols-3 h-8">
                 <TabsTrigger value="content" className="text-xs">Lessons</TabsTrigger>
@@ -404,7 +404,7 @@ const Player = () => {
             </div>
 
             {/* Lessons tab */}
-            <TabsContent value="content" className="flex-1 overflow-hidden p-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <TabsContent value="content" className="min-h-0 flex-1 overflow-hidden p-0 data-[state=active]:flex data-[state=active]:flex-col">
               <div className="flex-1 overflow-y-auto min-h-0 bg-card/50">
                 {sections.length === 0 ? (
                   <div className="flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">
@@ -461,8 +461,8 @@ const Player = () => {
             </TabsContent>
 
             {/* Files tab */}
-            <TabsContent value="resources" className="flex-1 overflow-hidden p-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <ScrollArea className="flex-1">
+            <TabsContent value="resources" className="min-h-0 flex-1 overflow-hidden p-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <ScrollArea className="min-h-0 flex-1">
                 <div className="p-3 space-y-2">
                   {allResources.length === 0 ? (
                     <div className="py-12 text-center">
@@ -503,8 +503,8 @@ const Player = () => {
             </TabsContent>
 
             {/* Chat tab */}
-            <TabsContent value="chat" className="flex h-full flex-col p-0 data-[state=active]:flex">
-              <ScrollArea className="flex-1 p-3">
+            <TabsContent value="chat" className="min-h-0 flex h-full flex-col p-0 data-[state=active]:flex">
+              <ScrollArea className="min-h-0 flex-1 p-3">
                 <div className="space-y-3">
                   {messages.length === 0 && (
                     <div className="py-12 text-center">

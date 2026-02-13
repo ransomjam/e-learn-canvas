@@ -62,6 +62,7 @@ export interface Lesson {
     videoUrl?: string;
     content?: string;
     resources?: any;
+    practiceFiles?: any;
 }
 
 export interface CoursesParams {

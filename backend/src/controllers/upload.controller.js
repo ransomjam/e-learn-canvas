@@ -22,25 +22,7 @@ const upload = multer({
     storage,
     limits: { fileSize: 200 * 1024 * 1024 }, // 200MB for large presentations/videos
     fileFilter: (req, file, cb) => {
-        const imageTypes = /jpeg|jpg|png|gif|webp/;
-        const videoTypes = /mp4|webm|ogg|mov|avi/;
-        const documentTypes = /pdf|ppt|pptx|doc|docx/;
-        const documentMimeTypes = [
-            'application/pdf',
-            'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ];
-        const ext = path.extname(file.originalname).toLowerCase().slice(1);
-        const isImage = imageTypes.test(ext) && imageTypes.test(file.mimetype);
-        const isVideo = videoTypes.test(ext) || file.mimetype.startsWith('video/');
-        const isDocument = documentTypes.test(ext) || documentMimeTypes.includes(file.mimetype);
-
-        if (isImage || isVideo || isDocument) {
-            return cb(null, true);
-        }
-        cb(new Error('Only image, video, and document files (PDF, PPT, PPTX, DOC, DOCX) are allowed'));
+        cb(null, true);
     }
 });
 

@@ -1078,7 +1078,7 @@ async function loadCourseEditor(courseId) {
                                 ${section.lessons && section.lessons.length > 0 ?
                         section.lessons.map(lesson => `
                                         <div style="padding: 0.5rem; background: var(--bg-dark); margin: 0.5rem 0; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                                            <span>
+                                            <span style="cursor: pointer; flex: 1;" onclick="editLesson('${lesson.id}', '${courseId}')">
                                                 ${lesson.type === 'pdf' ? '<span style="color: #ef4444;">📄</span>' :
                                 lesson.type === 'ppt' ? '<span style="color: #f97316;">📊</span>' :
                                     lesson.type === 'doc' ? '<span style="color: #3b82f6;">📝</span>' :
@@ -1089,7 +1089,7 @@ async function loadCourseEditor(courseId) {
                                                 <small style="color: var(--text-muted); margin-left: 0.5rem;">(${lesson.type})</small>
                                                 ${lesson.isFree ? '<span style="background: var(--secondary); color: white; padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.7rem; margin-left: 0.5rem;">FREE</span>' : ''}
                                             </span>
-                                            <button class="btn btn-sm btn-danger" onclick="deleteLesson('${lesson.id}', '${courseId}')">Delete</button>
+                                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteLesson('${lesson.id}', '${courseId}')">Delete</button>
                                         </div>
                                     `).join('') : '<p style="color: var(--text-muted);">No lessons</p>'
                     }
@@ -1157,7 +1157,19 @@ async function loadCourseEditor(courseId) {
     }
 }
 
-function showAddLesson(courseId) {
+async function showAddLesson(courseId) {
+    // Fetch existing sections first
+    let existingSections = [];
+    try {
+        const res = await fetchWithAuth(`${API_URL}/courses/${courseId}`);
+        const data = await res.json();
+        if (data.success && data.data.sections) {
+            existingSections = data.data.sections;
+        }
+    } catch (err) {
+        console.error('Failed to load sections:', err);
+    }
+
     const mainContent = document.getElementById('mainContent');
     mainContent.innerHTML = `
         <div class="header">
@@ -1167,8 +1179,14 @@ function showAddLesson(courseId) {
         <div class="stat-card" style="max-width: 800px;">
             <form id="addLessonForm">
                 <div class="form-group">
-                    <label class="form-label">Section Title (or select existing)</label>
-                    <input type="text" class="form-input" name="sectionTitle" placeholder="e.g., Introduction" required>
+                    <label class="form-label">Section Title</label>
+                    ${existingSections.length > 0 ? `
+                        <select class="form-input" id="existingSectionSelect" style="margin-bottom: 0.5rem;">
+                            <option value="">-- Select existing or create new --</option>
+                            ${existingSections.map(s => `<option value="${s.title}">${s.title}</option>`).join('')}
+                        </select>
+                    ` : ''}
+                    <input type="text" class="form-input" name="sectionTitle" id="sectionTitleInput" placeholder="e.g., Introduction" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Lesson Title *</label>
@@ -1208,6 +1226,15 @@ function showAddLesson(courseId) {
                     <input type="number" class="form-input" name="duration" min="0" value="0">
                 </div>
                 <div class="form-group">
+                    <label class="form-label">Practice Files (Optional)</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                        <button type="button" class="btn" id="addPracticeFileBtn" style="width: auto;">+ Add Practice File</button>
+                    </div>
+                    <input type="file" id="practiceFileInput" style="display: none;" multiple>
+                    <div id="practiceFilesList" style="margin-top: 0.5rem;"></div>
+                    <small style="color: var(--text-muted);">Upload PDFs, documents, or other resources for students to practice</small>
+                </div>
+                <div class="form-group">
                     <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                         <input type="checkbox" name="isFree"> Free Preview
                     </label>
@@ -1224,6 +1251,17 @@ function showAddLesson(courseId) {
     const fileHint = document.getElementById('fileHint');
     const fileInput = document.getElementById('lessonFileInput');
     const uploadBtn = document.getElementById('uploadFileBtn');
+
+    // Handle existing section selection
+    const existingSectionSelect = document.getElementById('existingSectionSelect');
+    const sectionTitleInput = document.getElementById('sectionTitleInput');
+    if (existingSectionSelect) {
+        existingSectionSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                sectionTitleInput.value = e.target.value;
+            }
+        });
+    }
 
     function updateFormForType() {
         const type = typeSelect.value;
@@ -1315,6 +1353,74 @@ function showAddLesson(courseId) {
         fileInput.value = '';
     });
 
+    // Practice files handling
+    const practiceFiles = [];
+    const practiceFileInput = document.getElementById('practiceFileInput');
+    const addPracticeFileBtn = document.getElementById('addPracticeFileBtn');
+    const practiceFilesList = document.getElementById('practiceFilesList');
+
+    addPracticeFileBtn.addEventListener('click', () => {
+        practiceFileInput.click();
+    });
+
+    practiceFileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        addPracticeFileBtn.disabled = true;
+        addPracticeFileBtn.textContent = 'Uploading...';
+
+        for (const file of files) {
+            try {
+                const uploadFormData = new FormData();
+                uploadFormData.append('file', file);
+
+                const uploadRes = await fetchWithAuth(`${API_URL}/upload`, {
+                    method: 'POST',
+                    body: uploadFormData
+                });
+                const uploadData = await uploadRes.json();
+
+                if (uploadData.success) {
+                    practiceFiles.push({
+                        name: uploadData.data.originalName || file.name,
+                        url: uploadData.data.url,
+                        type: uploadData.data.fileType || 'file'
+                    });
+                }
+            } catch (err) {
+                console.error('Upload failed:', err);
+            }
+        }
+
+        updatePracticeFilesList();
+        addPracticeFileBtn.disabled = false;
+        addPracticeFileBtn.textContent = '+ Add Practice File';
+        practiceFileInput.value = '';
+    });
+
+    function updatePracticeFilesList() {
+        if (practiceFiles.length === 0) {
+            practiceFilesList.innerHTML = '';
+            return;
+        }
+
+        practiceFilesList.innerHTML = practiceFiles.map((file, index) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--bg-dark); border-radius: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="display: flex; align-items: center; gap: 0.5rem;">
+                    ${file.type === 'pdf' ? '📄' : file.type === 'ppt' ? '📊' : file.type === 'doc' ? '📝' : '📎'}
+                    ${file.name}
+                </span>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removePracticeFile(${index})">Remove</button>
+            </div>
+        `).join('');
+    }
+
+    window.removePracticeFile = (index) => {
+        practiceFiles.splice(index, 1);
+        updatePracticeFilesList();
+    };
+
     document.getElementById('addLessonForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -1359,7 +1465,8 @@ function showAddLesson(courseId) {
                 content: formData.get('content'),
                 videoUrl: formData.get('videoUrl'),
                 videoDuration: parseInt(formData.get('duration')) * 60,
-                isFree: formData.get('isFree') === 'on'
+                isFree: formData.get('isFree') === 'on',
+                practiceFiles: practiceFiles
             };
 
             const lessonRes = await fetchWithAuth(`${API_URL}/lessons`, {
@@ -1398,6 +1505,235 @@ async function deleteLesson(lessonId, courseId) {
         }
     } catch (err) {
         alert('Failed to delete lesson');
+    }
+}
+
+async function editLesson(lessonId, courseId) {
+    try {
+        const res = await fetchWithAuth(`${API_URL}/lessons/${lessonId}`);
+        const data = await res.json();
+        if (!data.success) {
+            alert('Failed to load lesson');
+            return;
+        }
+        const lesson = data.data;
+        
+        // Parse existing practice files
+        let existingPracticeFiles = [];
+        if (lesson.practiceFiles) {
+            try {
+                existingPracticeFiles = typeof lesson.practiceFiles === 'string' 
+                    ? JSON.parse(lesson.practiceFiles) 
+                    : (Array.isArray(lesson.practiceFiles) ? lesson.practiceFiles : []);
+            } catch {
+                existingPracticeFiles = [];
+            }
+        }
+        
+        const mainContent = document.getElementById('mainContent');
+        mainContent.innerHTML = `
+            <div class="header">
+                <h1>Edit Lesson</h1>
+                <button class="btn" style="width: auto;" onclick="loadCourseEditor('${courseId}')">← Back</button>
+            </div>
+            <div class="stat-card" style="max-width: 800px;">
+                <form id="editLessonForm">
+                    <div class="form-group">
+                        <label class="form-label">Lesson Title *</label>
+                        <input type="text" class="form-input" name="title" value="${lesson.title}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Lesson Type *</label>
+                        <select class="form-input" name="type" id="editLessonTypeSelect" required>
+                            <option value="video" ${lesson.type === 'video' ? 'selected' : ''}>Video</option>
+                            <option value="pdf" ${lesson.type === 'pdf' ? 'selected' : ''}>PDF Document</option>
+                            <option value="ppt" ${lesson.type === 'ppt' ? 'selected' : ''}>PowerPoint</option>
+                            <option value="doc" ${lesson.type === 'doc' ? 'selected' : ''}>Word Document</option>
+                            <option value="document" ${lesson.type === 'document' ? 'selected' : ''}>Other Document</option>
+                            <option value="text" ${lesson.type === 'text' ? 'selected' : ''}>Article / Text</option>
+                            <option value="quiz" ${lesson.type === 'quiz' ? 'selected' : ''}>Quiz</option>
+                            <option value="assignment" ${lesson.type === 'assignment' ? 'selected' : ''}>Assignment</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="editFileUrlGroup">
+                        <label class="form-label" id="editFileUrlLabel">Video/File URL</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="text" class="form-input" name="videoUrl" id="editVideoUrlInput" value="${lesson.videoUrl || ''}" style="flex: 1;">
+                            <button type="button" class="btn" id="editUploadFileBtn" style="width: auto;">Upload File</button>
+                        </div>
+                        <input type="file" id="editLessonFileInput" style="display: none;">
+                        <div id="editUploadStatus" style="margin-top: 0.5rem; display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Content/Description</label>
+                        <textarea class="form-input" name="content" rows="4">${lesson.content || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Duration (minutes)</label>
+                        <input type="number" class="form-input" name="duration" min="0" value="${Math.floor((lesson.videoDuration || 0) / 60)}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Practice Files (Optional)</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                            <button type="button" class="btn" id="editAddPracticeFileBtn" style="width: auto;">+ Add Practice File</button>
+                        </div>
+                        <input type="file" id="editPracticeFileInput" style="display: none;" multiple>
+                        <div id="editPracticeFilesList" style="margin-top: 0.5rem;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="isFree" ${lesson.isFree ? 'checked' : ''}> Free Preview
+                        </label>
+                    </div>
+                    <button type="submit" class="btn">Update Lesson</button>
+                </form>
+            </div>
+        `;
+        
+        // Practice files management
+        const practiceFiles = [...existingPracticeFiles];
+        const editPracticeFileInput = document.getElementById('editPracticeFileInput');
+        const editAddPracticeFileBtn = document.getElementById('editAddPracticeFileBtn');
+        const editPracticeFilesList = document.getElementById('editPracticeFilesList');
+        
+        function updateEditPracticeFilesList() {
+            if (practiceFiles.length === 0) {
+                editPracticeFilesList.innerHTML = '';
+                return;
+            }
+            editPracticeFilesList.innerHTML = practiceFiles.map((file, index) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--bg-dark); border-radius: 0.5rem; margin-bottom: 0.5rem;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        ${file.type === 'pdf' ? '📄' : file.type === 'ppt' ? '📊' : file.type === 'doc' ? '📝' : '📎'}
+                        ${file.name}
+                    </span>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeEditPracticeFile(${index})">Remove</button>
+                </div>
+            `).join('');
+        }
+        
+        window.removeEditPracticeFile = (index) => {
+            practiceFiles.splice(index, 1);
+            updateEditPracticeFilesList();
+        };
+        
+        editAddPracticeFileBtn.addEventListener('click', () => {
+            editPracticeFileInput.click();
+        });
+        
+        editPracticeFileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            
+            editAddPracticeFileBtn.disabled = true;
+            editAddPracticeFileBtn.textContent = 'Uploading...';
+            
+            for (const file of files) {
+                try {
+                    const uploadFormData = new FormData();
+                    uploadFormData.append('file', file);
+                    
+                    const uploadRes = await fetchWithAuth(`${API_URL}/upload`, {
+                        method: 'POST',
+                        body: uploadFormData
+                    });
+                    const uploadData = await uploadRes.json();
+                    
+                    if (uploadData.success) {
+                        practiceFiles.push({
+                            name: uploadData.data.originalName || file.name,
+                            url: uploadData.data.url,
+                            type: uploadData.data.fileType || 'file'
+                        });
+                    }
+                } catch (err) {
+                    console.error('Upload failed:', err);
+                }
+            }
+            
+            updateEditPracticeFilesList();
+            editAddPracticeFileBtn.disabled = false;
+            editAddPracticeFileBtn.textContent = '+ Add Practice File';
+            editPracticeFileInput.value = '';
+        });
+        
+        updateEditPracticeFilesList();
+        
+        // File upload for main lesson
+        const editFileInput = document.getElementById('editLessonFileInput');
+        const editUploadBtn = document.getElementById('editUploadFileBtn');
+        
+        editUploadBtn.addEventListener('click', () => {
+            editFileInput.click();
+        });
+        
+        editFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const editUploadStatus = document.getElementById('editUploadStatus');
+            editUploadStatus.style.display = 'block';
+            editUploadStatus.innerHTML = '<small style="color: var(--primary);">Uploading...</small>';
+            editUploadBtn.disabled = true;
+            
+            try {
+                const uploadFormData = new FormData();
+                uploadFormData.append('file', file);
+                
+                const uploadRes = await fetchWithAuth(`${API_URL}/upload`, {
+                    method: 'POST',
+                    body: uploadFormData
+                });
+                const uploadData = await uploadRes.json();
+                
+                if (uploadData.success) {
+                    document.getElementById('editVideoUrlInput').value = uploadData.data.url;
+                    editUploadStatus.innerHTML = '<small style="color: var(--secondary);">✓ Uploaded</small>';
+                } else {
+                    editUploadStatus.innerHTML = '<small style="color: var(--danger);">Upload failed</small>';
+                }
+            } catch (err) {
+                editUploadStatus.innerHTML = '<small style="color: var(--danger);">Upload failed</small>';
+            }
+            
+            editUploadBtn.disabled = false;
+            editFileInput.value = '';
+        });
+        
+        document.getElementById('editLessonForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            const updateData = {
+                title: formData.get('title'),
+                type: formData.get('type'),
+                content: formData.get('content'),
+                videoUrl: formData.get('videoUrl'),
+                videoDuration: parseInt(formData.get('duration')) * 60,
+                isFree: formData.get('isFree') === 'on',
+                practiceFiles: practiceFiles
+            };
+            
+            try {
+                const res = await fetchWithAuth(`${API_URL}/lessons/${lessonId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('Lesson updated!');
+                    loadCourseEditor(courseId);
+                } else {
+                    alert(data.message || 'Failed to update');
+                }
+            } catch (err) {
+                alert('Failed to update lesson');
+            }
+        });
+    } catch (err) {
+        alert('Failed to load lesson');
     }
 }
 

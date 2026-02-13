@@ -294,6 +294,16 @@ const CourseEditor = () => {
     const isFileType = (type: string) => ['video', 'pdf', 'ppt', 'doc', 'document'].includes(type);
 
     // Handle file upload for lessons (video, pdf, ppt, doc)
+    const getLessonResourceIcon = (type: string) => {
+        switch (type) {
+            case 'pdf': return <FileText className="h-4 w-4 text-red-400" />;
+            case 'ppt': return <FileText className="h-4 w-4 text-orange-400" />;
+            case 'doc': return <FileText className="h-4 w-4 text-blue-400" />;
+            case 'video': return <Video className="h-4 w-4 text-purple-400" />;
+            default: return <Paperclip className="h-4 w-4 text-primary" />;
+        }
+    };
+
     const handleVideoUpload = async (file: File) => {
         setIsUploading(true);
         try {
@@ -345,6 +355,13 @@ const CourseEditor = () => {
         } finally {
             setIsUploading(false);
         }
+    };
+
+    const removeLessonResource = (index: number) => {
+        setLessonForm((prev) => ({
+            ...prev,
+            resources: (prev.resources || []).filter((_, i) => i !== index),
+        }));
     };
 
     // Handle form submission
@@ -870,6 +887,24 @@ const CourseEditor = () => {
                                                                             onClick={() => {
                                                                                 setEditingLesson(editingLesson === lesson.id ? null : lesson.id);
                                                                                 if (editingLesson !== lesson.id) {
+                                                                                    let practiceFiles: any[] = [];
+                                                                                    try {
+                                                                                        let raw = lesson.practiceFiles;
+                                                                                        // Check if practiceFiles is effectively empty
+                                                                                        const isEmpty = !raw || (Array.isArray(raw) && raw.length === 0) || raw === '[]';
+
+                                                                                        if (isEmpty && lesson.resources) {
+                                                                                            raw = lesson.resources;
+                                                                                        }
+
+                                                                                        practiceFiles = typeof raw === 'string'
+                                                                                            ? JSON.parse(raw || '[]')
+                                                                                            : (raw || []);
+                                                                                    } catch (e) {
+                                                                                        console.error('Error parsing practice files', e);
+                                                                                        practiceFiles = [];
+                                                                                    }
+
                                                                                     setLessonForm({
                                                                                         title: lesson.title,
                                                                                         type: lesson.type,
@@ -877,6 +912,8 @@ const CourseEditor = () => {
                                                                                         videoUrl: lesson.videoUrl || '',
                                                                                         duration: lesson.duration || 0,
                                                                                         isFree: lesson.isFree,
+                                                                                        resources: Array.isArray(practiceFiles) ? practiceFiles : [],
+                                                                                        targetSectionId: '',
                                                                                     });
                                                                                 }
                                                                             }}
@@ -916,23 +953,26 @@ const CourseEditor = () => {
                                                                                 />
                                                                             </div>
                                                                             <div>
-                                                                                <Label className="text-xs">Type</Label>
-                                                                                <select
-                                                                                    value={lessonForm.type}
-                                                                                    onChange={(e) =>
-                                                                                        setLessonForm((p) => ({ ...p, type: e.target.value }))
-                                                                                    }
-                                                                                    className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground"
-                                                                                >
-                                                                                    <option value="video">Video</option>
-                                                                                    <option value="pdf">PDF Document</option>
-                                                                                    <option value="ppt">PowerPoint (PPT/PPTX)</option>
-                                                                                    <option value="doc">Word Document (DOC/DOCX)</option>
-                                                                                    <option value="document">Other Document</option>
-                                                                                    <option value="text">Article</option>
-                                                                                    <option value="quiz">Quiz</option>
-                                                                                    <option value="assignment">Assignment</option>
-                                                                                </select>
+                                                                                <Label className="text-xs">Lesson Type</Label>
+                                                                                <div className="relative mt-1">
+                                                                                    <select
+                                                                                        value={lessonForm.type}
+                                                                                        onChange={(e) =>
+                                                                                            setLessonForm((p) => ({ ...p, type: e.target.value }))
+                                                                                        }
+                                                                                        className="w-full appearance-none rounded-lg border border-border bg-secondary px-3 py-2 pr-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                                                                                    >
+                                                                                        <option value="video">Video</option>
+                                                                                        <option value="pdf">PDF Document</option>
+                                                                                        <option value="ppt">PowerPoint (PPT/PPTX)</option>
+                                                                                        <option value="doc">Word Document (DOC/DOCX)</option>
+                                                                                        <option value="document">Other Document</option>
+                                                                                        <option value="text">Article</option>
+                                                                                        <option value="quiz">Quiz</option>
+                                                                                        <option value="assignment">Assignment</option>
+                                                                                    </select>
+                                                                                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                         {isFileType(lessonForm.type) && (
@@ -950,6 +990,7 @@ const CourseEditor = () => {
                                                                                     <Button
                                                                                         variant="outline"
                                                                                         size="sm"
+                                                                                        className="gap-2"
                                                                                         onClick={() => {
                                                                                             const input = document.createElement('input');
                                                                                             input.type = 'file';
@@ -965,7 +1006,10 @@ const CourseEditor = () => {
                                                                                         {isUploading ? (
                                                                                             <Loader2 className="h-4 w-4 animate-spin" />
                                                                                         ) : (
-                                                                                            lessonForm.type === 'video' ? <Video className="h-4 w-4" /> : <FileText className="h-4 w-4" />
+                                                                                            <>
+                                                                                                {lessonForm.type === 'video' ? <Video className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                                                                                                {lessonForm.type === 'video' ? 'Replace Video' : 'Replace File'}
+                                                                                            </>
                                                                                         )}
                                                                                     </Button>
                                                                                 </div>
@@ -1012,6 +1056,54 @@ const CourseEditor = () => {
                                                                                 </label>
                                                                             </div>
                                                                         </div>
+
+                                                                        {/* Practice Files */}
+                                                                        <div className="space-y-3 pt-4 border-t border-border">
+                                                                            <Label className="text-xs font-semibold">Practice Files</Label>
+                                                                            {lessonForm.resources && lessonForm.resources.length > 0 && (
+                                                                                <div className="space-y-2">
+                                                                                    {lessonForm.resources.map((res: any, idx: number) => (
+                                                                                        <div key={idx} className="flex items-center justify-between rounded bg-secondary/50 p-2 text-xs">
+                                                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                                                {getLessonResourceIcon(res.type)}
+                                                                                                <span className="truncate">{res.title}</span>
+                                                                                            </div>
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                                                                                onClick={() => removeLessonResource(idx)}
+                                                                                            >
+                                                                                                <X className="h-3 w-3" />
+                                                                                            </Button>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className="w-full gap-2 border-dashed h-8 text-xs"
+                                                                                onClick={() => {
+                                                                                    const input = document.createElement('input');
+                                                                                    input.type = 'file';
+                                                                                    input.multiple = true;
+                                                                                    input.onchange = (e) => {
+                                                                                        const files = (e.target as HTMLInputElement).files;
+                                                                                        if (files) {
+                                                                                            Array.from(files).forEach((file) =>
+                                                                                                handlePracticeResourceUpload(file)
+                                                                                            );
+                                                                                        }
+                                                                                    };
+                                                                                    input.click();
+                                                                                }}
+                                                                                disabled={isUploading}
+                                                                            >
+                                                                                {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                                                                                Add File
+                                                                            </Button>
+                                                                        </div>
                                                                         <div className="flex gap-2">
                                                                             <Button
                                                                                 size="sm"
@@ -1025,10 +1117,12 @@ const CourseEditor = () => {
                                                                                             videoUrl: lessonForm.videoUrl || undefined,
                                                                                             videoDuration: lessonForm.duration,
                                                                                             isFree: lessonForm.isFree,
+                                                                                            practiceFiles: lessonForm.resources,
+                                                                                            resources: [],
                                                                                         },
                                                                                     })
                                                                                 }
-                                                                                disabled={updateLessonMutation.isPending}
+                                                                                disabled={updateLessonMutation.isPending || isUploading}
                                                                             >
                                                                                 {updateLessonMutation.isPending ? (
                                                                                     <Loader2 className="mr-1 h-3 w-3 animate-spin" />

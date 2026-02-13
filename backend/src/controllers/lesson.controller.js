@@ -210,7 +210,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
             s.order_index as section_order,
             l.id, l.title, l.slug, l.description, l.type, l.video_duration,
             l.order_index, l.is_free, l.is_published,
-            l.content, l.video_url, l.resources,
+            l.content, l.video_url, l.resources, l.practice_files,
             l.created_at
      FROM sections s
      LEFT JOIN lessons l ON s.id = l.section_id ${!hasFullAccess ? 'AND l.is_published = true' : ''}
@@ -251,6 +251,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
                 lesson.content = row.content;
                 lesson.videoUrl = row.video_url;
                 lesson.resources = row.resources;
+                lesson.practiceFiles = row.practice_files;
             }
 
             sectionsMap.get(row.section_id).lessons.push(lesson);
@@ -291,18 +292,39 @@ const getLessonById = asyncHandler(async (req, res) => {
 
     const lesson = result.rows[0];
 
-    // Check access
+    // Check access - allow instructor/admin full access
     let hasFullAccess = false;
-    if (req.user) {
-        if (req.user.role === 'admin' || req.user.id === lesson.instructor_id) {
-            hasFullAccess = true;
-        } else {
-            const enrollment = await query(
-                'SELECT status FROM enrollments WHERE user_id = $1 AND course_id = $2',
-                [req.user.id, lesson.course_id]
-            );
-            hasFullAccess = enrollment.rows.length > 0 && enrollment.rows[0].status === 'active';
-        }
+    if (req.user && (req.user.role === 'admin' || req.user.id === lesson.instructor_id)) {
+        hasFullAccess = true;
+    } else if (req.user) {
+        const enrollment = await query(
+            'SELECT status FROM enrollments WHERE user_id = $1 AND course_id = $2',
+            [req.user.id, lesson.course_id]
+        );
+        hasFullAccess = enrollment.rows.length > 0 && enrollment.rows[0].status === 'active';
+    }
+
+    // Instructors and admins can always see their lessons
+    if (req.user && (req.user.role === 'admin' || req.user.id === lesson.instructor_id)) {
+        res.json({
+            success: true,
+            data: {
+                id: lesson.id,
+                title: lesson.title,
+                slug: lesson.slug,
+                description: lesson.description,
+                content: lesson.content,
+                type: lesson.type,
+                videoUrl: lesson.video_url,
+                videoDuration: lesson.video_duration,
+                orderIndex: lesson.order_index,
+                isFree: lesson.is_free,
+                isPublished: lesson.is_published,
+                resources: lesson.resources,
+                createdAt: lesson.created_at
+            }
+        });
+        return;
     }
 
     if (!lesson.is_published && !hasFullAccess) {
@@ -390,7 +412,8 @@ const createLesson = asyncHandler(async (req, res) => {
         orderIndex,
         isFree = false,
         isPublished = true,
-        resources = []
+        resources = [],
+        practiceFiles = []
     } = req.body;
 
     // Get section with course info
@@ -434,12 +457,12 @@ const createLesson = asyncHandler(async (req, res) => {
     const result = await query(
         `INSERT INTO lessons (
       section_id, course_id, title, slug, description, content, type,
-      video_url, video_duration, order_index, is_free, is_published, resources
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      video_url, video_duration, order_index, is_free, is_published, resources, practice_files
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING *`,
         [
             sectionId, courseId, title, slug, description, content, type,
-            videoUrl, videoDuration, order, isFree, isPublished, JSON.stringify(resources)
+            videoUrl, videoDuration, order, isFree, isPublished, JSON.stringify(resources), JSON.stringify(practiceFiles)
         ]
     );
 
@@ -495,7 +518,7 @@ const updateLesson = asyncHandler(async (req, res) => {
 
     const allowedFields = [
         'title', 'description', 'content', 'type', 'videoUrl', 'videoDuration',
-        'orderIndex', 'isFree', 'isPublished', 'resources'
+        'orderIndex', 'isFree', 'isPublished', 'resources', 'practiceFiles'
     ];
 
     const fieldMapping = {
@@ -512,10 +535,10 @@ const updateLesson = asyncHandler(async (req, res) => {
 
     for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
-            const dbField = fieldMapping[field] || field;
+            const dbField = fieldMapping[field] || field.replace(/([A-Z])/g, '_$1').toLowerCase();
             updates.push(`${dbField} = $${paramIndex++}`);
             let value = req.body[field];
-            if (field === 'resources') {
+            if (field === 'resources' || field === 'practiceFiles') {
                 value = JSON.stringify(value);
             }
             params.push(value);

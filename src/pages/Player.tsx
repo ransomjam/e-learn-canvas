@@ -111,25 +111,28 @@ const Player = () => {
   const currentLesson = sections.flatMap(s => s.lessons).find(l => l.id === currentLessonId);
 
   const allResources = useMemo(() => {
-    const lessonResources = sections.flatMap((s: Section) =>
-      s.lessons.flatMap((l: Lesson) => {
-        if (!l.resources) return [];
-        try {
-          // Parse if it's a string, or use directly if it's already an object/array
-          const parsed = typeof l.resources === 'string'
-            ? JSON.parse(l.resources)
-            : l.resources;
-          return Array.isArray(parsed) ? parsed.map((r: any) => ({
-            ...r,
-            lessonTitle: l.title,
-            // Ensure ID is unique or handle it
-            id: r.id || `${l.id}-${r.url}`
-          })) : [];
-        } catch { return []; }
-      })
-    );
-    return [...(resources || []), ...lessonResources];
-  }, [sections, resources]);
+    if (!currentLesson) return resources || [];
+    
+    const items = [...(resources || [])];
+    
+    if (currentLesson.practiceFiles) {
+      try {
+        const parsed = typeof currentLesson.practiceFiles === 'string' 
+          ? JSON.parse(currentLesson.practiceFiles) 
+          : currentLesson.practiceFiles;
+        if (Array.isArray(parsed)) {
+          items.push(...parsed.map((p: any) => ({ 
+            ...p, 
+            title: p.name, 
+            lessonTitle: currentLesson.title, 
+            id: `${currentLesson.id}-practice-${p.url}` 
+          })));
+        }
+      } catch { }
+    }
+    
+    return items;
+  }, [currentLesson, resources]);
 
   const allLessons = sections.flatMap(s => s.lessons);
   const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);

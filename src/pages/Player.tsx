@@ -139,6 +139,7 @@ const Player = () => {
   const totalLessons = allLessons.length;
   const completedLessons = progress?.completedLessons || 0;
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const isVideoLesson = currentLesson?.type === 'video';
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,8 +203,14 @@ const Player = () => {
         {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Content Area (Video/Document/Quiz) */}
-          <div className="relative w-full bg-black flex-shrink-0" style={{ height: currentLesson?.type === 'video' ? 'auto' : '100%', minHeight: '50vh' }}>
-            <div className={currentLesson?.type === 'video' ? "absolute inset-0" : "h-full w-full overflow-auto bg-background"}>
+          <div
+            className="relative w-full bg-black flex-shrink-0"
+            style={{
+              height: isVideoLesson ? 'auto' : 'clamp(340px, 62vh, 820px)',
+              minHeight: '50vh'
+            }}
+          >
+            <div className={isVideoLesson ? "absolute inset-0" : "h-full w-full overflow-auto bg-background"}>
               {currentLesson ? (
                 currentLesson.type === 'video' ? (
                   currentLesson.videoUrl ? (() => {

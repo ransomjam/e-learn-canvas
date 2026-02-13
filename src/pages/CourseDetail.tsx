@@ -160,30 +160,30 @@ const CourseDetail = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="bg-card py-12">
+      <section className="bg-card py-10">
         <div className="container mx-auto px-4">
-          <div className="grid gap-8 lg:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-3">
             {/* Course Info */}
-            <div className="lg:col-span-2">
+            <div className="space-y-6 lg:col-span-2">
               <div className="flex flex-wrap gap-2">
                 <Badge variant="accent">{course.category?.name || 'General'}</Badge>
                 <Badge variant="secondary">{course.level.charAt(0).toUpperCase() + course.level.slice(1)}</Badge>
                 {course.enrollmentCount > 1000 && <Badge>Bestseller</Badge>}
               </div>
 
-              <h1 className="mt-4 font-display text-3xl font-bold text-foreground md:text-4xl">
+              <h1 className="max-w-3xl text-balance font-display text-2xl font-semibold leading-tight text-foreground md:text-3xl">
                 {course.title}
               </h1>
 
-              <p className="mt-4 text-lg text-muted-foreground">
+              <p className="max-w-3xl text-sm leading-7 text-justify text-muted-foreground md:text-base">
                 {course.shortDescription || course.description}
               </p>
 
               {/* Rating & Stats */}
-              <div className="mt-6 flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-3 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1">
-                    <Star className="h-5 w-5 fill-accent text-accent" />
+                    <Star className="h-4 w-4 fill-accent text-accent" />
                     <span className="font-semibold text-foreground">{course.ratingAvg.toFixed(1)}</span>
                   </div>
                   <span className="text-muted-foreground">
@@ -191,13 +191,13 @@ const CourseDetail = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-5 w-5" />
+                  <Users className="h-4 w-4" />
                   <span>{course.enrollmentCount.toLocaleString()} students</span>
                 </div>
               </div>
 
               {/* Instructor */}
-              <div className="mt-6 flex items-center gap-3">
+              <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-background/40 p-3">
                 {course.instructor.avatarUrl ? (
                   <img
                     src={resolveMediaUrl(course.instructor.avatarUrl)}
@@ -211,16 +211,16 @@ const CourseDetail = () => {
                     {course.instructor.firstName?.charAt(0)}{course.instructor.lastName?.charAt(0)}
                   </span>
                 </div>
-                <div>
+                <div className="space-y-0.5">
                   <p className="text-sm text-muted-foreground">Created by</p>
-                  <p className="font-medium text-foreground">
+                  <p className="text-sm font-medium text-foreground md:text-base">
                     {course.instructor.firstName} {course.instructor.lastName}
                   </p>
                 </div>
               </div>
 
               {/* Meta */}
-              <div className="mt-6 flex flex-wrap gap-6 text-sm text-muted-foreground">
+              <div className="grid gap-3 rounded-lg border border-border/70 bg-background/40 p-4 text-xs text-muted-foreground sm:grid-cols-2 sm:text-sm lg:grid-cols-4">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
                   <span>{course.duration ? `${Math.floor(course.duration / 60)} hours` : 'Self-paced'}</span>
@@ -240,7 +240,7 @@ const CourseDetail = () => {
               </div>
 
               {isAuthenticated && (user?.role === 'admin' || user?.id === course?.instructor?.id) && (
-                <div className="mt-8 flex gap-3">
+                <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={handleEdit}>
                     Edit Course
                   </Button>
@@ -265,13 +265,13 @@ const CourseDetail = () => {
                 <div className={`aspect-video w-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10 ${resolveMediaUrl(course.thumbnailUrl) ? 'hidden' : ''}`}>
                   <BookOpen className="h-12 w-12 text-muted-foreground/30" />
                 </div>
-                <div className="p-6">
+                <div className="p-5">
                   <div className="flex items-center gap-3">
                     {course.isFree || displayPrice === 0 ? (
                       <span className="font-display text-3xl font-bold text-accent">Free</span>
                     ) : (
                       <>
-                        <span className="font-display text-3xl font-bold text-foreground">
+                        <span className="font-display text-2xl font-bold text-foreground md:text-3xl">
                           ${displayPrice.toFixed(2)}
                         </span>
                         {hasDiscount && (
@@ -327,7 +327,7 @@ const CourseDetail = () => {
                     </Button>
                   )}
 
-                  <p className="mt-4 text-center text-sm text-muted-foreground">
+                  <p className="mt-4 text-center text-xs text-muted-foreground md:text-sm">
                     30-Day Money-Back Guarantee
                   </p>
 
@@ -360,21 +360,21 @@ const CourseDetail = () => {
       </section>
 
       {/* Course Content */}
-      <section className="py-12">
+      <section className="py-10">
         <div className="container mx-auto px-4">
-          <div className="grid gap-12 lg:grid-cols-3">
-            <div className="space-y-12 lg:col-span-2">
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="space-y-10 lg:col-span-2">
               {/* What you'll learn */}
               {course.objectives && course.objectives.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-6">
-                  <h2 className="font-display text-2xl font-bold text-foreground">
+                <div className="rounded-xl border border-border bg-card/80 p-5 md:p-6">
+                  <h2 className="font-display text-xl font-semibold text-foreground md:text-2xl">
                     What you'll learn
                   </h2>
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
                     {course.objectives.map((item, index) => (
                       <div key={index} className="flex gap-3">
                         <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
-                        <span className="text-muted-foreground">{item}</span>
+                        <span className="text-sm leading-6 text-justify text-muted-foreground">{item}</span>
                       </div>
                     ))}
                   </div>
@@ -384,12 +384,12 @@ const CourseDetail = () => {
               {/* Requirements */}
               {course.requirements && course.requirements.length > 0 && (
                 <div>
-                  <h2 className="font-display text-2xl font-bold text-foreground">
+                  <h2 className="font-display text-xl font-semibold text-foreground md:text-2xl">
                     Requirements
                   </h2>
-                  <ul className="mt-4 space-y-2">
+                  <ul className="mt-4 space-y-2.5">
                     {course.requirements.map((req, index) => (
-                      <li key={index} className="flex items-start gap-2 text-muted-foreground">
+                      <li key={index} className="flex items-start gap-2 text-sm leading-6 text-justify text-muted-foreground">
                         <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
                         {req}
                       </li>
@@ -401,7 +401,7 @@ const CourseDetail = () => {
               {/* Course Content */}
               <div>
                 <div className="mb-6 flex items-center justify-between">
-                  <h2 className="font-display text-2xl font-bold text-foreground">
+                  <h2 className="font-display text-xl font-semibold text-foreground md:text-2xl">
                     Course Content
                   </h2>
                   <span className="text-sm text-muted-foreground">
@@ -409,16 +409,16 @@ const CourseDetail = () => {
                   </span>
                 </div>
 
-                <Accordion type="multiple" className="space-y-4">
+                <Accordion type="multiple" className="space-y-3">
                   {sections.map((section, sectionIndex) => (
                     <AccordionItem
                       key={section.id}
                       value={section.id}
-                      className="rounded-lg border border-border bg-card px-4"
+                      className="rounded-lg border border-border bg-card/80 px-4"
                     >
                       <AccordionTrigger className="hover:no-underline">
                         <div className="flex flex-wrap items-center gap-3">
-                          <span className="font-semibold text-foreground">{section.title}</span>
+                          <span className="text-sm font-semibold text-foreground md:text-base">{section.title}</span>
                           <span className="text-sm text-muted-foreground">
                             {section.lessons.length} lessons
                           </span>
@@ -441,7 +441,7 @@ const CourseDetail = () => {
                                 ) : (
                                   <FileText className="h-4 w-4 text-primary" />
                                 )}
-                                <span className="text-foreground">
+                                <span className="text-sm text-foreground md:text-base">
                                   {lesson.title}
                                 </span>
                                 {lesson.isFree && !isEnrolled && (
@@ -462,7 +462,7 @@ const CourseDetail = () => {
 
               {/* Instructor */}
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">
+                <h2 className="font-display text-xl font-semibold text-foreground md:text-2xl">
                   Your Instructor
                 </h2>
                 <div className="mt-6 flex flex-col gap-6 sm:flex-row">
@@ -480,10 +480,10 @@ const CourseDetail = () => {
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-foreground">
+                    <h3 className="text-lg font-semibold text-foreground md:text-xl">
                       {course.instructor.firstName} {course.instructor.lastName}
                     </h3>
-                    <p className="mt-1 text-primary">Course Instructor</p>
+                    <p className="mt-1 text-sm text-primary">Course Instructor</p>
                     <div className="mt-3 flex gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Star className="h-4 w-4 text-accent" />
@@ -492,7 +492,7 @@ const CourseDetail = () => {
                       <span>{course.enrollmentCount.toLocaleString()} Students</span>
                     </div>
                     {course.instructor.bio && (
-                      <p className="mt-4 text-muted-foreground">
+                      <p className="mt-4 text-sm leading-7 text-justify text-muted-foreground">
                         {course.instructor.bio}
                       </p>
                     )}

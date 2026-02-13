@@ -16,6 +16,7 @@ import { enrollmentsService } from '@/services/enrollments.service';
 import { resolveMediaUrl } from '@/lib/media';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,8 +25,9 @@ const Player = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('content');
   const [chatMessage, setChatMessage] = useState('');
@@ -150,6 +152,10 @@ const Player = () => {
     const idx = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
     if (idx >= 0 && idx < allLessons.length) setCurrentLessonId(allLessons[idx].id);
   };
+
+  useEffect(() => {
+    setIsSidebarOpen(!isMobile);
+  }, [isMobile]);
 
   if (courseLoading || lessonsLoading) {
     return (
@@ -369,9 +375,17 @@ const Player = () => {
         </div>
 
         {/* Sidebar */}
+        {isSidebarOpen && isMobile && (
+          <button
+            type="button"
+            aria-label="Close course content panel"
+            className="fixed inset-0 top-14 z-10 bg-black/40 backdrop-blur-[1px] lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
         <div
-          className={`fixed bottom-0 right-0 top-14 z-20 w-full transform transition-transform duration-300 ease-in-out lg:static lg:block lg:w-96 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-            } border-l bg-card flex flex-col`}
+          className={`fixed bottom-0 right-0 top-14 z-20 w-[92vw] max-w-md transform transition-transform duration-300 ease-in-out lg:static lg:block lg:w-96 lg:max-w-none lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+            } border-l bg-card shadow-2xl lg:shadow-none flex flex-col`}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="font-semibold text-foreground">Course Content</h2>
@@ -409,7 +423,12 @@ const Player = () => {
                             return (
                               <button
                                 key={lesson.id}
-                                onClick={() => setCurrentLessonId(lesson.id)}
+                                onClick={() => {
+                                  setCurrentLessonId(lesson.id);
+                                  if (isMobile) {
+                                    setIsSidebarOpen(false);
+                                  }
+                                }}
                                 className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-3 text-left transition-colors text-sm ${isActive
                                   ? 'bg-primary/10 text-primary font-medium'
                                   : 'hover:bg-accent/50 text-foreground'

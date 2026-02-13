@@ -301,6 +301,28 @@
                 </div>
                 <button type="submit" class="btn btn-full">Login</button>
             </form>
+
+            <!-- === DEMO DATA === Remove this entire block before production -->
+            <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <p style="text-align: center; color: var(--text-muted); font-size: 0.75rem; margin-bottom: 0.75rem;">
+                    🧪 Quick Demo Login (password: demo123)
+                </p>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn" onclick="demoLogin('instructor1@demo.com')"
+                        style="flex: 1; font-size: 0.8rem; padding: 0.5rem; background: #059669;">
+                        👨‍🏫 Instructor 1
+                    </button>
+                    <button type="button" class="btn" onclick="demoLogin('instructor2@demo.com')"
+                        style="flex: 1; font-size: 0.8rem; padding: 0.5rem; background: #0891b2;">
+                        👩‍🏫 Instructor 2
+                    </button>
+                    <button type="button" class="btn" onclick="demoLogin('admin@demo.com')"
+                        style="flex: 1; font-size: 0.8rem; padding: 0.5rem; background: #dc2626;">
+                        🔑 Admin
+                    </button>
+                </div>
+            </div>
+            <!-- === END DEMO DATA === -->
         </div>
     </div>
 

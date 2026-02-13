@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Play, ChevronLeft, CheckCircle, Menu, X, FileText, HelpCircle, Clock, Loader2,
-  MessageSquare, Paperclip, Send, Download, ChevronRight
+  MessageSquare, Paperclip, Send, Download, ChevronRight, Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -15,6 +15,7 @@ import { coursesService, Section, Lesson } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
 import { resolveMediaUrl } from '@/lib/media';
 import { useAuth } from '@/contexts/AuthContext';
+import DocumentViewer from '@/components/ui/DocumentViewer';
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -108,6 +109,28 @@ const Player = () => {
   }, [messages]);
 
   const currentLesson = sections.flatMap(s => s.lessons).find(l => l.id === currentLessonId);
+
+  const allResources = useMemo(() => {
+    const lessonResources = sections.flatMap((s: Section) =>
+      s.lessons.flatMap((l: Lesson) => {
+        if (!l.resources) return [];
+        try {
+          // Parse if it's a string, or use directly if it's already an object/array
+          const parsed = typeof l.resources === 'string'
+            ? JSON.parse(l.resources)
+            : l.resources;
+          return Array.isArray(parsed) ? parsed.map((r: any) => ({
+            ...r,
+            lessonTitle: l.title,
+            // Ensure ID is unique or handle it
+            id: r.id || `${l.id}-${r.url}`
+          })) : [];
+        } catch { return []; }
+      })
+    );
+    return [...(resources || []), ...lessonResources];
+  }, [sections, resources]);
+
   const allLessons = sections.flatMap(s => s.lessons);
   const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
   const totalLessons = allLessons.length;
@@ -173,34 +196,93 @@ const Player = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Main content */}
+        {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Video */}
-          <div className="relative w-full bg-black flex-shrink-0" style={{ paddingTop: '56.25%' }}>
-            <div className="absolute inset-0">
-              {currentLesson?.videoUrl ? (() => {
-                const resolvedVideoUrl = resolveMediaUrl(currentLesson.videoUrl);
-                return resolvedVideoUrl.includes('drive.google.com') ? (
-                  <iframe
-                    src={resolvedVideoUrl.replace('/view', '/preview')}
-                    className="h-full w-full"
-                    allow="autoplay"
-                    allowFullScreen
-                  />
-                ) : (
-                  <video
-                    key={resolvedVideoUrl}
-                    src={resolvedVideoUrl}
-                    className="h-full w-full"
-                    controls
-                    poster={resolveMediaUrl(course.thumbnailUrl)}
-                  />
-                );
-              })() : (
-                <div className="flex h-full w-full items-center justify-center bg-muted">
-                  <div className="text-center">
-                    <Play className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-                    <p className="mt-2 text-sm text-muted-foreground">No video for this lesson</p>
+          {/* Content Area (Video/Document/Quiz) */}
+          <div className="relative w-full bg-black flex-shrink-0" style={{ height: currentLesson?.type === 'video' ? 'auto' : '100%', minHeight: '50vh' }}>
+            <div className={currentLesson?.type === 'video' ? "absolute inset-0" : "h-full w-full overflow-auto bg-background"}>
+              {currentLesson ? (
+                currentLesson.type === 'video' ? (
+                  currentLesson.videoUrl ? (() => {
+                    const resolvedVideoUrl = resolveMediaUrl(currentLesson.videoUrl);
+                    return resolvedVideoUrl.includes('drive.google.com') ? (
+                      <iframe
+                        src={resolvedVideoUrl.replace('/view', '/preview')}
+                        className="h-full w-full"
+                        allow="autoplay"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        key={resolvedVideoUrl}
+                        src={resolvedVideoUrl}
+                        className="h-full w-full"
+                        controls
+                        poster={resolveMediaUrl(course.thumbnailUrl)}
+                      />
+                    );
+                  })() : (
+                    <div className="flex h-full w-full items-center justify-center bg-muted">
+                      <div className="text-center">
+                        <Play className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+                        <p className="mt-2 text-sm text-muted-foreground">No video for this lesson</p>
+                      </div>
+                    </div>
+                  )
+                ) : currentLesson.type === 'document' || currentLesson.type === 'pdf' || currentLesson.type === 'ppt' || currentLesson.type === 'doc' ? (
+                  <div className="h-full w-full p-4 bg-slate-100 dark:bg-slate-900">
+                    {currentLesson.videoUrl ? (
+                      <DocumentViewer
+                        url={resolveMediaUrl(currentLesson.videoUrl)}
+                        type={
+                          currentLesson.type === 'pdf' ? 'pdf' :
+                            currentLesson.type === 'ppt' ? 'ppt' :
+                              currentLesson.type === 'doc' ? 'doc' :
+                                currentLesson.videoUrl.match(/\.pdf$/i) ? 'pdf' :
+                                  currentLesson.videoUrl.match(/\.pptx?$/i) ? 'ppt' :
+                                    currentLesson.videoUrl.match(/\.docx?$/i) ? 'doc' :
+                                      'doc'
+                        }
+                        title={currentLesson.title}
+                        className="h-full shadow-lg"
+                      />
+                    ) : currentLesson.content ? (
+                      <div className="h-full w-full p-8 overflow-auto bg-card rounded-lg shadow-sm">
+                        <div className="max-w-3xl mx-auto prose dark:prose-invert">
+                          <h1 className="mb-4 text-2xl font-bold">{currentLesson.title}</h1>
+                          <div dangerouslySetInnerHTML={{ __html: currentLesson.content }} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center text-muted-foreground gap-4">
+                        <Lock className="h-12 w-12 text-muted-foreground/30" />
+                        <p className="text-lg font-medium text-muted-foreground/70">
+                          {progress ? "No content uploaded" : "This content is locked"}
+                        </p>
+                        {!progress && !currentLesson.isFree && (
+                          <p className="text-sm text-muted-foreground/50">
+                            Please enroll in the course to access this lesson.
+                          </p>
+                        )}
+                        {progress && (
+                          <p className="text-sm text-muted-foreground/50">
+                            This lesson has no digital content available.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <div className="h-full w-full p-8 overflow-auto">
+                    <div className="max-w-3xl mx-auto prose dark:prose-invert">
+                      <h1>{currentLesson.title}</h1>
+                      <div dangerouslySetInnerHTML={{ __html: currentLesson.content || '' }} />
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  Select a lesson to start
                 </div>
               )}
             </div>
@@ -278,11 +360,17 @@ const Player = () => {
 
         {/* Sidebar */}
         <div
-          className={`w-full sm:w-80 flex-shrink-0 border-l border-border bg-card transition-transform duration-300 ${
-            isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-          } fixed bottom-0 right-0 top-14 z-20 lg:static lg:translate-x-0`}
+          className={`fixed bottom-0 right-0 top-14 z-20 w-full transform transition-transform duration-300 ease-in-out lg:static lg:block lg:w-96 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+            } border-l bg-card flex flex-col`}
         >
-          <Tabs defaultValue="content" className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="font-semibold text-foreground">Course Content</h2>
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Tabs defaultValue="content" className="flex flex-1 flex-col overflow-hidden">
             <div className="border-b border-border px-3 py-1.5">
               <TabsList className="grid w-full grid-cols-3 h-8">
                 <TabsTrigger value="content" className="text-xs">Lessons</TabsTrigger>
@@ -293,66 +381,69 @@ const Player = () => {
 
             {/* Lessons tab */}
             <TabsContent value="content" className="flex-1 overflow-hidden p-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <ScrollArea className="flex-1">
-                <div className="p-2 space-y-3">
-                  {sections.map((section, si) => (
-                    <div key={section.id}>
-                      <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        {section.title}
-                      </p>
-                      <div className="space-y-0.5">
-                        {section.lessons.map((lesson) => {
-                          const isActive = currentLessonId === lesson.id;
-                          return (
-                            <button
-                              key={lesson.id}
-                              onClick={() => setCurrentLessonId(lesson.id)}
-                              className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors text-xs ${
-                                isActive
-                                  ? 'bg-primary/10 text-primary'
-                                  : 'hover:bg-secondary text-foreground'
-                              }`}
-                            >
-                              <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                                {lesson.isCompleted ? (
-                                  <CheckCircle className="h-4 w-4 text-accent" />
-                                ) : lesson.type === 'video' ? (
-                                  <Play className="h-3.5 w-3.5" />
-                                ) : lesson.type === 'quiz' ? (
-                                  <HelpCircle className="h-3.5 w-3.5" />
-                                ) : (
-                                  <FileText className="h-3.5 w-3.5" />
+              <div className="flex-1 overflow-y-auto min-h-0 bg-card/50">
+                {sections.length === 0 ? (
+                  <div className="flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">
+                    <p>No lessons available</p>
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-3">
+                    {sections.map((section, si) => (
+                      <div key={section.id}>
+                        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-foreground/70">
+                          {section.title}
+                        </p>
+                        <div className="space-y-0.5">
+                          {section.lessons.map((lesson) => {
+                            const isActive = currentLessonId === lesson.id;
+                            return (
+                              <button
+                                key={lesson.id}
+                                onClick={() => setCurrentLessonId(lesson.id)}
+                                className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-3 text-left transition-colors text-sm ${isActive
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'hover:bg-accent/50 text-foreground'
+                                  }`}
+                              >
+                                <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+                                  {lesson.isCompleted ? (
+                                    <CheckCircle className="h-4 w-4 text-primary" />
+                                  ) : lesson.type === 'video' ? (
+                                    <Play className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <FileText className="h-3.5 w-3.5 opacity-70" />
+                                  )}
+                                </div>
+                                <span className="flex-1 line-clamp-2">{lesson.title}</span>
+                                {lesson.duration && (
+                                  <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                                    {lesson.duration}m
+                                  </span>
                                 )}
-                              </div>
-                              <span className="flex-1 truncate">{lesson.title}</span>
-                              {lesson.duration && (
-                                <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                                  {lesson.duration}m
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
             {/* Files tab */}
             <TabsContent value="resources" className="flex-1 overflow-hidden p-0 data-[state=active]:flex data-[state=active]:flex-col">
               <ScrollArea className="flex-1">
                 <div className="p-3 space-y-2">
-                  {resources.length === 0 ? (
+                  {allResources.length === 0 ? (
                     <div className="py-12 text-center">
                       <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
                       <p className="mt-3 text-xs text-muted-foreground">No files for this course.</p>
                     </div>
                   ) : (
-                    resources.map((res: any) => (
+                    allResources.map((res: any, idx: number) => (
                       <a
-                        key={res.id}
+                        key={res.id || idx}
                         href={res.url}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -369,6 +460,9 @@ const Player = () => {
                           <p className="text-xs font-medium text-foreground truncate">{res.title}</p>
                           {res.description && (
                             <p className="text-[10px] text-muted-foreground truncate">{res.description}</p>
+                          )}
+                          {res.lessonTitle && (
+                            <p className="text-[10px] text-primary/70 truncate">Lesson: {res.lessonTitle}</p>
                           )}
                         </div>
                         <Download className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -394,16 +488,14 @@ const Player = () => {
                     return (
                       <div key={msg.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
                         <div
-                          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                            isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
-                          }`}
+                          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+                            }`}
                         >
                           {msg.user.firstName[0]}
                         </div>
                         <div
-                          className={`max-w-[80%] rounded-lg px-3 py-2 text-xs ${
-                            isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
-                          }`}
+                          className={`max-w-[80%] rounded-lg px-3 py-2 text-xs ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
+                            }`}
                         >
                           {!isMe && (
                             <p className="mb-0.5 font-semibold opacity-80">{msg.user.firstName}</p>
@@ -445,7 +537,7 @@ const Player = () => {
           </Tabs>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

@@ -19,8 +19,8 @@ const createLessonValidation = [
         .trim(),
     body('type')
         .optional()
-        .isIn(['video', 'text', 'quiz', 'assignment'])
-        .withMessage('Type must be video, text, quiz, or assignment'),
+        .isIn(['video', 'text', 'quiz', 'assignment', 'document', 'pdf', 'ppt', 'doc'])
+        .withMessage('Type must be video, text, quiz, assignment, document, pdf, ppt, or doc'),
     body('videoUrl')
         .optional()
         .trim()
@@ -69,8 +69,8 @@ const updateLessonValidation = [
         .trim(),
     body('type')
         .optional()
-        .isIn(['video', 'text', 'quiz', 'assignment'])
-        .withMessage('Type must be video, text, quiz, or assignment'),
+        .isIn(['video', 'text', 'quiz', 'assignment', 'document', 'pdf', 'ppt', 'doc'])
+        .withMessage('Type must be video, text, quiz, assignment, document, pdf, ppt, or doc'),
     body('videoUrl')
         .optional()
         .trim()

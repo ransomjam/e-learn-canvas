@@ -12,6 +12,7 @@ export interface Course {
     currency: string;
     level: 'beginner' | 'intermediate' | 'advanced';
     status: 'draft' | 'published' | 'archived';
+    language?: string;
     duration?: number;
     lessonCount: number;
     enrollmentCount: number;
@@ -53,13 +54,14 @@ export interface Section {
 export interface Lesson {
     id: string;
     title: string;
-    type: 'video' | 'text' | 'quiz' | 'assignment';
+    type: 'video' | 'text' | 'quiz' | 'assignment' | 'document' | 'pdf' | 'ppt' | 'doc';
     duration?: number;
     orderIndex: number;
     isFree: boolean;
     isCompleted?: boolean;
     videoUrl?: string;
     content?: string;
+    resources?: any;
 }
 
 export interface CoursesParams {

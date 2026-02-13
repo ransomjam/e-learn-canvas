@@ -4,9 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     ArrowLeft, Save, Upload, Image, Video, Plus, Trash2, GripVertical,
     ChevronDown, ChevronRight, Eye, Play, FileText, HelpCircle, Loader2,
-    X, Check, BookOpen, Settings2, Layers, Globe, DollarSign, Tag
+    X, Check, BookOpen, Settings2, Layers, Globe, DollarSign, Tag, Paperclip
 } from 'lucide-react';
-import Layout from '@/components/layout/Layout';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,6 +46,7 @@ const CourseEditor = () => {
         objectives: [''] as string[],
         requirements: [''] as string[],
         categoryId: '',
+        language: 'English',
     });
 
     const [activeTab, setActiveTab] = useState('details');
@@ -63,6 +64,8 @@ const CourseEditor = () => {
         videoUrl: '',
         duration: 0,
         isFree: false,
+        resources: [] as any[],
+        targetSectionId: '',
     });
 
     // Fetch existing course
@@ -100,6 +103,7 @@ const CourseEditor = () => {
                 objectives: course.objectives?.length ? course.objectives : [''],
                 requirements: course.requirements?.length ? course.requirements : [''],
                 categoryId: course.category?.id || '',
+                language: course.language || 'English',
             });
             if (course.thumbnailUrl) {
                 setThumbnailPreview(resolveMediaUrl(course.thumbnailUrl));
@@ -231,6 +235,8 @@ const CourseEditor = () => {
             videoUrl: '',
             duration: 0,
             isFree: false,
+            resources: [],
+            targetSectionId: '',
         });
     };
 
@@ -257,15 +263,85 @@ const CourseEditor = () => {
         }
     };
 
-    // Handle video upload for lessons
+    // Helper: get accepted file types for a lesson type
+    const getAcceptForType = (type: string) => {
+        switch (type) {
+            case 'video': return 'video/*';
+            case 'pdf': return '.pdf';
+            case 'ppt': return '.ppt,.pptx';
+            case 'doc': return '.doc,.docx';
+            case 'document': return '.pdf,.ppt,.pptx,.doc,.docx';
+            default: return '*/*';
+        }
+    };
+
+    // Helper: get label for a lesson type
+    const getLessonTypeLabel = (type: string) => {
+        switch (type) {
+            case 'video': return 'Video';
+            case 'pdf': return 'PDF';
+            case 'ppt': return 'PowerPoint';
+            case 'doc': return 'Word Doc';
+            case 'document': return 'Document';
+            case 'text': return 'Article';
+            case 'quiz': return 'Quiz';
+            case 'assignment': return 'Assignment';
+            default: return type;
+        }
+    };
+
+    // Helper: check if a lesson type supports file upload
+    const isFileType = (type: string) => ['video', 'pdf', 'ppt', 'doc', 'document'].includes(type);
+
+    // Handle file upload for lessons (video, pdf, ppt, doc)
     const handleVideoUpload = async (file: File) => {
         setIsUploading(true);
         try {
             const result = await instructorService.uploadFile(file);
-            setLessonForm((prev) => ({ ...prev, videoUrl: result.url }));
-            toast({ title: 'Video uploaded!' });
+            const newState: Partial<typeof lessonForm> = { videoUrl: result.url };
+
+            // Auto-detect and set the lesson type based on the uploaded file
+            if (result.fileType) {
+                if (result.fileType === 'pdf') newState.type = 'pdf';
+                else if (result.fileType === 'ppt') newState.type = 'ppt';
+                else if (result.fileType === 'doc') newState.type = 'doc';
+                else if (result.fileType === 'video') newState.type = 'video';
+            }
+
+            setLessonForm((prev) => ({ ...prev, ...newState }));
+            toast({ title: 'File uploaded!' });
         } catch {
-            toast({ title: 'Video upload failed', variant: 'destructive' });
+            toast({ title: 'File upload failed', variant: 'destructive' });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handlePracticeResourceUpload = async (file: File) => {
+        setIsUploading(true);
+        try {
+            const result = await instructorService.uploadFile(file);
+            let type = 'file';
+            if (result.fileType) {
+                if (result.fileType === 'pdf') type = 'pdf';
+                else if (result.fileType === 'ppt') type = 'ppt';
+                else if (result.fileType === 'doc') type = 'doc';
+            }
+
+            const newResource = {
+                title: file.name,
+                url: result.url,
+                type: type
+            };
+
+            setLessonForm((prev) => ({
+                ...prev,
+                resources: [...(prev.resources || []), newResource]
+            }));
+
+            toast({ title: 'Practice file uploaded!' });
+        } catch {
+            toast({ title: 'Upload failed', variant: 'destructive' });
         } finally {
             setIsUploading(false);
         }
@@ -283,6 +359,7 @@ const CourseEditor = () => {
             thumbnailUrl: formData.thumbnailUrl,
             objectives: formData.objectives.filter((o) => o.trim()),
             requirements: formData.requirements.filter((r) => r.trim()),
+            language: formData.language,
         };
 
         if (formData.discountPrice !== undefined && formData.discountPrice > 0) {
@@ -342,7 +419,7 @@ const CourseEditor = () => {
             return;
         }
         createLessonMutation.mutate({
-            sectionId,
+            sectionId: lessonForm.targetSectionId || sectionId,
             courseId: id!,
             title: lessonForm.title,
             type: lessonForm.type,
@@ -350,6 +427,7 @@ const CourseEditor = () => {
             videoUrl: lessonForm.videoUrl || undefined,
             videoDuration: lessonForm.duration,
             isFree: lessonForm.isFree,
+            resources: lessonForm.resources,
         });
     };
 
@@ -357,16 +435,16 @@ const CourseEditor = () => {
 
     if (!isNewCourse && courseLoading) {
         return (
-            <Layout>
+            <AdminLayout>
                 <div className="flex items-center justify-center py-20">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-            </Layout>
+            </AdminLayout>
         );
     }
 
     return (
-        <Layout>
+        <AdminLayout>
             <div className="py-6 lg:py-10">
                 <div className="container mx-auto px-4">
                     {/* Header */}
@@ -667,6 +745,19 @@ const CourseEditor = () => {
                                             </div>
                                         </div>
                                     </div>
+                                    <div className="rounded-xl border border-border bg-card p-6">
+                                        <h3 className="font-semibold text-foreground mb-4">Language</h3>
+                                        <div>
+                                            <Label htmlFor="language">Language</Label>
+                                            <Input
+                                                id="language"
+                                                value={formData.language}
+                                                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                                                placeholder="e.g. English"
+                                                className="mt-2"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </TabsContent>
@@ -739,6 +830,14 @@ const CourseEditor = () => {
                                                                         <GripVertical className="h-3 w-3 text-muted-foreground" />
                                                                         {lesson.type === 'video' ? (
                                                                             <Play className="h-4 w-4 text-primary" />
+                                                                        ) : lesson.type === 'pdf' ? (
+                                                                            <FileText className="h-4 w-4 text-red-500" />
+                                                                        ) : lesson.type === 'ppt' ? (
+                                                                            <FileText className="h-4 w-4 text-orange-500" />
+                                                                        ) : lesson.type === 'doc' ? (
+                                                                            <FileText className="h-4 w-4 text-blue-500" />
+                                                                        ) : lesson.type === 'document' ? (
+                                                                            <FileText className="h-4 w-4 text-primary" />
                                                                         ) : lesson.type === 'quiz' ? (
                                                                             <HelpCircle className="h-4 w-4 text-accent" />
                                                                         ) : (
@@ -748,7 +847,7 @@ const CourseEditor = () => {
                                                                             <p className="text-sm font-medium text-foreground">{lesson.title}</p>
                                                                             <div className="flex items-center gap-2 mt-0.5">
                                                                                 <Badge variant="outline" className="text-[10px] h-4">
-                                                                                    {lesson.type}
+                                                                                    {getLessonTypeLabel(lesson.type)}
                                                                                 </Badge>
                                                                                 {lesson.duration && (
                                                                                     <span className="text-xs text-muted-foreground">
@@ -826,22 +925,26 @@ const CourseEditor = () => {
                                                                                     className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground"
                                                                                 >
                                                                                     <option value="video">Video</option>
+                                                                                    <option value="pdf">PDF Document</option>
+                                                                                    <option value="ppt">PowerPoint (PPT/PPTX)</option>
+                                                                                    <option value="doc">Word Document (DOC/DOCX)</option>
+                                                                                    <option value="document">Other Document</option>
                                                                                     <option value="text">Article</option>
                                                                                     <option value="quiz">Quiz</option>
                                                                                     <option value="assignment">Assignment</option>
                                                                                 </select>
                                                                             </div>
                                                                         </div>
-                                                                        {lessonForm.type === 'video' && (
+                                                                        {isFileType(lessonForm.type) && (
                                                                             <div>
-                                                                                <Label className="text-xs">Video URL</Label>
+                                                                                <Label className="text-xs">{lessonForm.type === 'video' ? 'Video URL' : `${getLessonTypeLabel(lessonForm.type)} URL`}</Label>
                                                                                 <div className="flex gap-2 mt-1">
                                                                                     <Input
                                                                                         value={lessonForm.videoUrl}
                                                                                         onChange={(e) =>
                                                                                             setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))
                                                                                         }
-                                                                                        placeholder="Video URL or upload a file"
+                                                                                        placeholder={`Paste URL or upload a ${getLessonTypeLabel(lessonForm.type).toLowerCase()} file`}
                                                                                         className="flex-1"
                                                                                     />
                                                                                     <Button
@@ -850,7 +953,7 @@ const CourseEditor = () => {
                                                                                         onClick={() => {
                                                                                             const input = document.createElement('input');
                                                                                             input.type = 'file';
-                                                                                            input.accept = 'video/*';
+                                                                                            input.accept = getAcceptForType(lessonForm.type);
                                                                                             input.onchange = (e) => {
                                                                                                 const file = (e.target as HTMLInputElement).files?.[0];
                                                                                                 if (file) handleVideoUpload(file);
@@ -862,7 +965,7 @@ const CourseEditor = () => {
                                                                                         {isUploading ? (
                                                                                             <Loader2 className="h-4 w-4 animate-spin" />
                                                                                         ) : (
-                                                                                            <Video className="h-4 w-4" />
+                                                                                            lessonForm.type === 'video' ? <Video className="h-4 w-4" /> : <FileText className="h-4 w-4" />
                                                                                         )}
                                                                                     </Button>
                                                                                 </div>
@@ -949,138 +1052,25 @@ const CourseEditor = () => {
                                                                 )}
                                                         </div>
                                                     )}
-
-                                                    {/* Add New Lesson Form */}
-                                                    {!editingLesson && (
-                                                        <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
-                                                            <h4 className="text-sm font-semibold text-muted-foreground">
-                                                                Add New Lesson
-                                                            </h4>
-                                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                                <div>
-                                                                    <Label className="text-xs">Title *</Label>
-                                                                    <Input
-                                                                        value={lessonForm.title}
-                                                                        onChange={(e) =>
-                                                                            setLessonForm((p) => ({ ...p, title: e.target.value }))
-                                                                        }
-                                                                        placeholder="Lesson title"
-                                                                        className="mt-1"
-                                                                    />
-                                                                </div>
-                                                                <div>
-                                                                    <Label className="text-xs">Type</Label>
-                                                                    <select
-                                                                        value={lessonForm.type}
-                                                                        onChange={(e) =>
-                                                                            setLessonForm((p) => ({ ...p, type: e.target.value }))
-                                                                        }
-                                                                        className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground"
-                                                                    >
-                                                                        <option value="video">Video</option>
-                                                                        <option value="text">Article</option>
-                                                                        <option value="quiz">Quiz</option>
-                                                                        <option value="assignment">Assignment</option>
-                                                                    </select>
-                                                                </div>
-                                                            </div>
-                                                            {lessonForm.type === 'video' && (
-                                                                <div>
-                                                                    <Label className="text-xs">Video URL</Label>
-                                                                    <div className="flex gap-2 mt-1">
-                                                                        <Input
-                                                                            value={lessonForm.videoUrl}
-                                                                            onChange={(e) =>
-                                                                                setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))
-                                                                            }
-                                                                            placeholder="Paste URL or upload"
-                                                                            className="flex-1"
-                                                                        />
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            onClick={() => {
-                                                                                const input = document.createElement('input');
-                                                                                input.type = 'file';
-                                                                                input.accept = 'video/*';
-                                                                                input.onchange = (e) => {
-                                                                                    const file = (e.target as HTMLInputElement).files?.[0];
-                                                                                    if (file) handleVideoUpload(file);
-                                                                                };
-                                                                                input.click();
-                                                                            }}
-                                                                            disabled={isUploading}
-                                                                        >
-                                                                            {isUploading ? (
-                                                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                                            ) : (
-                                                                                <Upload className="h-4 w-4" />
-                                                                            )}
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <Label className="text-xs">Content</Label>
-                                                                <textarea
-                                                                    value={lessonForm.content}
-                                                                    onChange={(e) =>
-                                                                        setLessonForm((p) => ({ ...p, content: e.target.value }))
-                                                                    }
-                                                                    rows={2}
-                                                                    className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y"
-                                                                    placeholder="Lesson description..."
-                                                                />
-                                                            </div>
-                                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                                <div>
-                                                                    <Label className="text-xs">Duration (min)</Label>
-                                                                    <Input
-                                                                        type="number"
-                                                                        value={lessonForm.duration}
-                                                                        onChange={(e) =>
-                                                                            setLessonForm((p) => ({
-                                                                                ...p,
-                                                                                duration: parseInt(e.target.value) || 0,
-                                                                            }))
-                                                                        }
-                                                                        className="mt-1"
-                                                                    />
-                                                                </div>
-                                                                <div className="flex items-end">
-                                                                    <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={lessonForm.isFree}
-                                                                            onChange={(e) =>
-                                                                                setLessonForm((p) => ({ ...p, isFree: e.target.checked }))
-                                                                            }
-                                                                            className="rounded border-border"
-                                                                        />
-                                                                        Free Preview
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-                                                            <Button
-                                                                size="sm"
-                                                                onClick={() => handleAddLesson(section.id)}
-                                                                disabled={createLessonMutation.isPending}
-                                                            >
-                                                                {createLessonMutation.isPending ? (
-                                                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                                                ) : (
-                                                                    <Plus className="mr-2 h-3 w-3" />
-                                                                )}
-                                                                Add Lesson
-                                                            </Button>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             )}
                                         </div>
                                     ))}
 
-                                    {/* Add new section */}
+
+                                    {/* Add New Lesson Button */}
+                                    <div className="mb-6 rounded-lg border border-dashed border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-foreground">Add New Lesson</h4>
+                                            <p className="text-xs text-muted-foreground">Create a new lesson and assign it to a section.</p>
+                                        </div>
+                                        <Button onClick={() => navigate(`/instructor/courses/${id}/lessons/new`)}>
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Add Lesson
+                                        </Button>
+                                    </div>
+
+                                    {/* Add New Section */}
                                     <div className="rounded-lg border-2 border-dashed border-border bg-secondary/10 p-4">
                                         <h4 className="text-sm font-semibold text-foreground mb-3">
                                             Add New Section
@@ -1125,7 +1115,7 @@ const CourseEditor = () => {
                     </Tabs>
                 </div>
             </div>
-        </Layout>
+        </AdminLayout>
     );
 };
 
@@ -1173,10 +1163,20 @@ const ResourcesManager = ({ courseId }: { courseId: string }) => {
     const handleUploadResource = async (file: File) => {
         try {
             const result = await instructorService.uploadFile(file);
+            let resourceType = 'file';
+            if (result.fileType) {
+                if (result.fileType === 'pdf') resourceType = 'pdf';
+                else if (result.fileType === 'ppt') resourceType = 'ppt';
+                else if (result.fileType === 'doc') resourceType = 'doc';
+                else if (result.fileType === 'image') resourceType = 'image';
+                else if (result.fileType === 'video') resourceType = 'video';
+            }
+
             setResourceForm((prev) => ({
                 ...prev,
                 url: result.url,
-                title: prev.title || file.name,
+                title: prev.title || result.originalName || file.name,
+                type: resourceType !== 'file' ? resourceType : prev.type,
             }));
             toast({ title: 'File uploaded!' });
         } catch {
@@ -1253,7 +1253,9 @@ const ResourcesManager = ({ courseId }: { courseId: string }) => {
                         >
                             <option value="link">Link</option>
                             <option value="pdf">PDF</option>
-                            <option value="file">File</option>
+                            <option value="ppt">Presentation (PPT/PPTX)</option>
+                            <option value="doc">Document (DOC/DOCX)</option>
+                            <option value="file">Other File</option>
                         </select>
                     </div>
                 </div>

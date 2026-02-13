@@ -222,6 +222,51 @@ const Auth = () => {
             </Button>
           </form>
 
+          {/* === DEMO DATA === Remove this entire block before production */}
+          {isLogin && (
+            <div className="mt-6 rounded-lg border border-dashed border-border bg-secondary/30 p-4">
+              <p className="text-center text-xs text-muted-foreground mb-3">
+                🧪 Quick Demo Login <span className="opacity-60">(password: demo123)</span>
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: '👩 Student 1', email: 'student1@demo.com', color: 'bg-emerald-600 hover:bg-emerald-700' },
+                  { label: '👨 Student 2', email: 'student2@demo.com', color: 'bg-cyan-600 hover:bg-cyan-700' },
+                  { label: '👩 Student 3', email: 'student3@demo.com', color: 'bg-violet-600 hover:bg-violet-700' },
+                  { label: '👨‍🏫 Instructor', email: 'instructor1@demo.com', color: 'bg-orange-600 hover:bg-orange-700' },
+                ].map((demo) => (
+                  <Button
+                    key={demo.email}
+                    type="button"
+                    size="sm"
+                    className={`${demo.color} text-white text-xs`}
+                    disabled={isLoading}
+                    onClick={async () => {
+                      setIsLoading(true);
+                      try {
+                        await login(demo.email, 'demo123');
+                        toast({ title: 'Demo login successful!', description: `Logged in as ${demo.label}` });
+                        const from = (location.state as { from?: Location })?.from?.pathname || '/dashboard';
+                        navigate(from, { replace: true });
+                      } catch (error) {
+                        toast({
+                          title: 'Demo login failed',
+                          description: 'Run: node backend/src/database/seed-demo.js',
+                          variant: 'destructive',
+                        });
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                  >
+                    {demo.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* === END DEMO DATA === */}
+
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {isLogin ? "Don't have an account? " : 'Already have an account? '}
             <button

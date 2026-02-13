@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Users, BookOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ interface CourseCardProps {
 }
 
 const CourseCard = ({ course }: CourseCardProps) => {
+  const [imageError, setImageError] = useState(false);
   const thumbnail = resolveMediaUrl(course.thumbnailUrl);
   const displayPrice = course.discountPrice || course.price;
   const hasDiscount = course.discountPrice && course.discountPrice < course.price;
@@ -18,12 +20,13 @@ const CourseCard = ({ course }: CourseCardProps) => {
       <div className="overflow-hidden rounded-xl border border-border bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5">
         {/* Thumbnail */}
         <div className="relative aspect-video overflow-hidden bg-secondary">
-          {thumbnail ? (
+          {thumbnail && !imageError ? (
             <img
               src={thumbnail}
               alt={course.title}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
+              onError={() => setImageError(true)}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">

@@ -98,7 +98,7 @@ export const instructorService = {
     },
 
     // File upload
-    async uploadFile(file: File): Promise<{ url: string; filename: string }> {
+    async uploadFile(file: File): Promise<{ url: string; filename: string; fileType?: string; originalName?: string }> {
         const formData = new FormData();
         formData.append('file', file);
         const response = await api.post('/upload', formData, {

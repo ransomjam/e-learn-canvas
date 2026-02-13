@@ -77,6 +77,32 @@ function showLogin() {
     document.getElementById('loginOverlay').classList.remove('hidden');
 }
 
+/* === DEMO DATA === Remove this function before production */
+async function demoLogin(email) {
+    const password = 'demo123';
+    try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            token = data.data.accessToken;
+            refreshToken = data.data.refreshToken;
+            localStorage.setItem('token', token);
+            localStorage.setItem('refreshToken', refreshToken);
+            document.getElementById('loginOverlay').classList.add('hidden');
+            fetchCurrentUser();
+        } else {
+            alert('Demo login failed: ' + (data.message || 'Unknown error') + '\n\nMake sure you have run: node backend/src/database/seed-demo.js');
+        }
+    } catch (err) {
+        alert('Demo login failed. Make sure the seed script has been run:\nnode backend/src/database/seed-demo.js');
+    }
+}
+/* === END DEMO DATA === */
+
 async function logout() {
     try {
         if (refreshToken) {
@@ -873,9 +899,53 @@ function showCreateCourse() {
                     <input type="text" class="form-input" name="language" value="English">
                 </div>
                 <button type="submit" class="btn">Create Course</button>
+                <!-- === DEMO DATA === Remove this button before production -->
+                <button type="button" class="btn" id="fillDemoDataBtn" style="margin-left: 0.5rem; background: #7c3aed;">🧪 Fill Demo Data</button>
+                <!-- === END DEMO DATA === -->
             </form>
         </div>
     `;
+
+    /* === DEMO DATA === Remove this block before production */
+    const demoCoursesData = [
+        {
+            title: 'Complete Web Development Bootcamp 2024',
+            shortDescription: 'Learn HTML, CSS, JavaScript, React, Node.js and more. Build 10+ real-world projects from scratch.',
+            description: 'This comprehensive bootcamp takes you from absolute beginner to job-ready web developer. You\'ll learn HTML5, CSS3, JavaScript ES6+, React.js, Node.js, Express, PostgreSQL, and deployment. Includes 10+ hands-on projects including an e-commerce platform, social media app, and portfolio website. Perfect for career changers and self-taught developers looking to fill knowledge gaps.',
+            price: '49.99',
+            level: 'beginner',
+            language: 'English'
+        },
+        {
+            title: 'Advanced Python for Data Science & Machine Learning',
+            shortDescription: 'Master Python, Pandas, NumPy, Scikit-learn, and TensorFlow. Real-world data science projects included.',
+            description: 'Dive deep into Python for data science and machine learning. This course covers advanced Python techniques, data manipulation with Pandas, numerical computing with NumPy, visualization with Matplotlib and Seaborn, machine learning with Scikit-learn, and deep learning with TensorFlow/Keras. Includes 5 capstone projects using real datasets from Kaggle competitions.',
+            price: '59.99',
+            level: 'intermediate',
+            language: 'English'
+        },
+        {
+            title: 'UI/UX Design Masterclass: Figma to Production',
+            shortDescription: 'Design beautiful interfaces using Figma. Learn design thinking, user research, prototyping and handoff.',
+            description: 'Learn professional UI/UX design from concept to developer handoff. Master Figma for wireframing, prototyping, and design systems. Covers design thinking methodology, user research techniques, information architecture, visual design principles, micro-interactions, responsive design, and accessibility standards. Build a complete design portfolio with 3 case studies.',
+            price: '39.99',
+            level: 'beginner',
+            language: 'English'
+        }
+    ];
+    let demoIndex = 0;
+    document.getElementById('fillDemoDataBtn').addEventListener('click', () => {
+        const demo = demoCoursesData[demoIndex % demoCoursesData.length];
+        const form = document.getElementById('createCourseForm');
+        form.querySelector('[name="title"]').value = demo.title;
+        form.querySelector('[name="shortDescription"]').value = demo.shortDescription;
+        form.querySelector('[name="description"]').value = demo.description;
+        form.querySelector('[name="price"]').value = demo.price;
+        form.querySelector('[name="level"]').value = demo.level;
+        form.querySelector('[name="language"]').value = demo.language;
+        demoIndex++;
+    });
+    /* === END DEMO DATA === */
 
     document.getElementById('createCourseForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1008,7 +1078,17 @@ async function loadCourseEditor(courseId) {
                                 ${section.lessons && section.lessons.length > 0 ?
                         section.lessons.map(lesson => `
                                         <div style="padding: 0.5rem; background: var(--bg-dark); margin: 0.5rem 0; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                                            <span>${lesson.title} (${lesson.type})</span>
+                                            <span>
+                                                ${lesson.type === 'pdf' ? '<span style="color: #ef4444;">📄</span>' :
+                                lesson.type === 'ppt' ? '<span style="color: #f97316;">📊</span>' :
+                                    lesson.type === 'doc' ? '<span style="color: #3b82f6;">📝</span>' :
+                                        lesson.type === 'video' ? '🎥' :
+                                            lesson.type === 'quiz' ? '❓' :
+                                                lesson.type === 'assignment' ? '📋' : '📄'}
+                                                ${lesson.title}
+                                                <small style="color: var(--text-muted); margin-left: 0.5rem;">(${lesson.type})</small>
+                                                ${lesson.isFree ? '<span style="background: var(--secondary); color: white; padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.7rem; margin-left: 0.5rem;">FREE</span>' : ''}
+                                            </span>
                                             <button class="btn btn-sm btn-danger" onclick="deleteLesson('${lesson.id}', '${courseId}')">Delete</button>
                                         </div>
                                     `).join('') : '<p style="color: var(--text-muted);">No lessons</p>'
@@ -1096,16 +1176,28 @@ function showAddLesson(courseId) {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Lesson Type *</label>
-                    <select class="form-input" name="type" required>
+                    <select class="form-input" name="type" id="lessonTypeSelect" required>
                         <option value="video">Video</option>
-                        <option value="text">Text</option>
+                        <option value="pdf">PDF Document</option>
+                        <option value="ppt">PowerPoint (PPT/PPTX)</option>
+                        <option value="doc">Word Document (DOC/DOCX)</option>
+                        <option value="document">Other Document</option>
+                        <option value="text">Article / Text</option>
                         <option value="quiz">Quiz</option>
+                        <option value="assignment">Assignment</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Video URL (if video type)</label>
-                    <input type="url" class="form-input" name="videoUrl" placeholder="https://drive.google.com/file/d/FILE_ID/view">
-                    <small style="color: var(--text-muted);">For Google Drive: Share link → Copy link</small>
+                <div class="form-group" id="fileUrlGroup">
+                    <label class="form-label" id="fileUrlLabel">Video URL</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="text" class="form-input" name="videoUrl" id="videoUrlInput" placeholder="Paste URL or upload a file" style="flex: 1;">
+                        <button type="button" class="btn" id="uploadFileBtn" style="width: auto; white-space: nowrap;">Upload File</button>
+                    </div>
+                    <input type="file" id="lessonFileInput" style="display: none;">
+                    <div id="uploadStatus" style="margin-top: 0.5rem; display: none;">
+                        <small style="color: var(--primary);">Uploading...</small>
+                    </div>
+                    <small style="color: var(--text-muted);" id="fileHint">For Google Drive: Share link → Copy link</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Content/Description</label>
@@ -1115,10 +1207,113 @@ function showAddLesson(courseId) {
                     <label class="form-label">Duration (minutes)</label>
                     <input type="number" class="form-input" name="duration" min="0" value="0">
                 </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" name="isFree"> Free Preview
+                    </label>
+                </div>
                 <button type="submit" class="btn">Add Lesson</button>
             </form>
         </div>
     `;
+
+    // Dynamic form updates based on type selection
+    const typeSelect = document.getElementById('lessonTypeSelect');
+    const fileUrlGroup = document.getElementById('fileUrlGroup');
+    const fileUrlLabel = document.getElementById('fileUrlLabel');
+    const fileHint = document.getElementById('fileHint');
+    const fileInput = document.getElementById('lessonFileInput');
+    const uploadBtn = document.getElementById('uploadFileBtn');
+
+    function updateFormForType() {
+        const type = typeSelect.value;
+        const isFileType = ['video', 'pdf', 'ppt', 'doc', 'document'].includes(type);
+        fileUrlGroup.style.display = isFileType ? 'block' : 'none';
+
+        if (type === 'video') {
+            fileUrlLabel.textContent = 'Video URL';
+            fileInput.accept = 'video/*';
+            fileHint.textContent = 'For Google Drive: Share link → Copy link';
+            uploadBtn.textContent = 'Upload Video';
+        } else if (type === 'pdf') {
+            fileUrlLabel.textContent = 'PDF File';
+            fileInput.accept = '.pdf';
+            fileHint.textContent = 'Upload a PDF file or paste a direct link';
+            uploadBtn.textContent = 'Upload PDF';
+        } else if (type === 'ppt') {
+            fileUrlLabel.textContent = 'PowerPoint File';
+            fileInput.accept = '.ppt,.pptx';
+            fileHint.textContent = 'Upload a PPT/PPTX file or paste a direct link';
+            uploadBtn.textContent = 'Upload PPT';
+        } else if (type === 'doc') {
+            fileUrlLabel.textContent = 'Word Document';
+            fileInput.accept = '.doc,.docx';
+            fileHint.textContent = 'Upload a DOC/DOCX file or paste a direct link';
+            uploadBtn.textContent = 'Upload DOC';
+        } else if (type === 'document') {
+            fileUrlLabel.textContent = 'Document File';
+            fileInput.accept = '.pdf,.ppt,.pptx,.doc,.docx';
+            fileHint.textContent = 'Upload any document file or paste a direct link';
+            uploadBtn.textContent = 'Upload File';
+        }
+    }
+
+    typeSelect.addEventListener('change', updateFormForType);
+    updateFormForType();
+
+    // File upload handling
+    uploadBtn.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const uploadStatus = document.getElementById('uploadStatus');
+        uploadStatus.style.display = 'block';
+        uploadStatus.innerHTML = '<small style="color: var(--primary);">Uploading ' + file.name + '...</small>';
+        uploadBtn.disabled = true;
+
+        try {
+            const uploadFormData = new FormData();
+            uploadFormData.append('file', file);
+
+            const uploadRes = await fetchWithAuth(`${API_URL}/upload`, {
+                method: 'POST',
+                body: uploadFormData
+            });
+            const uploadData = await uploadRes.json();
+
+            if (uploadData.success) {
+                document.getElementById('videoUrlInput').value = uploadData.data.url;
+
+                // Auto-detect and set type from backend response
+                if (uploadData.data.fileType) {
+                    const detectedType = uploadData.data.fileType;
+                    if (['pdf', 'ppt', 'doc'].includes(detectedType)) {
+                        typeSelect.value = detectedType;
+                        updateFormForType();
+                    }
+                }
+
+                // Auto-fill title if empty
+                const titleInput = document.querySelector('input[name="title"]');
+                if (!titleInput.value && uploadData.data.originalName) {
+                    titleInput.value = uploadData.data.originalName.replace(/\.[^/.]+$/, '');
+                }
+
+                uploadStatus.innerHTML = '<small style="color: var(--secondary);">✓ Uploaded: ' + (uploadData.data.originalName || file.name) + '</small>';
+            } else {
+                uploadStatus.innerHTML = '<small style="color: var(--danger);">Upload failed: ' + (uploadData.message || 'Unknown error') + '</small>';
+            }
+        } catch (err) {
+            uploadStatus.innerHTML = '<small style="color: var(--danger);">Upload failed</small>';
+        }
+
+        uploadBtn.disabled = false;
+        fileInput.value = '';
+    });
 
     document.getElementById('addLessonForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1163,7 +1358,8 @@ function showAddLesson(courseId) {
                 type: formData.get('type'),
                 content: formData.get('content'),
                 videoUrl: formData.get('videoUrl'),
-                videoDuration: parseInt(formData.get('duration')) * 60
+                videoDuration: parseInt(formData.get('duration')) * 60,
+                isFree: formData.get('isFree') === 'on'
             };
 
             const lessonRes = await fetchWithAuth(`${API_URL}/lessons`, {

@@ -210,7 +210,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
             s.order_index as section_order,
             l.id, l.title, l.slug, l.description, l.type, l.video_duration,
             l.order_index, l.is_free, l.is_published,
-            ${hasFullAccess ? 'l.content, l.video_url, l.resources,' : ''}
+            l.content, l.video_url, l.resources,
             l.created_at
      FROM sections s
      LEFT JOIN lessons l ON s.id = l.section_id ${!hasFullAccess ? 'AND l.is_published = true' : ''}
@@ -246,6 +246,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
                 createdAt: row.created_at
             };
 
+            // Always include content for enrolled/admin users or free lessons
             if (hasFullAccess || row.is_free) {
                 lesson.content = row.content;
                 lesson.videoUrl = row.video_url;

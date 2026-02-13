@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Star, Clock, Users, Play, Award, Globe,
-  CheckCircle, Lock, FileText, HelpCircle, Loader2, ShoppingCart
+  CheckCircle, Lock, FileText, HelpCircle, Loader2, ShoppingCart, BookOpen
 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -198,11 +198,19 @@ const CourseDetail = () => {
 
               {/* Instructor */}
               <div className="mt-6 flex items-center gap-3">
-                <img
-                  src={resolveMediaUrl(course.instructor.avatarUrl) || ''}
-                  alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
-                  className="h-12 w-12 rounded-full object-cover"
-                />
+                {course.instructor.avatarUrl ? (
+                  <img
+                    src={resolveMediaUrl(course.instructor.avatarUrl)}
+                    alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
+                    className="h-12 w-12 rounded-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                  />
+                ) : null}
+                <div className={`h-12 w-12 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0 ${course.instructor.avatarUrl ? 'hidden' : ''}`}>
+                  <span className="text-lg font-bold text-primary">
+                    {course.instructor.firstName?.charAt(0)}{course.instructor.lastName?.charAt(0)}
+                  </span>
+                </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Created by</p>
                   <p className="font-medium text-foreground">
@@ -246,11 +254,17 @@ const CourseDetail = () => {
             {/* Price Card */}
             <div className="lg:row-start-1 lg:col-start-3">
               <div className="overflow-hidden rounded-xl border border-border bg-card lg:sticky lg:top-24">
-                <img
-                  src={resolveMediaUrl(course.thumbnailUrl) || ''}
-                  alt={course.title}
-                  className="aspect-video w-full object-cover"
-                />
+                {resolveMediaUrl(course.thumbnailUrl) ? (
+                  <img
+                    src={resolveMediaUrl(course.thumbnailUrl)}
+                    alt={course.title}
+                    className="aspect-video w-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                  />
+                ) : null}
+                <div className={`aspect-video w-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10 ${resolveMediaUrl(course.thumbnailUrl) ? 'hidden' : ''}`}>
+                  <BookOpen className="h-12 w-12 text-muted-foreground/30" />
+                </div>
                 <div className="p-6">
                   <div className="flex items-center gap-3">
                     {course.isFree || displayPrice === 0 ? (
@@ -452,11 +466,19 @@ const CourseDetail = () => {
                   Your Instructor
                 </h2>
                 <div className="mt-6 flex flex-col gap-6 sm:flex-row">
-                  <img
-                    src={resolveMediaUrl(course.instructor.avatarUrl) || ''}
-                    alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
-                    className="h-24 w-24 rounded-full object-cover"
-                  />
+                  {course.instructor.avatarUrl ? (
+                    <img
+                      src={resolveMediaUrl(course.instructor.avatarUrl)}
+                      alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
+                      className="h-24 w-24 rounded-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                    />
+                  ) : null}
+                  <div className={`h-24 w-24 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0 ${course.instructor.avatarUrl ? 'hidden' : ''}`}>
+                    <span className="text-3xl font-bold text-primary">
+                      {course.instructor.firstName?.charAt(0)}{course.instructor.lastName?.charAt(0)}
+                    </span>
+                  </div>
                   <div>
                     <h3 className="text-xl font-semibold text-foreground">
                       {course.instructor.firstName} {course.instructor.lastName}

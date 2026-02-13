@@ -381,21 +381,6 @@ const AddLesson = () => {
                         />
                     </div>
 
-                    {/* Free Preview */}
-                    <div className="flex items-center">
-                        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={lessonForm.isFree}
-                                onChange={(e) =>
-                                    setLessonForm((p) => ({ ...p, isFree: e.target.checked }))
-                                }
-                                className="h-4 w-4 rounded border-border"
-                            />
-                            Free Preview
-                        </label>
-                    </div>
-
                     {/* Practice Files Section */}
                     <div className="space-y-3 pt-4 border-t border-border">
                         <div className="flex items-center justify-between">
@@ -409,6 +394,34 @@ const AddLesson = () => {
                                 {lessonForm.resources.length} file{lessonForm.resources.length !== 1 ? 's' : ''}
                             </span>
                         </div>
+
+                        {/* Add Practice File Button */}
+                        <Button
+                            variant="outline"
+                            className="w-full gap-2 border-dashed py-6 hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                            onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.multiple = true;
+                                input.onchange = (e) => {
+                                    const files = (e.target as HTMLInputElement).files;
+                                    if (files) {
+                                        Array.from(files).forEach((file) =>
+                                            handlePracticeResourceUpload(file)
+                                        );
+                                    }
+                                };
+                                input.click();
+                            }}
+                            disabled={isUploading}
+                        >
+                            {isUploading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Plus className="h-4 w-4" />
+                            )}
+                            Add Practice File
+                        </Button>
 
                         {/* Uploaded Resources List */}
                         {lessonForm.resources.length > 0 && (
@@ -439,34 +452,6 @@ const AddLesson = () => {
                                 ))}
                             </div>
                         )}
-
-                        {/* Add Practice File Button */}
-                        <Button
-                            variant="outline"
-                            className="w-full gap-2 border-dashed py-6 hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                            onClick={() => {
-                                const input = document.createElement('input');
-                                input.type = 'file';
-                                input.multiple = true;
-                                input.onchange = (e) => {
-                                    const files = (e.target as HTMLInputElement).files;
-                                    if (files) {
-                                        Array.from(files).forEach((file) =>
-                                            handlePracticeResourceUpload(file)
-                                        );
-                                    }
-                                };
-                                input.click();
-                            }}
-                            disabled={isUploading}
-                        >
-                            {isUploading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Plus className="h-4 w-4" />
-                            )}
-                            Add Practice File
-                        </Button>
                     </div>
 
                     {/* Actions */}

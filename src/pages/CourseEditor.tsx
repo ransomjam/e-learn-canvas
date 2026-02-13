@@ -1052,6 +1052,29 @@ const CourseEditor = () => {
                                                                                     {lessonForm.resources.length} file{lessonForm.resources.length === 1 ? '' : 's'}
                                                                                 </span>
                                                                             </div>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className="w-full gap-2 border-dashed h-8 text-xs"
+                                                                                onClick={() => {
+                                                                                    const input = document.createElement('input');
+                                                                                    input.type = 'file';
+                                                                                    input.multiple = true;
+                                                                                    input.onchange = (e) => {
+                                                                                        const files = (e.target as HTMLInputElement).files;
+                                                                                        if (files) {
+                                                                                            Array.from(files).forEach((file) =>
+                                                                                                handlePracticeResourceUpload(file)
+                                                                                            );
+                                                                                        }
+                                                                                    };
+                                                                                    input.click();
+                                                                                }}
+                                                                                disabled={isUploading}
+                                                                            >
+                                                                                {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                                                                                Add File
+                                                                            </Button>
                                                                             {lessonForm.resources && lessonForm.resources.length > 0 ? (
                                                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                                                                                     {lessonForm.resources.map((res: any, idx: number) => (
@@ -1076,29 +1099,6 @@ const CourseEditor = () => {
                                                                                     No practice files added for this lesson yet.
                                                                                 </p>
                                                                             )}
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                className="w-full gap-2 border-dashed h-8 text-xs"
-                                                                                onClick={() => {
-                                                                                    const input = document.createElement('input');
-                                                                                    input.type = 'file';
-                                                                                    input.multiple = true;
-                                                                                    input.onchange = (e) => {
-                                                                                        const files = (e.target as HTMLInputElement).files;
-                                                                                        if (files) {
-                                                                                            Array.from(files).forEach((file) =>
-                                                                                                handlePracticeResourceUpload(file)
-                                                                                            );
-                                                                                        }
-                                                                                    };
-                                                                                    input.click();
-                                                                                }}
-                                                                                disabled={isUploading}
-                                                                            >
-                                                                                {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                                                                                Add File
-                                                                            </Button>
                                                                         </div>
                                                                         <div className="flex gap-2">
                                                                             <Button

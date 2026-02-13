@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Star, Clock, Users, Play, Award, Globe,
+  Star, Users, Play, Award, Globe,
   CheckCircle, Lock, FileText, HelpCircle, Loader2, ShoppingCart, BookOpen
 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
@@ -216,26 +216,6 @@ const CourseDetail = () => {
                   <p className="text-sm font-medium text-foreground md:text-base">
                     {course.instructor.firstName} {course.instructor.lastName}
                   </p>
-                </div>
-              </div>
-
-              {/* Meta */}
-              <div className="grid gap-3 rounded-lg border border-border/70 bg-background/40 p-4 text-xs text-muted-foreground sm:grid-cols-2 sm:text-sm lg:grid-cols-4">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span>{course.duration ? `${Math.floor(course.duration / 60)} hours` : 'Self-paced'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Play className="h-4 w-4" />
-                  <span>{course.lessonCount} lessons</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  <span>English</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Award className="h-4 w-4" />
-                  <span>Certificate</span>
                 </div>
               </div>
 

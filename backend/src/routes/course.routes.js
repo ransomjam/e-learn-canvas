@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const projectsRoutes = require('./projects.routes');
 
 const {
     getCourses,
@@ -15,6 +16,17 @@ const {
 } = require('../controllers/course.controller');
 
 const { createSection } = require('../controllers/lesson.controller');
+
+const {
+    projectUpload,
+    getProject,
+    updateProject,
+    deleteProject,
+    submitProject,
+    getProjectSubmissions,
+    getPublicProjectSubmissions,
+    gradeSubmission
+} = require('../controllers/projects.controller');
 
 const {
     createCourseValidation,
@@ -40,6 +52,58 @@ router.get('/categories', getCategories);
  * @access  Private/Instructor
  */
 router.get('/instructor/me', authenticate, authorize('instructor', 'admin'), getInstructorCourses);
+
+// ===== Standalone project routes (no courseId needed) =====
+// These handle /courses/projects/... paths from the frontend
+
+/**
+ * @route   PUT /api/v1/courses/projects/submissions/:submissionId/grade
+ * @desc    Grade a submission
+ * @access  Private/Instructor
+ */
+router.put('/projects/submissions/:submissionId/grade', authenticate, gradeSubmission);
+
+/**
+ * @route   GET /api/v1/courses/projects/:projectId
+ * @desc    Get a single project with user's submission
+ * @access  Private
+ */
+router.get('/projects/:projectId', authenticate, getProject);
+
+/**
+ * @route   PUT /api/v1/courses/projects/:projectId
+ * @desc    Update a project
+ * @access  Private/Instructor
+ */
+router.put('/projects/:projectId', authenticate, projectUpload.single('file'), updateProject);
+
+/**
+ * @route   DELETE /api/v1/courses/projects/:projectId
+ * @desc    Delete a project
+ * @access  Private/Instructor
+ */
+router.delete('/projects/:projectId', authenticate, deleteProject);
+
+/**
+ * @route   POST /api/v1/courses/projects/:projectId/submit
+ * @desc    Submit a project
+ * @access  Private
+ */
+router.post('/projects/:projectId/submit', authenticate, projectUpload.single('file'), submitProject);
+
+/**
+ * @route   GET /api/v1/courses/projects/:projectId/submissions
+ * @desc    Get all submissions for a project (instructor)
+ * @access  Private/Instructor
+ */
+router.get('/projects/:projectId/submissions', authenticate, getProjectSubmissions);
+
+/**
+ * @route   GET /api/v1/courses/projects/:projectId/submissions/public
+ * @desc    Get all submissions for a project (visible to all authenticated users)
+ * @access  Private
+ */
+router.get('/projects/:projectId/submissions/public', authenticate, getPublicProjectSubmissions);
 
 /**
  * @route   GET /api/v1/courses
@@ -149,5 +213,8 @@ router.get('/:id/chat', authenticate, getChatMessages);
  * @access  Private
  */
 router.post('/:id/chat', authenticate, postChatMessage);
+
+// Nested projects routes
+router.use('/:courseId/projects', projectsRoutes);
 
 module.exports = router;

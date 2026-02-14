@@ -10,6 +10,8 @@ const {
     getAllEnrollments
 } = require('../controllers/enrollment.controller');
 
+const { redeemEnrollmentCode } = require('../controllers/enrollment-code.controller');
+
 const {
     enrollValidation,
     enrollmentIdValidation,
@@ -53,6 +55,13 @@ router.get('/:id', authenticate, enrollmentIdValidation, validate, getEnrollment
  * @access  Private
  */
 router.post('/', authenticate, enrollValidation, validate, enrollInCourse);
+
+/**
+ * @route   POST /api/v1/enrollments/redeem-code
+ * @desc    Redeem an enrollment code
+ * @access  Private
+ */
+router.post('/redeem-code', authenticate, redeemEnrollmentCode);
 
 /**
  * @route   PUT /api/v1/enrollments/:id/cancel

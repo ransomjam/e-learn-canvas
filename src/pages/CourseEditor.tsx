@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { coursesService, Course, Section, Lesson } from '@/services/courses.service';
 import { instructorService } from '@/services/instructor.service';
+import { projectsService, Project } from '@/services/projects.service';
 import { resolveMediaUrl } from '@/lib/media';
 import {
     DropdownMenu,
@@ -519,7 +520,7 @@ const CourseEditor = () => {
 
                     {/* Tabs */}
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                        <TabsList className="grid w-full max-w-lg grid-cols-3">
+                        <TabsList className="grid w-full max-w-lg grid-cols-4">
                             <TabsTrigger value="details" className="gap-2">
                                 <Settings2 className="h-4 w-4" />
                                 Details
@@ -531,6 +532,10 @@ const CourseEditor = () => {
                             <TabsTrigger value="resources" className="gap-2" disabled={isNewCourse}>
                                 <FileText className="h-4 w-4" />
                                 Resources
+                            </TabsTrigger>
+                            <TabsTrigger value="projects" className="gap-2" disabled={isNewCourse}>
+                                <BookOpen className="h-4 w-4" />
+                                Projects
                             </TabsTrigger>
                         </TabsList>
 
@@ -1202,6 +1207,11 @@ const CourseEditor = () => {
                         <TabsContent value="resources" className="space-y-6">
                             <ResourcesManager courseId={id!} />
                         </TabsContent>
+
+                        {/* ========== PROJECTS TAB ========== */}
+                        <TabsContent value="projects" className="space-y-6">
+                            <ProjectsManager courseId={id!} />
+                        </TabsContent>
                     </Tabs>
                 </div>
             </div>
@@ -1409,3 +1419,247 @@ const ResourcesManager = ({ courseId }: { courseId: string }) => {
 
 
 export default CourseEditor;
+
+// Projects Manager Sub-component
+const ProjectsManager = ({ courseId }: { courseId: string }) => {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+    const [isCreating, setIsCreating] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+    const [form, setForm] = useState({
+        title: '',
+        description: '',
+        instructions: '',
+        dueDate: '',
+    });
+
+    const { data: projects = [], isLoading } = useQuery({
+        queryKey: ['courseProjects', courseId],
+        queryFn: () => projectsService.getCourseProjects(courseId),
+        enabled: !!courseId,
+    });
+
+    const createMutation = useMutation({
+        mutationFn: (data: { form: typeof form; file?: File }) => projectsService.createProject(courseId, data.form, data.file),
+        onSuccess: () => {
+            toast({ title: 'Project created!' });
+            resetForm();
+            queryClient.invalidateQueries({ queryKey: ['courseProjects', courseId] });
+        },
+        onError: () => toast({ title: 'Failed to create project', variant: 'destructive' }),
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data, file }: { id: string; data: typeof form; file?: File }) => projectsService.updateProject(id, data, file),
+        onSuccess: () => {
+            toast({ title: 'Project updated!' });
+            resetForm();
+            queryClient.invalidateQueries({ queryKey: ['courseProjects', courseId] });
+        },
+        onError: () => toast({ title: 'Failed to update project', variant: 'destructive' }),
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => projectsService.deleteProject(id),
+        onSuccess: () => {
+            toast({ title: 'Project deleted' });
+            queryClient.invalidateQueries({ queryKey: ['courseProjects', courseId] });
+        },
+        onError: () => toast({ title: 'Failed to delete project', variant: 'destructive' }),
+    });
+
+    const resetForm = () => {
+        setForm({ title: '', description: '', instructions: '', dueDate: '' });
+        setAttachmentFile(null);
+        setIsCreating(false);
+        setEditingId(null);
+    };
+
+    const startEdit = (project: any) => {
+        setForm({
+            title: project.title || '',
+            description: project.description || '',
+            instructions: project.instructions || '',
+            dueDate: project.due_date ? new Date(project.due_date).toISOString().split('T')[0] : '',
+        });
+        setEditingId(project.id);
+        setIsCreating(true);
+    };
+
+    const handleSubmit = () => {
+        if (!form.title.trim()) {
+            toast({ title: 'Project title is required', variant: 'destructive' });
+            return;
+        }
+        if (editingId) {
+            updateMutation.mutate({ id: editingId, data: form, file: attachmentFile || undefined });
+        } else {
+            createMutation.mutate({ form, file: attachmentFile || undefined });
+        }
+    };
+
+    const isSaving = createMutation.isPending || updateMutation.isPending;
+
+    return (
+        <div className="space-y-6">
+            <div className="rounded-xl border border-border bg-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="font-semibold text-foreground">Course Projects</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Create assignments and projects for students to submit.
+                        </p>
+                    </div>
+                    {!isCreating && (
+                        <Button size="sm" onClick={() => setIsCreating(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Project
+                        </Button>
+                    )}
+                </div>
+
+                {/* Create / Edit form */}
+                {isCreating && (
+                    <div className="rounded-lg border border-dashed border-border p-4 space-y-4 mb-6 bg-muted/20">
+                        <h4 className="text-sm font-semibold">
+                            {editingId ? 'Edit Project' : 'New Project'}
+                        </h4>
+                        <div className="space-y-3">
+                            <div>
+                                <Label className="text-xs">Title *</Label>
+                                <Input
+                                    value={form.title}
+                                    onChange={(e) => setForm(p => ({ ...p, title: e.target.value }))}
+                                    placeholder="e.g., Build a Portfolio Website"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Description</Label>
+                                <Input
+                                    value={form.description}
+                                    onChange={(e) => setForm(p => ({ ...p, description: e.target.value }))}
+                                    placeholder="Brief overview of the project"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Instructions</Label>
+                                <textarea
+                                    value={form.instructions}
+                                    onChange={(e) => setForm(p => ({ ...p, instructions: e.target.value }))}
+                                    placeholder="Detailed instructions for students..."
+                                    rows={5}
+                                    className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Due Date (optional)</Label>
+                                <Input
+                                    type="date"
+                                    value={form.dueDate}
+                                    onChange={(e) => setForm(p => ({ ...p, dueDate: e.target.value }))}
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Attachment (optional)</Label>
+                                <div className="mt-1 flex items-center gap-3">
+                                    <label className="flex items-center gap-2 cursor-pointer rounded-lg border border-dashed border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted/50 transition-colors">
+                                        <Paperclip className="h-4 w-4" />
+                                        {attachmentFile ? attachmentFile.name : 'Choose file'}
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                                        />
+                                    </label>
+                                    {attachmentFile && (
+                                        <Button type="button" size="sm" variant="ghost" onClick={() => setAttachmentFile(null)}>
+                                            Remove
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                            <Button size="sm" onClick={handleSubmit} disabled={isSaving}>
+                                {isSaving ? (
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                ) : editingId ? (
+                                    <Check className="mr-2 h-3 w-3" />
+                                ) : (
+                                    <Plus className="mr-2 h-3 w-3" />
+                                )}
+                                {editingId ? 'Save Changes' : 'Create Project'}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={resetForm}>
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Projects list */}
+                {isLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : projects.length === 0 && !isCreating ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <FileText className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm">No projects yet</p>
+                        <p className="text-xs mt-1">Click "New Project" to create an assignment for students.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {projects.map((project: any) => (
+                            <div
+                                key={project.id}
+                                className="rounded-lg border border-border p-4 flex items-start justify-between gap-4 hover:bg-accent/5 transition-colors"
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="font-medium text-sm text-foreground">{project.title}</h4>
+                                    {project.description && (
+                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                            {project.description}
+                                        </p>
+                                    )}
+                                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                        {project.due_date && (
+                                            <span>Due: {new Date(project.due_date).toLocaleDateString()}</span>
+                                        )}
+                                        <span>{project.submission_count || 0} submissions</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => startEdit(project)}
+                                    >
+                                        <Settings2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                        onClick={() => {
+                                            if (window.confirm('Delete this project? Student submissions will also be removed.')) {
+                                                deleteMutation.mutate(project.id);
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};

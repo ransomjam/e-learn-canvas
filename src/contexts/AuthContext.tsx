@@ -61,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = async () => {
         await authService.logout();
         setUser(null);
+        // Redirect to landing page after logout
+        window.location.href = '/';
     };
 
     const refreshUser = async () => {

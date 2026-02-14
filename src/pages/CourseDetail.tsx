@@ -1,20 +1,24 @@
-import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Star, Users, Play, Award, Globe,
-  CheckCircle, Lock, FileText, HelpCircle, Loader2, ShoppingCart, BookOpen
+  CheckCircle, Lock, FileText, HelpCircle, Loader2, ShoppingCart, BookOpen,
+  Ticket, CreditCard, Heart
 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { coursesService, Course, Section } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
 import { paymentsService } from '@/services/payments.service';
+import { wishlistService } from '@/services/wishlist.service';
 import { resolveMediaUrl } from '@/lib/media';
 
 const CourseDetail = () => {
@@ -24,6 +28,13 @@ const CourseDetail = () => {
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [showEnrollDialog, setShowEnrollDialog] = useState(false);
+  const [enrollMode, setEnrollMode] = useState<'choose' | 'code'>('choose');
+  const [enrollmentCode, setEnrollmentCode] = useState('');
+  const [isRedeemingCode, setIsRedeemingCode] = useState(false);
+  const [isRedirectingToPayment, setIsRedirectingToPayment] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   // Fetch course
   const { data: course, isLoading: courseLoading } = useQuery({
@@ -46,6 +57,21 @@ const CourseDetail = () => {
     enabled: !!id && isAuthenticated,
   });
 
+  // Check wishlist status
+  useEffect(() => {
+    const checkWishlist = async () => {
+      if (!isAuthenticated) return;
+      try {
+        const wishlist = await wishlistService.getWishlist();
+        const inWishlist = wishlist.some((w: any) => w.courseId === id);
+        setIsInWishlist(inWishlist);
+      } catch (error) {
+        // Ignore errors
+      }
+    };
+    checkWishlist();
+  }, [id, isAuthenticated]);
+
   const totalLessons = sections.reduce((acc, section) => acc + section.lessons.length, 0);
   const isEnrolled = !!enrollment;
 
@@ -60,10 +86,10 @@ const CourseDetail = () => {
       return;
     }
 
-    setIsEnrolling(true);
-    try {
-      if (course?.isFree || course?.price === 0) {
-        // Free course - enroll directly
+    if (course?.isFree || course?.price === 0) {
+      // Free course - enroll directly
+      setIsEnrolling(true);
+      try {
         await enrollmentsService.enrollInCourse(id!);
         toast({
           title: "Enrolled successfully!",
@@ -71,33 +97,114 @@ const CourseDetail = () => {
         });
         queryClient.invalidateQueries({ queryKey: ['enrollment', id] });
         navigate(`/player/${id}`);
+      } catch (error: any) {
+        const errorMsg = error.response?.data?.message || "Please try again.";
+        if (errorMsg.toLowerCase().includes('already enrolled')) {
+          queryClient.invalidateQueries({ queryKey: ['enrollment', id] });
+          navigate(`/player/${id}`);
+        } else {
+          toast({
+            title: "Enrollment failed",
+            description: errorMsg,
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setIsEnrolling(false);
+      }
+    } else {
+      // Paid course - show enrollment dialog with options
+      setEnrollMode('choose');
+      setEnrollmentCode('');
+      setShowEnrollDialog(true);
+    }
+  };
+
+  const handleRedeemCode = async () => {
+    if (!enrollmentCode.trim()) {
+      toast({
+        title: "Enter a code",
+        description: "Please enter your enrollment code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRedeemingCode(true);
+    try {
+      const result = await enrollmentsService.redeemEnrollmentCode(enrollmentCode.trim());
+      toast({
+        title: "Enrolled successfully!",
+        description: `You now have access to ${result.courseTitle}.`,
+      });
+      setShowEnrollDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['enrollment', id] });
+      navigate(`/player/${id}`);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || "Invalid or expired enrollment code.";
+      toast({
+        title: "Code redemption failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    } finally {
+      setIsRedeemingCode(false);
+    }
+  };
+
+  const handleFapshiPayment = async () => {
+    setIsRedirectingToPayment(true);
+    try {
+      const result = await paymentsService.createFapshiPayment(id!);
+      
+      if (result.link) {
+        // Redirect to Fapshi payment page
+        window.location.href = result.link;
       } else {
-        // Paid course - create payment
-        const paymentIntent = await paymentsService.createPayment(id!);
-        // In production, integrate with Stripe here
-        // For demo, simulate payment confirmation
-        await paymentsService.confirmPayment(paymentIntent.paymentId, 'demo_transaction');
-        toast({
-          title: "Payment successful!",
-          description: "You now have access to the course.",
-        });
-        queryClient.invalidateQueries({ queryKey: ['enrollment', id] });
-        navigate(`/player/${id}`);
+        throw new Error('No payment link received');
       }
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "Please try again.";
-      if (errorMsg.toLowerCase().includes('already enrolled')) {
-        queryClient.invalidateQueries({ queryKey: ['enrollment', id] });
-        navigate(`/player/${id}`);
-      } else {
+      const errorMsg = error.response?.data?.message || "Payment initiation failed.";
+      toast({
+        title: "Payment failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
+      setIsRedirectingToPayment(false);
+    }
+  };
+
+  const handleWishlist = async () => {
+    if (!isAuthenticated) {
+      navigate('/auth', { state: { from: { pathname: `/course/${id}` } } });
+      return;
+    }
+
+    setWishlistLoading(true);
+    try {
+      if (isInWishlist) {
+        await wishlistService.removeFromWishlist(id!);
+        setIsInWishlist(false);
         toast({
-          title: "Enrollment failed",
-          description: errorMsg,
-          variant: "destructive",
+          title: "Removed",
+          description: "Course removed from your wishlist",
+        });
+      } else {
+        await wishlistService.addToWishlist(id!);
+        setIsInWishlist(true);
+        toast({
+          title: "Added",
+          description: "Course added to your wishlist",
         });
       }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update wishlist",
+        variant: "destructive",
+      });
     } finally {
-      setIsEnrolling(false);
+      setWishlistLoading(false);
     }
   };
 
@@ -253,11 +360,11 @@ const CourseDetail = () => {
                     ) : (
                       <>
                         <span className="font-display text-2xl font-bold text-foreground md:text-3xl">
-                          ${displayPrice.toFixed(2)}
+                          {displayPrice.toLocaleString()} CFA
                         </span>
                         {hasDiscount && (
                           <span className="text-lg text-muted-foreground line-through">
-                            ${course.price.toFixed(2)}
+                            {course.price.toLocaleString()} CFA
                           </span>
                         )}
                         {hasDiscount && (
@@ -295,22 +402,25 @@ const CourseDetail = () => {
                         </>
                       ) : (
                         <>
-                          <ShoppingCart className="mr-2 h-5 w-5" />
-                          Buy Now
+                          <BookOpen className="mr-2 h-5 w-5" />
+                          Enroll Now
                         </>
                       )}
                     </Button>
                   )}
 
                   {!isEnrolled && (
-                    <Button variant="outline" size="lg" className="mt-3 w-full">
-                      Add to Wishlist
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      className="mt-3 w-full"
+                      onClick={handleWishlist}
+                      disabled={wishlistLoading}
+                    >
+                      <Heart className={`mr-2 h-5 w-5 ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
+                      {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
                     </Button>
                   )}
-
-                  <p className="mt-4 text-center text-xs text-muted-foreground md:text-sm">
-                    30-Day Money-Back Guarantee
-                  </p>
 
                   <div className="mt-6 space-y-3 border-t border-border pt-6">
                     <h4 className="font-semibold text-foreground">This course includes:</h4>
@@ -484,6 +594,113 @@ const CourseDetail = () => {
           </div>
         </div>
       </section>
+
+      {/* Enrollment Dialog */}
+      <Dialog open={showEnrollDialog} onOpenChange={(open) => {
+        if (!open) {
+          setPollingPayment(false);
+        }
+        setShowEnrollDialog(open);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl">
+              {enrollMode === 'choose' ? 'Enroll in Course' : enrollMode === 'code' ? 'Enter Enrollment Code' : 'Mobile Money Payment'}
+            </DialogTitle>
+            <DialogDescription>
+              {enrollMode === 'choose'
+                ? 'Choose how you would like to enroll in this course.'
+                : enrollMode === 'code'
+                  ? 'Enter the enrollment code provided by your administrator.'
+                  : `Pay ${course ? `${(course.discountPrice || course.price).toLocaleString()} CFA` : ''} via mobile money.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {enrollMode === 'choose' && (
+            <div className="space-y-3 pt-2">
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full justify-start gap-3 h-16"
+                onClick={() => setEnrollMode('code')}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <Ticket className="h-5 w-5 text-primary" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold">Enrollment Code</p>
+                  <p className="text-xs text-muted-foreground">I have a code from my organization</p>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full justify-start gap-3 h-16"
+                onClick={handleFapshiPayment}
+                disabled={isRedirectingToPayment}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                  {isRedirectingToPayment ? (
+                    <Loader2 className="h-5 w-5 text-accent animate-spin" />
+                  ) : (
+                    <CreditCard className="h-5 w-5 text-accent" />
+                  )}
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold">
+                    {isRedirectingToPayment ? 'Redirecting...' : 'Pay Now'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {isRedirectingToPayment 
+                      ? 'Taking you to payment page...'
+                      : `Pay ${course ? (course.discountPrice || course.price).toLocaleString() + ' CFA' : ''} with mobile money (MTN/Orange)`
+                    }
+                  </p>
+                </div>
+              </Button>
+            </div>
+          )}
+
+          {enrollMode === 'code' && (
+            <div className="space-y-4 pt-2">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Enrollment Code</label>
+                <Input
+                  placeholder="e.g. ENR-ABCD-1234"
+                  value={enrollmentCode}
+                  onChange={(e) => setEnrollmentCode(e.target.value.toUpperCase())}
+                  className="font-mono text-center text-lg tracking-wider"
+                  onKeyDown={(e) => e.key === 'Enter' && handleRedeemCode()}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setEnrollMode('choose')}
+                >
+                  Back
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleRedeemCode}
+                  disabled={isRedeemingCode || !enrollmentCode.trim()}
+                >
+                  {isRedeemingCode ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Redeem Code'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'users': loadUsers(); break;
                 case 'courses': loadCourses(); break;
                 case 'transactions': loadTransactions(); break;
+                case 'enrollment-codes': loadEnrollmentCodes(); break;
+                case 'students': loadStudentEnrollments(); break;
             }
         });
     });
@@ -184,6 +186,8 @@ async function fetchCurrentUser() {
                 document.getElementById('usersNav').style.display = 'none';
                 document.getElementById('transactionsNav').style.display = 'none';
                 document.getElementById('coursesNav').style.display = 'none';
+                document.getElementById('enrollmentCodesNav').style.display = 'none';
+                document.getElementById('studentsNav').style.display = 'none';
             } else {
                 document.getElementById('myCoursesNav').style.display = 'none';
             }
@@ -248,8 +252,8 @@ function renderDashboardView(stats) {
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Total Revenue</div>
-                    <div class="stat-value">$${(stats.revenue?.total || 0).toFixed(2)}</div>
-                    <div class="stat-label" style="color: var(--secondary);">+$${(stats.revenue?.thisMonth || 0).toFixed(2)} this month</div>
+                    <div class="stat-value">${(stats.revenue?.total || 0).toLocaleString()} CFA</div>
+                    <div class="stat-label" style="color: var(--secondary);">+${(stats.revenue?.thisMonth || 0).toLocaleString()} CFA this month</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Active Enrollments</div>
@@ -271,7 +275,7 @@ function renderDashboardView(stats) {
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Total Revenue</div>
-                    <div class="stat-value">$${(stats.totalRevenue || 0).toFixed(2)}</div>
+                    <div class="stat-value">${(stats.totalRevenue || 0).toLocaleString()} CFA</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Average Rating</div>
@@ -441,7 +445,7 @@ async function loadRecentTransactions() {
                     <td>${t.transactionId.substring(0, 8)}...</td>
                     <td>${t.user?.name || 'N/A'}</td>
                     <td>${t.course?.title || 'N/A'}</td>
-                    <td>$${(t.amount || 0).toFixed(2)}</td>
+                    <td>${(t.amount || 0).toLocaleString()} CFA</td>
                     <td><span class="status-badge status-${t.status === 'completed' ? 'success' : 'warning'}">${t.status}</span></td>
                     <td>${new Date(t.createdAt).toLocaleDateString()}</td>
                 </tr>
@@ -467,7 +471,7 @@ async function loadInstructorCourses() {
                         <td>${c.title}</td>
                         <td><span class="status-badge status-${c.status === 'published' ? 'success' : c.status === 'draft' ? 'warning' : 'danger'}">${c.status}</span></td>
                         <td>${c.enrollmentCount || 0}</td>
-                        <td>$${(c.price * (c.enrollmentCount || 0)).toFixed(2)}</td>
+                        <td>${(c.price * (c.enrollmentCount || 0)).toLocaleString()} CFA</td>
                         <td>${c.ratingAvg ? c.ratingAvg.toFixed(1) + ' ★' : 'N/A'}</td>
                     </tr>
                 `).join('');
@@ -642,7 +646,7 @@ async function loadCourses() {
                         <td>${course.title}</td>
                         <td>${course.instructor?.firstName || ''} ${course.instructor?.lastName || ''}</td>
                         <td><span class="status-badge status-${course.status === 'published' ? 'success' : course.status === 'draft' ? 'warning' : 'danger'}">${course.status}</span></td>
-                        <td>$${(course.price || 0).toFixed(2)}</td>
+                        <td>${(course.price || 0).toLocaleString()} CFA</td>
                         <td>${course.enrollmentCount || 0}</td>
                         <td>
                             <div style="display: flex; gap: 0.25rem;">
@@ -751,7 +755,7 @@ async function loadTransactions() {
                         <td>${t.transactionId}</td>
                         <td>${t.user?.name || 'N/A'}</td>
                         <td>${t.course?.title || 'N/A'}</td>
-                        <td>$${(t.amount || 0).toFixed(2)}</td>
+                        <td>${(t.amount || 0).toLocaleString()} CFA</td>
                         <td><span class="status-badge status-${t.status === 'completed' ? 'success' : t.status === 'refunded' ? 'danger' : 'warning'}">${t.status}</span></td>
                         <td>${new Date(t.createdAt).toLocaleDateString()}</td>
                         <td>
@@ -838,7 +842,7 @@ async function loadMyCourses() {
                         <td>${course.title}</td>
                         <td><span class="status-badge status-${course.status === 'published' ? 'success' : course.status === 'draft' ? 'warning' : 'danger'}">${course.status}</span></td>
                         <td><span class="status-badge status-${course.moderationStatus === 'approved' ? 'success' : course.moderationStatus === 'pending_review' ? 'warning' : 'danger'}">${course.moderationStatus || 'draft'}</span></td>
-                        <td>$${(course.price || 0).toFixed(2)}</td>
+                        <td>${(course.price || 0).toLocaleString()} CFA</td>
                         <td>${course.enrollmentCount || 0}</td>
                         <td>${course.ratingAvg ? course.ratingAvg.toFixed(1) + ' ★' : 'N/A'}</td>
                         <td>
@@ -1098,7 +1102,21 @@ async function loadCourseEditor(courseId) {
             }
                 </div>
             </div>
+
+            <!-- Projects Section -->
+            <div class="stat-card" style="margin-top: 1.5rem;">
+                <div class="header" style="margin-bottom: 1rem;">
+                    <h3>📋 Projects & Assignments</h3>
+                    <button class="btn" style="width: auto;" onclick="showAddProject('${courseId}')">+ Add Project</button>
+                </div>
+                <div id="projectsContainer">
+                    <p style="color: var(--text-muted); text-align: center;">Loading projects...</p>
+                </div>
+            </div>
         `;
+
+        // Load projects into the container
+        loadCourseProjects(courseId);
 
         document.getElementById('editCourseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1156,6 +1174,304 @@ async function loadCourseEditor(courseId) {
         alert('Failed to load course');
     }
 }
+
+// ===== PROJECT MANAGEMENT FUNCTIONS =====
+
+async function loadCourseProjects(courseId) {
+    const container = document.getElementById('projectsContainer');
+    if (!container) return;
+
+    try {
+        const res = await fetchWithAuth(`${API_URL}/courses/${courseId}/projects`);
+        const data = await res.json();
+
+        if (data.success && data.data.length > 0) {
+            container.innerHTML = data.data.map(project => `
+                <div style="padding: 0.75rem 1rem; background: var(--bg-dark); margin: 0.5rem 0; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500;">📋 ${project.title}</div>
+                        ${project.description ? `<small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">${project.description}</small>` : ''}
+                        <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                            ${project.due_date ? `<small style="color: var(--warning);">📅 Due: ${new Date(project.due_date).toLocaleDateString()}</small>` : ''}
+                            <small style="color: var(--text-muted);">📝 ${project.submission_count || 0} submissions</small>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-shrink: 0; margin-left: 1rem;">
+                        <button class="btn btn-sm" onclick="viewProjectSubmissions('${project.id}', '${courseId}')">Submissions</button>
+                        <button class="btn btn-sm" style="background: var(--warning);" onclick="showEditProject('${project.id}', '${courseId}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProject('${project.id}', '${courseId}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No projects yet. Click "+ Add Project" to create one.</p>';
+        }
+    } catch (err) {
+        console.error('Failed to load projects:', err);
+        container.innerHTML = '<p style="color: var(--danger); text-align: center;">Failed to load projects</p>';
+    }
+}
+
+function showAddProject(courseId) {
+    const mainContent = document.getElementById('mainContent');
+    mainContent.innerHTML = `
+        <div class="header">
+            <h1>Add Project</h1>
+            <button class="btn" style="width: auto;" onclick="loadCourseEditor('${courseId}')">← Back to Course</button>
+        </div>
+        <div class="stat-card" style="max-width: 800px;">
+            <form id="addProjectForm">
+                <div class="form-group">
+                    <label class="form-label">Project Title *</label>
+                    <input type="text" class="form-input" name="title" required placeholder="e.g., Build a Portfolio Website">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-input" name="description" placeholder="Brief overview of the project">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Instructions</label>
+                    <textarea class="form-input" name="instructions" rows="6" placeholder="Detailed instructions for students..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Attachment (optional)</label>
+                    <input type="file" class="form-input" name="file">
+                    <small style="color: var(--text-muted);">Upload any file (PDF, document, image, etc.) as a project resource</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Due Date (optional)</label>
+                    <input type="date" class="form-input" name="dueDate">
+                </div>
+                <button type="submit" class="btn">Create Project</button>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('addProjectForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+
+        // Use FormData directly to support file upload
+        const submitData = new FormData();
+        submitData.append('title', formData.get('title'));
+        submitData.append('description', formData.get('description'));
+        submitData.append('instructions', formData.get('instructions'));
+        if (formData.get('dueDate')) submitData.append('dueDate', formData.get('dueDate'));
+        const file = formData.get('file');
+        if (file && file.size > 0) submitData.append('file', file);
+
+        try {
+            const res = await fetchWithAuth(`${API_URL}/courses/${courseId}/projects`, {
+                method: 'POST',
+                body: submitData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert('Project created successfully!');
+                loadCourseEditor(courseId);
+            } else {
+                alert(data.message || 'Failed to create project');
+            }
+        } catch (err) {
+            alert('Failed to create project');
+        }
+    });
+}
+
+async function showEditProject(projectId, courseId) {
+    try {
+        const res = await fetchWithAuth(`${API_URL}/courses/${courseId}/projects/${projectId}`);
+        const data = await res.json();
+
+        if (!data.success) {
+            alert('Failed to load project');
+            return;
+        }
+
+        const project = data.data;
+        const mainContent = document.getElementById('mainContent');
+        mainContent.innerHTML = `
+            <div class="header">
+                <h1>Edit Project</h1>
+                <button class="btn" style="width: auto;" onclick="loadCourseEditor('${courseId}')">← Back to Course</button>
+            </div>
+            <div class="stat-card" style="max-width: 800px;">
+                <form id="editProjectForm">
+                    <div class="form-group">
+                        <label class="form-label">Project Title *</label>
+                        <input type="text" class="form-input" name="title" value="${project.title || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-input" name="description" value="${project.description || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Instructions</label>
+                        <textarea class="form-input" name="instructions" rows="6">${project.instructions || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Attachment</label>
+                        ${project.attachment_url ? `<div style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-dark); border-radius: 0.5rem;">📎 <a href="${project.attachment_url}" target="_blank" style="color: var(--primary);">${project.attachment_name || 'Current file'}</a></div>` : ''}
+                        <input type="file" class="form-input" name="file">
+                        <small style="color: var(--text-muted);">${project.attachment_url ? 'Upload a new file to replace the current one' : 'Upload any file as a project resource'}</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Due Date (optional)</label>
+                        <input type="date" class="form-input" name="dueDate" value="${project.due_date ? new Date(project.due_date).toISOString().split('T')[0] : ''}">
+                    </div>
+                    <button type="submit" class="btn">Save Changes</button>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('editProjectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            // Use FormData directly to support file upload
+            const submitData = new FormData();
+            submitData.append('title', formData.get('title'));
+            submitData.append('description', formData.get('description'));
+            submitData.append('instructions', formData.get('instructions'));
+            if (formData.get('dueDate')) submitData.append('dueDate', formData.get('dueDate'));
+            const file = formData.get('file');
+            if (file && file.size > 0) submitData.append('file', file);
+
+            try {
+                const res = await fetchWithAuth(`${API_URL}/courses/${courseId}/projects/${projectId}`, {
+                    method: 'PUT',
+                    body: submitData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert('Project updated!');
+                    loadCourseEditor(courseId);
+                } else {
+                    alert(data.message || 'Failed to update project');
+                }
+            } catch (err) {
+                alert('Failed to update project');
+            }
+        });
+    } catch (err) {
+        alert('Failed to load project');
+    }
+}
+
+async function deleteProject(projectId, courseId) {
+    if (!confirm('Delete this project? All student submissions will also be removed.')) return;
+
+    try {
+        const res = await fetchWithAuth(`${API_URL}/courses/${courseId}/projects/${projectId}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            alert('Project deleted');
+            loadCourseProjects(courseId);
+        } else {
+            alert(data.message || 'Failed to delete project');
+        }
+    } catch (err) {
+        alert('Failed to delete project');
+    }
+}
+
+async function viewProjectSubmissions(projectId, courseId) {
+    const mainContent = document.getElementById('mainContent');
+    mainContent.innerHTML = `
+        <div class="header">
+            <h1>Project Submissions</h1>
+            <button class="btn" style="width: auto;" onclick="loadCourseEditor('${courseId}')">← Back to Course</button>
+        </div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Submitted</th>
+                        <th>Submission</th>
+                        <th>Status</th>
+                        <th>Grade</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="submissionsTable">
+                    <tr><td colspan="6" style="text-align: center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    try {
+        const res = await fetchWithAuth(`${API_URL}/courses/${courseId}/projects/${projectId}/submissions`);
+        const data = await res.json();
+
+        const tbody = document.getElementById('submissionsTable');
+        if (data.success && data.data.length > 0) {
+            tbody.innerHTML = data.data.map(sub => `
+                <tr>
+                    <td>${sub.first_name || ''} ${sub.last_name || ''}<br><small style="color: var(--text-muted);">${sub.email || ''}</small></td>
+                    <td>${new Date(sub.created_at).toLocaleDateString()}</td>
+                    <td>
+                        ${sub.submission_url ? `<a href="${sub.submission_url}" target="_blank" style="color: var(--primary);">View Link</a>` : ''}
+                        ${sub.submission_text ? `<small style="display: block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${sub.submission_text}</small>` : ''}
+                        ${sub.file_name ? `<small style="color: var(--text-muted);">📎 ${sub.file_name}</small>` : ''}
+                    </td>
+                    <td><span class="status-badge status-${sub.status === 'graded' ? 'success' : sub.status === 'submitted' ? 'warning' : 'danger'}">${sub.status}</span></td>
+                    <td>${sub.grade != null ? sub.grade + '/100' : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="showGradeForm('${sub.id}', '${projectId}', '${courseId}', ${sub.grade || 0}, '${(sub.instructor_feedback || '').replace(/'/g, "\\'")}')">Grade</button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No submissions yet</td></tr>';
+        }
+    } catch (err) {
+        console.error('Failed to load submissions:', err);
+        document.getElementById('submissionsTable').innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger);">Failed to load submissions</td></tr>';
+    }
+}
+
+function showGradeForm(submissionId, projectId, courseId, currentGrade, currentFeedback) {
+    const grade = prompt('Enter grade (0-100):', currentGrade || '');
+    if (grade === null) return;
+    const gradeNum = parseInt(grade);
+    if (isNaN(gradeNum) || gradeNum < 0 || gradeNum > 100) {
+        alert('Please enter a valid grade between 0 and 100');
+        return;
+    }
+
+    const feedback = prompt('Enter feedback for student (optional):', currentFeedback || '');
+
+    gradeSubmission(submissionId, projectId, courseId, gradeNum, feedback);
+}
+
+async function gradeSubmission(submissionId, projectId, courseId, grade, feedback) {
+    try {
+        const res = await fetchWithAuth(`${API_URL}/courses/projects/submissions/${submissionId}/grade`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grade, feedback })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            alert('Submission graded!');
+            viewProjectSubmissions(projectId, courseId);
+        } else {
+            alert(data.message || 'Failed to grade submission');
+        }
+    } catch (err) {
+        alert('Failed to grade submission');
+    }
+}
+
+// ===== END PROJECT MANAGEMENT FUNCTIONS =====
 
 async function showAddLesson(courseId) {
     // Fetch existing sections first
@@ -1868,4 +2184,292 @@ async function loadProfile() {
             alert('Failed to update profile');
         }
     });
+}
+
+// ============ ENROLLMENT CODES VIEW (ADMIN) ============
+async function loadEnrollmentCodes() {
+    setActiveNav('enrollment-codes');
+
+    const mainContent = document.getElementById('mainContent');
+    mainContent.innerHTML = `
+        <div class="header">
+            <h1>Enrollment Codes</h1>
+            <button class="btn" style="width: auto;" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Generate Codes Form -->
+        <div class="stat-card" style="margin-bottom: 1.5rem;">
+            <h3 style="margin-bottom: 1rem;">Generate New Codes</h3>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+                <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                    <label class="form-label">Course</label>
+                    <select class="form-input" id="codeCourseSel">
+                        <option value="">Loading courses...</option>
+                    </select>
+                </div>
+                <div class="form-group" style="width: 120px; margin-bottom: 0;">
+                    <label class="form-label">Count</label>
+                    <input type="number" class="form-input" id="codeCount" value="5" min="1" max="100">
+                </div>
+                <div class="form-group" style="width: 200px; margin-bottom: 0;">
+                    <label class="form-label">Expires At (optional)</label>
+                    <input type="date" class="form-input" id="codeExpiry">
+                </div>
+                <button class="btn" style="width: auto; height: 42px;" onclick="generateCodes()">Generate</button>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+            <select class="form-input" id="codeFilterCourse" style="width: 200px;" onchange="filterEnrollmentCodes()">
+                <option value="">All Courses</option>
+            </select>
+            <select class="form-input" id="codeFilterStatus" style="width: 150px;" onchange="filterEnrollmentCodes()">
+                <option value="">All Status</option>
+                <option value="unused">Unused</option>
+                <option value="used">Used</option>
+            </select>
+        </div>
+
+        <!-- Codes Table -->
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Course</th>
+                        <th>Status</th>
+                        <th>Used By</th>
+                        <th>Used At</th>
+                        <th>Expires</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="codesTable">
+                    <tr><td colspan="7" style="text-align: center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    // Load courses for the selects
+    try {
+        const coursesRes = await fetchWithAuth(`${API_URL}/admin/courses`);
+        const coursesData = await coursesRes.json();
+        if (coursesData.success) {
+            const select = document.getElementById('codeCourseSel');
+            const filterSelect = document.getElementById('codeFilterCourse');
+            select.innerHTML = '<option value="">Select a course</option>';
+            filterSelect.innerHTML = '<option value="">All Courses</option>';
+            coursesData.data.courses.forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${c.title}</option>`;
+                filterSelect.innerHTML += `<option value="${c.id}">${c.title}</option>`;
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load courses for code generation', err);
+    }
+
+    // Load existing codes
+    await fetchEnrollmentCodes();
+}
+
+async function fetchEnrollmentCodes(courseId, isUsed) {
+    let url = `${API_URL}/admin/enrollment-codes?limit=100`;
+    if (courseId) url += `&courseId=${courseId}`;
+    if (isUsed !== undefined && isUsed !== '') url += `&isUsed=${isUsed === 'used'}`;
+
+    try {
+        const res = await fetchWithAuth(url);
+        const data = await res.json();
+
+        const tbody = document.getElementById('codesTable');
+        if (data.success && data.data.codes && data.data.codes.length > 0) {
+            tbody.innerHTML = data.data.codes.map(code => `
+                <tr>
+                    <td style="font-family: monospace; font-weight: 600; letter-spacing: 1px;">${code.code}</td>
+                    <td>${code.courseTitle || 'N/A'}</td>
+                    <td>
+                        <span class="status-badge status-${code.isUsed ? 'warning' : 'success'}">
+                            ${code.isUsed ? 'Used' : 'Available'}
+                        </span>
+                    </td>
+                    <td>${code.usedBy ? code.usedBy.name : '-'}</td>
+                    <td>${code.usedAt ? new Date(code.usedAt).toLocaleDateString() : '-'}</td>
+                    <td>${code.expiresAt ? new Date(code.expiresAt).toLocaleDateString() : 'Never'}</td>
+                    <td>
+                        <div style="display: flex; gap: 0.25rem;">
+                            <button class="btn btn-sm" onclick="copyCode('${code.code}')" title="Copy">Copy</button>
+                            ${!code.isUsed ? `<button class="btn btn-sm btn-danger" onclick="deleteCode('${code.id}')">Delete</button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No enrollment codes found</td></tr>';
+        }
+    } catch (err) {
+        console.error('Failed to load enrollment codes', err);
+        document.getElementById('codesTable').innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger);">Failed to load enrollment codes</td></tr>';
+    }
+}
+
+function filterEnrollmentCodes() {
+    const courseId = document.getElementById('codeFilterCourse').value;
+    const status = document.getElementById('codeFilterStatus').value;
+    fetchEnrollmentCodes(courseId, status);
+}
+
+async function generateCodes() {
+    const courseId = document.getElementById('codeCourseSel').value;
+    const count = parseInt(document.getElementById('codeCount').value) || 5;
+    const expiresAt = document.getElementById('codeExpiry').value || null;
+
+    if (!courseId) {
+        alert('Please select a course');
+        return;
+    }
+
+    try {
+        const res = await fetchWithAuth(`${API_URL}/admin/enrollment-codes/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId, count, expiresAt })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            alert(`${data.data.codes.length} enrollment code(s) generated successfully!`);
+            fetchEnrollmentCodes();
+        } else {
+            alert(data.message || 'Failed to generate codes');
+        }
+    } catch (err) {
+        alert('Failed to generate codes');
+    }
+}
+
+function copyCode(code) {
+    navigator.clipboard.writeText(code).then(() => {
+        alert('Code copied to clipboard: ' + code);
+    }).catch(() => {
+        prompt('Copy this code:', code);
+    });
+}
+
+async function deleteCode(codeId) {
+    if (!confirm('Delete this enrollment code?')) return;
+
+    try {
+        const res = await fetchWithAuth(`${API_URL}/admin/enrollment-codes/${codeId}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            alert('Code deleted');
+            fetchEnrollmentCodes();
+        } else {
+            alert(data.message || 'Failed to delete code');
+        }
+    } catch (err) {
+        alert('Failed to delete code');
+    }
+}
+
+// ============ STUDENTS VIEW (ADMIN) ============
+async function loadStudentEnrollments() {
+    setActiveNav('students');
+
+    const mainContent = document.getElementById('mainContent');
+    mainContent.innerHTML = `
+        <div class="header">
+            <h1>Students & Enrollments</h1>
+            <button class="btn" style="width: auto;" onclick="logout()">Logout</button>
+        </div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Email</th>
+                        <th>Course</th>
+                        <th>Enrollment Code</th>
+                        <th>Progress</th>
+                        <th>Enrolled</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsTable">
+                    <tr><td colspan="7" style="text-align: center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    try {
+        const res = await fetchWithAuth(`${API_URL}/admin/users/enrollments`);
+        const data = await res.json();
+
+        const tbody = document.getElementById('studentsTable');
+        if (data.success && data.data.users && data.data.users.length > 0) {
+            // Flatten: each user may have multiple enrollments, show one row per enrollment
+            const rows = [];
+            data.data.users.forEach(u => {
+                if (u.enrollments && u.enrollments.length > 0) {
+                    u.enrollments.forEach(e => {
+                        // Find matching enrollment code for this course
+                        const matchingCode = (u.enrollmentCodes || []).find(c => c.courseId === e.courseId);
+                        rows.push({
+                            name: `${u.firstName} ${u.lastName}`,
+                            email: u.email,
+                            courseTitle: e.courseTitle,
+                            enrollmentCode: matchingCode ? matchingCode.code : '-',
+                            progressPercent: e.progressPercentage || 0,
+                            enrolledAt: e.enrolledAt,
+                            enrollmentStatus: e.status
+                        });
+                    });
+                } else {
+                    rows.push({
+                        name: `${u.firstName} ${u.lastName}`,
+                        email: u.email,
+                        courseTitle: 'No enrollments',
+                        enrollmentCode: '-',
+                        progressPercent: 0,
+                        enrolledAt: null,
+                        enrollmentStatus: 'none'
+                    });
+                }
+            });
+
+            if (rows.length > 0) {
+                tbody.innerHTML = rows.map(u => `
+                    <tr>
+                        <td>${u.name}</td>
+                        <td>${u.email}</td>
+                        <td>${u.courseTitle}</td>
+                        <td style="font-family: monospace;">${u.enrollmentCode}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                                    <div style="width: ${u.progressPercent}%; height: 100%; background: var(--secondary); border-radius: 3px;"></div>
+                                </div>
+                                <span style="font-size: 0.75rem; min-width: 36px;">${u.progressPercent}%</span>
+                            </div>
+                        </td>
+                        <td>${u.enrolledAt ? new Date(u.enrolledAt).toLocaleDateString() : '-'}</td>
+                        <td><span class="status-badge status-${u.enrollmentStatus === 'active' || u.enrollmentStatus === 'completed' ? 'success' : 'warning'}">${u.enrollmentStatus}</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No student enrollments found</td></tr>';
+            }
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No student enrollments found</td></tr>';
+        }
+    } catch (err) {
+        console.error('Failed to load student enrollments', err);
+        document.getElementById('studentsTable').innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger);">Failed to load student enrollments</td></tr>';
+    }
 }

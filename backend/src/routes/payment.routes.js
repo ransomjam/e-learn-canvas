@@ -8,7 +8,10 @@ const {
     getMyPayments,
     getAllPayments,
     refundPayment,
-    getInstructorEarnings
+    getInstructorEarnings,
+    createFapshiPayment,
+    checkFapshiPaymentStatus,
+    handleFapshiWebhook
 } = require('../controllers/payment.controller');
 
 const {
@@ -35,6 +38,27 @@ router.get('/all', authenticate, authorize('admin'), listPaymentsValidation, val
  * @access  Private/Instructor
  */
 router.get('/earnings', authenticate, authorize('instructor', 'admin'), getInstructorEarnings);
+
+/**
+ * @route   POST /api/v1/payments/fapshi
+ * @desc    Initiate Fapshi mobile money payment
+ * @access  Private
+ */
+router.post('/fapshi', authenticate, createFapshiPayment);
+
+/**
+ * @route   GET /api/v1/payments/fapshi/status/:transactionId
+ * @desc    Check Fapshi payment status
+ * @access  Private
+ */
+router.get('/fapshi/status/:transactionId', authenticate, checkFapshiPaymentStatus);
+
+/**
+ * @route   POST /api/v1/payments/webhook/fapshi
+ * @desc    Fapshi webhook handler (no auth - called by Fapshi)
+ * @access  Public
+ */
+router.post('/webhook/fapshi', handleFapshiWebhook);
 
 /**
  * @route   GET /api/v1/payments

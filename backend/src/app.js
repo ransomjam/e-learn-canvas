@@ -17,6 +17,7 @@ const analyticsRoutes = require('./routes/analytics.routes');
 const adminRoutes = require('./routes/admin.routes');
 const instructorRoutes = require('./routes/instructor.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const wishlistRoutes = require('./routes/wishlist.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/error.middleware');
@@ -78,11 +79,20 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files with CORS
 const path = require('path');
-app.use('/uploads', cors(), express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', cors(), (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+}, express.static(path.join(__dirname, '../uploads')));
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Dashboard route
+// Dashboard redirect — unified dashboard lives in the React frontend
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 app.get('/dashboard', (req, res) => {
+    res.redirect(FRONTEND_URL + '/instructor');
+});
+
+// Legacy backend dashboard (for development/debugging only)
+app.get('/dashboard-legacy', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/dashboard.html'));
 });
 
@@ -113,6 +123,7 @@ app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/instructor', instructorRoutes);
 app.use('/api/v1/upload', uploadRoutes);
+app.use('/api/v1/wishlist', wishlistRoutes);
 
 // API documentation endpoint
 app.get('/api/v1', (req, res) => {
@@ -132,7 +143,18 @@ app.get('/api/v1', (req, res) => {
     });
 });
 
-// Error handling
+// In production, serve the React frontend from dist/
+if (process.env.NODE_ENV === 'production') {
+    const frontendPath = path.join(__dirname, '../../dist');
+    app.use(express.static(frontendPath));
+
+    // SPA catch-all: any non-API, non-upload GET request serves index.html
+    app.get(/^\/(?!api|uploads|health).*/, (req, res) => {
+        res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+}
+
+// Error handling (API 404s and server errors)
 app.use(notFound);
 app.use(errorHandler);
 

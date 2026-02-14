@@ -31,6 +31,13 @@ const {
     markNotificationsRead
 } = require('../controllers/admin.controller');
 
+const {
+    generateEnrollmentCodes,
+    getEnrollmentCodes,
+    deleteEnrollmentCode,
+    getUsersWithEnrollments
+} = require('../controllers/enrollment-code.controller');
+
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 
 // All admin routes require authentication and admin role
@@ -176,6 +183,38 @@ router.get('/settings', getSettings);
  * @access  Private/Admin
  */
 router.put('/settings', updateSettings);
+
+// =====================
+// ENROLLMENT CODES
+// =====================
+
+/**
+ * @route   POST /api/v1/admin/enrollment-codes/generate
+ * @desc    Generate enrollment codes for a course
+ * @access  Private/Admin
+ */
+router.post('/enrollment-codes/generate', generateEnrollmentCodes);
+
+/**
+ * @route   GET /api/v1/admin/enrollment-codes
+ * @desc    Get all enrollment codes
+ * @access  Private/Admin
+ */
+router.get('/enrollment-codes', getEnrollmentCodes);
+
+/**
+ * @route   DELETE /api/v1/admin/enrollment-codes/:id
+ * @desc    Delete an unused enrollment code
+ * @access  Private/Admin
+ */
+router.delete('/enrollment-codes/:id', deleteEnrollmentCode);
+
+/**
+ * @route   GET /api/v1/admin/users/enrollments
+ * @desc    Get users with enrollment and progress info
+ * @access  Private/Admin
+ */
+router.get('/users/enrollments', getUsersWithEnrollments);
 
 module.exports = router;
 

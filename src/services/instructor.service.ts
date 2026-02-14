@@ -97,6 +97,14 @@ export const instructorService = {
         await api.put('/instructor/notifications/read', { notificationIds });
     },
 
+    async getAllSubmissions(params?: { courseId?: string; status?: string; page?: number; limit?: number }): Promise<{
+        submissions: any[];
+        pagination: { page: number; limit: number; total: number; pages: number };
+    }> {
+        const response = await api.get('/instructor/submissions', { params });
+        return response.data.data;
+    },
+
     // File upload
     async uploadFile(file: File): Promise<{ url: string; filename: string; fileType?: string; originalName?: string }> {
         const formData = new FormData();

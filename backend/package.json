@@ -7,6 +7,7 @@
         "start": "node src/index.js",
         "dev": "nodemon src/index.js",
         "migrate": "node src/database/migrate.js",
+        "migrate:all": "node src/database/migrate-all.js",
         "migrate:rollback": "node src/database/migrate.js rollback",
         "test": "jest"
     },

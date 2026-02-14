@@ -16,7 +16,13 @@ import InstructorDashboard from "./pages/InstructorDashboard";
 import CourseEditor from "./pages/CourseEditor";
 import MyCourses from "./pages/MyCourses";
 import InstructorCourses from "./pages/InstructorCourses";
+import InstructorSubmissions from "./pages/InstructorSubmissions";
 import AddLesson from "./pages/AddLesson";
+import AdminEnrollmentCodes from "./pages/AdminEnrollmentCodes";
+import AdminStudents from "./pages/AdminStudents";
+import PaymentCallback from "./pages/PaymentCallback";
+import Wishlist from "./pages/Wishlist";
+import ProjectDetail from "./pages/ProjectDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -40,6 +46,7 @@ const App = () => (
             <Route path="/courses" element={<Courses />} />
             <Route path="/course/:id" element={<CourseDetail />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/payment/callback" element={<PaymentCallback />} />
             <Route path="/dashboard" element={<Navigate to="/my-courses" replace />} />
 
             {/* Protected Routes */}
@@ -68,10 +75,34 @@ const App = () => (
               }
             />
             <Route
+              path="/wishlist"
+              element={
+                <ProtectedRoute>
+                  <Wishlist />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/course/:id/learn"
               element={
                 <ProtectedRoute>
                   <Player />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/course/:courseId/project/:projectId"
+              element={
+                <ProtectedRoute>
+                  <ProjectDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/course/:courseId/project/:projectId"
+              element={
+                <ProtectedRoute>
+                  <ProjectDetail />
                 </ProtectedRoute>
               }
             />
@@ -82,6 +113,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRoles={['instructor', 'admin']}>
                   <InstructorCourses />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/submissions"
+              element={
+                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                  <InstructorSubmissions />
                 </ProtectedRoute>
               }
             />
@@ -114,6 +153,24 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRoles={['instructor', 'admin']}>
                   <AddLesson />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin Only Routes */}
+            <Route
+              path="/instructor/enrollment-codes"
+              element={
+                <ProtectedRoute requiredRoles={['admin']}>
+                  <AdminEnrollmentCodes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/students"
+              element={
+                <ProtectedRoute requiredRoles={['admin']}>
+                  <AdminStudents />
                 </ProtectedRoute>
               }
             />

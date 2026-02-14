@@ -17,6 +17,11 @@ const {
 } = require('../controllers/lesson.controller');
 
 const {
+    toggleLessonLike,
+    getLessonLikes
+} = require('../controllers/likes.controller');
+
+const {
     createLessonValidation,
     updateLessonValidation,
     lessonIdValidation,
@@ -97,5 +102,23 @@ router.put('/:id', authenticate, authorize('instructor', 'admin'), updateLessonV
  * @access  Private/Instructor
  */
 router.delete('/:id', authenticate, authorize('instructor', 'admin'), lessonIdValidation, validate, deleteLesson);
+
+// =====================
+// LESSON LIKES ROUTES
+// =====================
+
+/**
+ * @route   POST /api/v1/lessons/:lessonId/like
+ * @desc    Toggle like on a lesson
+ * @access  Private
+ */
+router.post('/:lessonId/like', authenticate, toggleLessonLike);
+
+/**
+ * @route   GET /api/v1/lessons/:lessonId/likes
+ * @desc    Get lesson likes info
+ * @access  Private
+ */
+router.get('/:lessonId/likes', authenticate, getLessonLikes);
 
 module.exports = router;

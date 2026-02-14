@@ -1,6 +1,15 @@
 import { API_BASE_URL } from '@/lib/api';
 
-const apiOrigin = new URL(API_BASE_URL).origin;
+// Derive the origin that serves /uploads.
+// In production API_BASE_URL is "/api/v1" (relative), so origin = "" (same host).
+// In development API_BASE_URL is "http://localhost:3001/api/v1", so origin = "http://localhost:3001".
+let apiOrigin = '';
+try {
+  apiOrigin = new URL(API_BASE_URL).origin;
+} catch {
+  // relative URL – uploads are served from the same origin
+  apiOrigin = '';
+}
 
 /**
  * Resolve a media URL stored in the API to an absolute URL the frontend can use.

@@ -93,4 +93,10 @@ export const enrollmentsService = {
             return null;
         }
     },
+
+    // Redeem enrollment code
+    async redeemEnrollmentCode(code: string): Promise<{ enrollmentId: string; courseId: string; courseTitle: string }> {
+        const response = await api.post('/enrollments/redeem-code', { code });
+        return response.data.data;
+    },
 };

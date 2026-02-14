@@ -28,6 +28,26 @@ export interface PaymentIntent {
     };
 }
 
+export interface FapshiPaymentResponse {
+    paymentId: string;
+    transactionId: string;
+    amount: number;
+    currency: string;
+    status: string;
+    checkoutUrl?: string;
+    course: {
+        id: string;
+        title: string;
+    };
+}
+
+export interface FapshiPaymentStatus {
+    status: 'pending' | 'completed' | 'failed';
+    paymentId: string;
+    fapshiStatus?: string;
+    error?: string;
+}
+
 export const paymentsService = {
     async createPayment(courseId: string, paymentMethod?: string): Promise<PaymentIntent> {
         const response = await api.post('/payments', { courseId, paymentMethod });
@@ -46,6 +66,17 @@ export const paymentsService = {
 
     async getPaymentById(id: string): Promise<Payment> {
         const response = await api.get(`/payments/${id}`);
+        return response.data.data;
+    },
+
+    // Fapshi mobile money payment
+    async createFapshiPayment(courseId: string): Promise<FapshiPaymentResponse> {
+        const response = await api.post('/payments/fapshi', { courseId });
+        return response.data.data;
+    },
+
+    async checkFapshiPaymentStatus(transactionId: string): Promise<FapshiPaymentStatus> {
+        const response = await api.get(`/payments/fapshi/status/${transactionId}`);
         return response.data.data;
     },
 };

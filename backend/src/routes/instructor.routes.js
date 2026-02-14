@@ -10,6 +10,10 @@ const {
     markNotificationsRead
 } = require('../controllers/instructor.controller');
 
+const {
+    getInstructorAllSubmissions
+} = require('../controllers/projects.controller');
+
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 
 // All routes require instructor authentication
@@ -57,5 +61,12 @@ router.get('/notifications', getInstructorNotifications);
  * @access  Private/Instructor
  */
 router.put('/notifications/read', markNotificationsRead);
+
+/**
+ * @route   GET /api/v1/instructor/submissions
+ * @desc    Get all project submissions across instructor's courses
+ * @access  Private/Instructor
+ */
+router.get('/submissions', getInstructorAllSubmissions);
 
 module.exports = router;

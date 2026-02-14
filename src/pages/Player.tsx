@@ -2,13 +2,14 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Play, ChevronLeft, CheckCircle, Menu, X, FileText, HelpCircle, Clock, Loader2,
-  MessageSquare, Paperclip, Send, Download, ChevronRight, Lock
+  Play, ChevronLeft, CheckCircle, Menu, X, FileText, Clock, Loader2,
+  Send, Download, ChevronRight, Lock, ThumbsUp, Paperclip, Upload, Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { coursesService, Section, Lesson } from '@/services/courses.service';
@@ -17,6 +18,7 @@ import { resolveMediaUrl } from '@/lib/media';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { projectsService, Project } from '@/services/projects.service';
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +33,7 @@ const Player = () => {
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('content');
   const [chatMessage, setChatMessage] = useState('');
+  const [projectSubmissionText, setProjectSubmissionText] = useState('');
 
   // Queries
   const { data: course, isLoading: courseLoading } = useQuery({
@@ -64,6 +67,18 @@ const Player = () => {
     refetchInterval: 5000,
   });
 
+  const { data: projects = [] } = useQuery({
+    queryKey: ['courseProjects', id],
+    queryFn: () => projectsService.getCourseProjects(id!),
+    enabled: !!id,
+  });
+
+  const { data: likesData } = useQuery({
+    queryKey: ['lessonLikes', currentLessonId],
+    queryFn: () => coursesService.getLessonLikes(currentLessonId!),
+    enabled: !!currentLessonId,
+  });
+
   // Mutations
   const completeLessonMutation = useMutation({
     mutationFn: (lessonId: string) => enrollmentsService.completeLesson(lessonId),
@@ -85,6 +100,16 @@ const Player = () => {
     },
     onError: () => {
       toast({ title: 'Failed to send message', variant: 'destructive' });
+    }
+  });
+
+  const toggleLikeMutation = useMutation({
+    mutationFn: (lessonId: string) => coursesService.toggleLessonLike(lessonId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lessonLikes', currentLessonId] });
+    },
+    onError: () => {
+      toast({ title: 'Failed to like lesson', variant: 'destructive' });
     }
   });
 
@@ -308,71 +333,174 @@ const Player = () => {
             </div>
           </div>
 
-          {/* Lesson info + controls */}
+          {/* Lesson info + controls + chats */}
           <div className="flex-1 overflow-auto">
-            <div className="max-w-3xl mx-auto p-5 space-y-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h1 className="text-lg font-bold text-foreground leading-tight">
-                    {currentLesson?.title || 'Select a lesson'}
-                  </h1>
-                  {currentLesson?.duration && (
-                    <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {currentLesson.duration} min
-                    </p>
-                  )}
-                </div>
-                {currentLesson && !currentLesson.isCompleted && (
-                  <Button
-                    size="sm"
-                    onClick={() => currentLessonId && completeLessonMutation.mutate(currentLessonId)}
-                    disabled={completeLessonMutation.isPending}
-                    className="flex-shrink-0"
-                  >
-                    {completeLessonMutation.isPending ? (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    Complete
-                  </Button>
-                )}
-                {currentLesson?.isCompleted && (
-                  <span className="flex items-center gap-1 text-xs text-accent font-medium flex-shrink-0">
-                    <CheckCircle className="h-4 w-4" /> Done
-                  </span>
+            <div className="max-w-5xl mx-auto p-5 space-y-4">
+              {/* Lesson title and metadata */}
+              <div>
+                <h1 className="text-2xl font-bold text-foreground mb-2">
+                  {currentLesson?.title || 'Select a lesson'}
+                </h1>
+                {currentLesson?.duration && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="h-4 w-4" />
+                    {currentLesson.duration} minutes
+                  </p>
                 )}
               </div>
 
+              {/* Action buttons row - YouTube style */}
+              <div className="flex items-center justify-between py-3 border-y border-border">
+                <div className="flex items-center gap-3">
+                  {/* Like button */}
+                  <Button
+                    variant={likesData?.liked ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => currentLessonId && toggleLikeMutation.mutate(currentLessonId)}
+                    disabled={!currentLessonId || toggleLikeMutation.isPending}
+                    className="gap-2"
+                  >
+                    <ThumbsUp className={`h-4 w-4 ${likesData?.liked ? 'fill-current' : ''}`} />
+                    <span>{likesData?.likesCount || 0}</span>
+                  </Button>
+
+                  {/* Complete button */}
+                  {currentLesson && !currentLesson.isCompleted && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => currentLessonId && completeLessonMutation.mutate(currentLessonId)}
+                      disabled={completeLessonMutation.isPending}
+                      className="gap-2"
+                    >
+                      {completeLessonMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4" />
+                      )}
+                      Mark as Complete
+                    </Button>
+                  )}
+                  {currentLesson?.isCompleted && (
+                    <span className="flex items-center gap-2 text-sm text-accent font-medium px-3 py-1.5 bg-accent/10 rounded-full">
+                      <CheckCircle className="h-4 w-4" /> Completed
+                    </span>
+                  )}
+                </div>
+
+                {/* Navigation buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToLesson('prev')}
+                    disabled={currentIndex <= 0}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToLesson('next')}
+                    disabled={currentIndex >= allLessons.length - 1}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Lesson description */}
               {currentLesson?.content && (
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {currentLesson.content}
-                </p>
+                <div className="prose dark:prose-invert max-w-none">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {currentLesson.content}
+                  </p>
+                </div>
               )}
 
-              {/* Prev / Next */}
-              <div className="flex gap-2 pt-2 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToLesson('prev')}
-                  disabled={currentIndex <= 0}
-                  className="flex-1"
-                >
-                  <ChevronLeft className="mr-1 h-3.5 w-3.5" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToLesson('next')}
-                  disabled={currentIndex >= allLessons.length - 1}
-                  className="flex-1"
-                >
-                  Next
-                  <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                </Button>
+              {/* Chats section - YouTube style comments */}
+              <div className="pt-4">
+                <h3 className="text-lg font-semibold mb-4">
+                  {messages.length} {messages.length === 1 ? 'Chat' : 'Chats'}
+                </h3>
+
+                {/* Chat input */}
+                <form onSubmit={handleSendMessage} className="mb-6">
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                        {user?.firstName?.[0]}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        value={chatMessage}
+                        onChange={(e) => setChatMessage(e.target.value)}
+                        placeholder="Add a chat message..."
+                        className="mb-2"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setChatMessage('')}
+                          disabled={!chatMessage.trim()}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={!chatMessage.trim() || sendMessageMutation.isPending}
+                        >
+                          {sendMessageMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Chat'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Chat messages */}
+                <div className="space-y-4">
+                  {messages.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No chats yet. Be the first to start a conversation!
+                    </p>
+                  )}
+                  {messages.map((msg: any) => {
+                    const isMe = msg.user.id === user?.id;
+                    return (
+                      <div key={msg.id} className="flex gap-3">
+                        <div className="flex-shrink-0">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                            {msg.user.firstName[0]}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 mb-1">
+                            <span className="font-semibold text-sm">
+                              {msg.user.firstName} {msg.user.lastName}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(msg.createdAt).toLocaleDateString()} at {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-foreground break-words">
+                            {msg.message}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={chatEndRef} />
+                </div>
               </div>
             </div>
           </div>
@@ -409,7 +537,7 @@ const Player = () => {
               <TabsList className="grid w-full grid-cols-3 h-9 gap-1">
                 <TabsTrigger value="content" className="text-xs sm:text-sm px-2 sm:px-4">Lessons</TabsTrigger>
                 <TabsTrigger value="resources" className="text-xs sm:text-sm px-2 sm:px-4">Files</TabsTrigger>
-                <TabsTrigger value="chat" className="text-xs sm:text-sm px-2 sm:px-4">Chat</TabsTrigger>
+                <TabsTrigger value="projects" className="text-xs sm:text-sm px-2 sm:px-4">Projects</TabsTrigger>
               </TabsList>
             </div>
 
@@ -522,70 +650,64 @@ const Player = () => {
               </ScrollArea>
             </TabsContent>
 
-            {/* Chat tab */}
+            {/* Projects tab */}
             <TabsContent 
-              value="chat" 
+              value="projects" 
               className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
-              style={{ display: activeTab === 'chat' ? 'flex' : 'none', flexDirection: 'column' }}
+              style={{ display: activeTab === 'projects' ? 'flex' : 'none', flexDirection: 'column' }}
             >
               <ScrollArea className="flex-1 min-h-0 p-3">
                 <div className="space-y-3">
-                  {messages.length === 0 && (
+                  {projects.length === 0 ? (
                     <div className="py-12 text-center">
-                      <MessageSquare className="h-8 w-8 text-muted-foreground/20 mx-auto" />
-                      <p className="mt-3 text-xs text-muted-foreground">No messages yet.</p>
+                      <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        No projects assigned yet.
+                      </p>
                     </div>
-                  )}
-                  {messages.map((msg: any) => {
-                    const isMe = msg.user.id === user?.id;
-                    return (
-                      <div key={msg.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
-                        <div
-                          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
-                            }`}
-                        >
-                          {msg.user.firstName[0]}
-                        </div>
-                        <div
-                          className={`max-w-[80%] rounded-lg px-3 py-2 text-xs ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
-                            }`}
-                        >
-                          {!isMe && (
-                            <p className="mb-0.5 font-semibold opacity-80">{msg.user.firstName}</p>
+                  ) : (
+                    projects.map((project: Project) => (
+                      <div
+                        key={project.id}
+                        className="rounded-lg border border-border p-4 space-y-3 hover:bg-accent/5 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="font-semibold text-sm text-foreground">{project.title}</h4>
+                          {project.dueDate && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(project.dueDate).toLocaleDateString()}
+                            </div>
                           )}
-                          <p>{msg.message}</p>
-                          <p className="mt-1 text-right text-[9px] opacity-60">
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        
+                        {project.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {project.description}
                           </p>
+                        )}
+                        
+                        <div className="flex items-center justify-between pt-2 border-t border-border">
+                          <span className="text-xs text-muted-foreground">
+                            {project.submissionCount || 0} submission{project.submissionCount !== 1 ? 's' : ''}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              // Navigate to project details
+                              window.location.href = `/course/${id}/project/${project.id}`;
+                            }}
+                            className="h-7 text-xs"
+                          >
+                            View Details
+                          </Button>
                         </div>
                       </div>
-                    );
-                  })}
-                  <div ref={chatEndRef} />
+                    ))
+                  )}
                 </div>
               </ScrollArea>
-              <div className="border-t border-border p-3">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
-                  <Input
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1 h-8 text-xs"
-                  />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    className="h-8 w-8"
-                    disabled={!chatMessage.trim() || sendMessageMutation.isPending}
-                  >
-                    {sendMessageMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Send className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </form>
-              </div>
             </TabsContent>
           </Tabs>
         </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, User, LogOut, Menu, X, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, BookOpen, User, LogOut, Menu, X, ChevronLeft, Ticket, Users, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +20,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     const sidebarLinks = [
         { icon: LayoutDashboard, label: 'Overview', path: '/instructor' },
         { icon: BookOpen, label: 'My Courses', path: '/instructor/courses' },
+        { icon: FileText, label: 'Submissions', path: '/instructor/submissions' },
+        ...(user?.role === 'admin' ? [
+            { icon: Ticket, label: 'Enrollment Codes', path: '/instructor/enrollment-codes' },
+            { icon: Users, label: 'Students', path: '/instructor/students' },
+        ] : []),
         { icon: User, label: 'My Profile', path: '/profile' },
     ];
 

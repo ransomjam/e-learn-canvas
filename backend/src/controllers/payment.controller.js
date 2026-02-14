@@ -488,6 +488,277 @@ const getInstructorEarnings = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * @desc    Initiate Fapshi mobile money payment
+ * @route   POST /api/v1/payments/fapshi
+ * @access  Private
+ */
+const createFapshiPayment = asyncHandler(async (req, res) => {
+    const { courseId } = req.body;
+    const fapshi = require('../config/fapshi');
+
+    if (!courseId) {
+        throw new ApiError(400, 'Course ID is required');
+    }
+
+    // Check if course exists
+    const courseResult = await query(
+        'SELECT id, title, price, discount_price, currency, status FROM courses WHERE id = $1',
+        [courseId]
+    );
+
+    if (courseResult.rows.length === 0) {
+        throw new ApiError(404, 'Course not found');
+    }
+
+    const course = courseResult.rows[0];
+
+    if (course.status !== 'published') {
+        throw new ApiError(400, 'This course is not available for purchase');
+    }
+
+    // Check if already enrolled
+    const enrollmentResult = await query(
+        "SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND status IN ('active', 'completed')",
+        [req.user.id, courseId]
+    );
+
+    if (enrollmentResult.rows.length > 0) {
+        throw new ApiError(400, 'You are already enrolled in this course');
+    }
+
+    const amount = parseFloat(course.discount_price || course.price);
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const externalId = `${courseId}-${req.user.id}-${Date.now()}`;
+    
+    const payload = {
+        amount: Math.round(amount),
+        externalId: externalId,
+        redirectUrl: `${frontendUrl}/payment/callback`,
+        message: `Payment for course: ${course.title}`
+    };
+
+    // Initiate Fapshi payment
+    let fapshiResponse;
+    try {
+        fapshiResponse = await fapshi.initiatePay(payload);
+    } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || 'Payment initiation failed';
+        console.error('Fapshi payment error:', err.response?.data || err.message);
+        throw new ApiError(400, `Payment failed: ${errMsg}`);
+    }
+
+    const transactionId = fapshiResponse.transId || `TXN-FAPSHI-${Date.now()}-${uuidv4().substring(0, 8)}`;
+
+    // Create payment record in DB
+    const result = await query(
+        `INSERT INTO payments (user_id, course_id, amount, currency, status, payment_method, payment_provider, transaction_id, provider_response, external_id)
+         VALUES ($1, $2, $3, $4, 'pending', 'mobile_money', 'fapshi', $5, $6, $7)
+         RETURNING *`,
+        [req.user.id, courseId, amount, course.currency, transactionId, JSON.stringify(fapshiResponse), externalId]
+    );
+
+    const payment = result.rows[0];
+
+    res.status(201).json({
+        success: true,
+        message: 'Payment initiated. Redirecting to payment page.',
+        data: {
+            paymentId: payment.id,
+            transactionId: transactionId,
+            amount: parseFloat(payment.amount),
+            currency: payment.currency,
+            status: 'pending',
+            link: fapshiResponse.link || null,
+            course: {
+                id: course.id,
+                title: course.title
+            }
+        }
+    });
+});
+
+/**
+ * @desc    Check Fapshi payment status
+ * @route   GET /api/v1/payments/fapshi/status/:transactionId
+ * @access  Private
+ */
+const checkFapshiPaymentStatus = asyncHandler(async (req, res) => {
+    const { transactionId } = req.params;
+    const fapshi = require('../config/fapshi');
+
+    // Get payment from DB
+    const paymentResult = await query(
+        'SELECT * FROM payments WHERE transaction_id = $1',
+        [transactionId]
+    );
+
+    if (paymentResult.rows.length === 0) {
+        throw new ApiError(404, 'Payment not found');
+    }
+
+    const payment = paymentResult.rows[0];
+
+    // Verify ownership
+    if (req.user.role !== 'admin' && payment.user_id !== req.user.id) {
+        throw new ApiError(403, 'Access denied');
+    }
+
+    // If already completed, return status
+    if (payment.status === 'completed') {
+        return res.json({
+            success: true,
+            data: { status: 'completed', paymentId: payment.id }
+        });
+    }
+
+    // Check with Fapshi
+    try {
+        const fapshiStatus = await fapshi.getPaymentStatus(transactionId);
+        const statusMap = {
+            CREATED: 'pending',
+            PENDING: 'pending',
+            SUCCESSFUL: 'completed',
+            FAILED: 'failed',
+            EXPIRED: 'failed'
+        };
+        const normalizedStatus = statusMap[(fapshiStatus.status || '').toUpperCase()] || 'pending';
+
+        if (normalizedStatus === 'completed' && payment.status !== 'completed') {
+            // Update payment
+            await query(
+                `UPDATE payments SET status = 'completed', provider_payment_id = $1, paid_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+                [transactionId, payment.id]
+            );
+
+            // Create enrollment
+            const enrollmentResult = await query(
+                `INSERT INTO enrollments (user_id, course_id, status)
+                 VALUES ($1, $2, 'active')
+                 ON CONFLICT (user_id, course_id) DO UPDATE SET status = 'active'
+                 RETURNING id`,
+                [payment.user_id, payment.course_id]
+            );
+
+            // Update payment with enrollment ID
+            await query(
+                'UPDATE payments SET enrollment_id = $1 WHERE id = $2',
+                [enrollmentResult.rows[0].id, payment.id]
+            );
+
+            // Update course enrollment count
+            await query(
+                'UPDATE courses SET enrollment_count = enrollment_count + 1 WHERE id = $1',
+                [payment.course_id]
+            );
+        } else if (normalizedStatus === 'failed' && payment.status !== 'failed') {
+            await query(
+                `UPDATE payments SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+                [payment.id]
+            );
+        }
+
+        res.json({
+            success: true,
+            data: {
+                status: normalizedStatus,
+                paymentId: payment.id,
+                fapshiStatus: fapshiStatus.status
+            }
+        });
+    } catch (error) {
+        // If Fapshi check fails, return current DB status
+        res.json({
+            success: true,
+            data: {
+                status: payment.status,
+                paymentId: payment.id,
+                error: 'Could not verify with payment provider'
+            }
+        });
+    }
+});
+
+/**
+ * @desc    Fapshi webhook handler
+ * @route   POST /api/v1/payments/webhook/fapshi
+ * @access  Public
+ */
+const handleFapshiWebhook = asyncHandler(async (req, res) => {
+    const body = req.body || {};
+    const transId = body.transId || body.trans_id || body.id;
+    const fapshi = require('../config/fapshi');
+
+    if (!transId) {
+        return res.status(400).json({ message: 'transId required' });
+    }
+
+    try {
+        // Verify by fetching status from Fapshi
+        const data = await fapshi.getPaymentStatus(transId);
+        const status = (data.status || '').toUpperCase();
+
+        const statusMap = {
+            SUCCESSFUL: 'completed',
+            FAILED: 'failed',
+            EXPIRED: 'failed',
+            PENDING: 'pending',
+            CREATED: 'pending'
+        };
+        const normalized = statusMap[status] || 'pending';
+
+        // Get payment from DB
+        const paymentResult = await query(
+            'SELECT * FROM payments WHERE transaction_id = $1',
+            [transId]
+        );
+
+        if (paymentResult.rows.length > 0) {
+            const payment = paymentResult.rows[0];
+
+            if (normalized === 'completed' && payment.status !== 'completed') {
+                // Update payment
+                await query(
+                    `UPDATE payments SET status = 'completed', provider_payment_id = $1, paid_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+                    [transId, payment.id]
+                );
+
+                // Create enrollment
+                const enrollmentResult = await query(
+                    `INSERT INTO enrollments (user_id, course_id, status)
+                     VALUES ($1, $2, 'active')
+                     ON CONFLICT (user_id, course_id) DO UPDATE SET status = 'active'
+                     RETURNING id`,
+                    [payment.user_id, payment.course_id]
+                );
+
+                await query(
+                    'UPDATE payments SET enrollment_id = $1 WHERE id = $2',
+                    [enrollmentResult.rows[0].id, payment.id]
+                );
+
+                await query(
+                    'UPDATE courses SET enrollment_count = enrollment_count + 1 WHERE id = $1',
+                    [payment.course_id]
+                );
+
+                console.log(`Webhook: Payment ${transId} completed, enrollment created`);
+            } else if (normalized === 'failed' && payment.status !== 'failed') {
+                await query(
+                    `UPDATE payments SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+                    [payment.id]
+                );
+            }
+        }
+
+        return res.json({ message: 'ok' });
+    } catch (error) {
+        console.error('Webhook verify error:', error.response?.data || error.message);
+        return res.status(500).json({ message: 'failed to verify' });
+    }
+});
+
 module.exports = {
     createPayment,
     confirmPayment,
@@ -495,5 +766,8 @@ module.exports = {
     getMyPayments,
     getAllPayments,
     refundPayment,
-    getInstructorEarnings
+    getInstructorEarnings,
+    createFapshiPayment,
+    checkFapshiPaymentStatus,
+    handleFapshiWebhook
 };

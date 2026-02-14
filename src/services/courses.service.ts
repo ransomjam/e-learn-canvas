@@ -167,4 +167,15 @@ export const coursesService = {
         const response = await api.post(`/courses/${courseId}/chat`, { message });
         return response.data.data;
     },
+
+    // Lesson likes
+    async toggleLessonLike(lessonId: string): Promise<{ liked: boolean; likesCount: number }> {
+        const response = await api.post(`/lessons/${lessonId}/like`);
+        return response.data.data;
+    },
+
+    async getLessonLikes(lessonId: string): Promise<{ likesCount: number; liked: boolean }> {
+        const response = await api.get(`/lessons/${lessonId}/likes`);
+        return response.data.data;
+    }
 };

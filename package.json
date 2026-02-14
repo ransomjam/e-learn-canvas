@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "render-build": "npm install && npm run build && cd backend && npm install"
+    "render-build": "npm install --include=dev && npm run build && cd backend && npm install --production"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -55,22 +55,22 @@ const Courses = () => {
 
   return (
     <Layout>
-      <div className="py-12">
+      <div className="py-8 sm:py-12">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="font-display text-3xl font-bold text-foreground md:text-4xl">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl md:text-4xl">
               Explore Courses
             </h1>
-            <p className="mt-2 text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground sm:mt-2 sm:text-base">
               Discover {pagination?.total || 0}+ courses to boost your skills
             </p>
           </div>
 
           {/* Search & Filters */}
-          <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
             {/* Search */}
-            <div className="relative w-full max-w-none flex-1 sm:max-w-md">
+            <div className="relative w-full flex-1">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search courses or instructors..."
@@ -79,19 +79,19 @@ const Courses = () => {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="pl-10"
+                className="pl-10 text-sm"
               />
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
               {/* Category Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full min-w-[140px] justify-between sm:w-auto">
-                    <Filter className="mr-2 h-4 w-4" />
-                    {selectedCategory || 'Category'}
-                    <ChevronDown className="ml-2 h-4 w-4" />
+                  <Button variant="outline" size="sm" className="flex-1 justify-between sm:flex-none sm:w-auto">
+                    <Filter className="mr-1 h-4 w-4 sm:mr-2 flex-shrink-0" />
+                    <span className="truncate text-xs sm:text-sm">{selectedCategory || 'Category'}</span>
+                    <ChevronDown className="ml-1 h-4 w-4 flex-shrink-0 sm:ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
@@ -116,9 +116,9 @@ const Courses = () => {
               {/* Sort */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between sm:w-auto">
-                    Sort by
-                    <ChevronDown className="ml-2 h-4 w-4" />
+                  <Button variant="outline" size="sm" className="flex-1 justify-between sm:flex-none sm:w-auto">
+                    <span className="truncate text-xs sm:text-sm">Sort</span>
+                    <ChevronDown className="ml-1 h-4 w-4 flex-shrink-0 sm:ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -133,10 +133,10 @@ const Courses = () => {
           </div>
 
           {/* Level Filters */}
-          <div className="mb-8 flex flex-wrap gap-2">
+          <div className="mb-6 flex flex-wrap gap-2 sm:mb-8">
             <Badge
               variant={selectedLevel === null ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2"
+              className="cursor-pointer px-3 py-1 text-xs sm:px-4 sm:py-2 sm:text-sm"
               onClick={() => { setSelectedLevel(null); setPage(1); }}
             >
               All Levels
@@ -145,7 +145,7 @@ const Courses = () => {
               <Badge
                 key={level}
                 variant={selectedLevel === level ? 'default' : 'outline'}
-                className="cursor-pointer px-4 py-2"
+                className="cursor-pointer px-3 py-1 text-xs sm:px-4 sm:py-2 sm:text-sm"
                 onClick={() => { setSelectedLevel(level); setPage(1); }}
               >
                 {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -154,13 +154,13 @@ const Courses = () => {
           </div>
 
           {/* Results Count */}
-          <p className="mb-6 text-sm text-muted-foreground">
+          <p className="mb-4 text-xs text-muted-foreground sm:mb-6 sm:text-sm">
             Showing {courses.length} of {pagination?.total || 0} courses
           </p>
 
           {/* Loading State */}
           {isLoading ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {[...Array(8)].map((_, i) => (
                 <div key={i} className="rounded-xl border border-border bg-card p-4">
                   <Skeleton className="h-40 w-full rounded-lg" />
@@ -172,7 +172,7 @@ const Courses = () => {
             </div>
           ) : courses.length > 0 ? (
             <>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {courses.map((course) => (
                   <CourseCard key={course.id} course={course} />
                 ))}
@@ -180,19 +180,21 @@ const Courses = () => {
 
               {/* Pagination */}
               {pagination && pagination.pages > 1 && (
-                <div className="mt-8 flex justify-center gap-2">
+                <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:mt-8 sm:flex-row sm:gap-2">
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
                     Previous
                   </Button>
-                  <span className="flex items-center px-4 text-sm text-muted-foreground">
+                  <span className="text-xs text-muted-foreground sm:text-sm">
                     Page {page} of {pagination.pages}
                   </span>
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
                     disabled={page === pagination.pages}
                   >
@@ -202,11 +204,12 @@ const Courses = () => {
               )}
             </>
           ) : (
-            <div className="py-20 text-center">
-              <p className="text-lg text-muted-foreground">No courses found matching your criteria.</p>
+            <div className="py-12 text-center sm:py-20">
+              <p className="text-sm text-muted-foreground sm:text-lg">No courses found matching your criteria.</p>
               <Button
                 variant="outline"
-                className="mt-4"
+                size="sm"
+                className="mt-3 sm:mt-4"
                 onClick={clearFilters}
               >
                 Clear Filters

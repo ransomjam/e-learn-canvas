@@ -130,11 +130,11 @@ const CourseDetail = () => {
   if (courseLoading) {
     return (
       <Layout>
-        <div className="py-12">
-          <div className="container mx-auto px-4">
-            <Skeleton className="h-10 w-3/4" />
-            <Skeleton className="mt-4 h-6 w-1/2" />
-            <Skeleton className="mt-8 h-64 w-full" />
+        <div className="px-4 py-8 sm:py-12">
+          <div className="container mx-auto">
+            <Skeleton className="h-8 w-3/4 sm:h-10" />
+            <Skeleton className="mt-3 h-5 w-1/2 sm:mt-4" />
+            <Skeleton className="mt-6 h-48 w-full sm:mt-8 sm:h-64" />
           </div>
         </div>
       </Layout>
@@ -144,10 +144,11 @@ const CourseDetail = () => {
   if (!course) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-muted-foreground">Course not found</p>
-          <Link to="/courses">
-            <Button className="mt-4">Browse Courses</Button>
+        <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 py-12 sm:py-20">
+          <BookOpen className="h-12 w-12 text-muted-foreground sm:h-16 sm:w-16" />
+          <p className="mt-4 text-base text-muted-foreground sm:text-lg">Course not found</p>
+          <Link to="/courses" className="w-full sm:w-auto mt-6">
+            <Button className="w-full sm:w-auto h-11 font-semibold">Browse Courses</Button>
           </Link>
         </div>
       </Layout>

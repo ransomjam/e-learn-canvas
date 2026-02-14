@@ -27,7 +27,7 @@ const Player = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('content');
   const [chatMessage, setChatMessage] = useState('');
@@ -114,25 +114,25 @@ const Player = () => {
 
   const allResources = useMemo(() => {
     if (!currentLesson) return resources || [];
-    
+
     const items = [...(resources || [])];
-    
+
     if (currentLesson.practiceFiles) {
       try {
-        const parsed = typeof currentLesson.practiceFiles === 'string' 
-          ? JSON.parse(currentLesson.practiceFiles) 
+        const parsed = typeof currentLesson.practiceFiles === 'string'
+          ? JSON.parse(currentLesson.practiceFiles)
           : currentLesson.practiceFiles;
         if (Array.isArray(parsed)) {
-          items.push(...parsed.map((p: any) => ({ 
-            ...p, 
-            title: p.name, 
-            lessonTitle: currentLesson.title, 
-            id: `${currentLesson.id}-practice-${p.url}` 
+          items.push(...parsed.map((p: any) => ({
+            ...p,
+            title: p.name,
+            lessonTitle: currentLesson.title,
+            id: `${currentLesson.id}-practice-${p.url}`
           })));
         }
       } catch { }
     }
-    
+
     return items;
   }, [currentLesson, resources]);
 
@@ -154,7 +154,11 @@ const Player = () => {
   };
 
   useEffect(() => {
-    setIsSidebarOpen(!isMobile);
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    } else {
+      setIsSidebarOpen(true);
+    }
   }, [isMobile]);
 
   if (courseLoading || lessonsLoading) {
@@ -379,13 +383,19 @@ const Player = () => {
           <button
             type="button"
             aria-label="Close course content panel"
-            className="fixed inset-0 top-14 z-10 bg-black/40 backdrop-blur-[1px] lg:hidden"
+            className="fixed left-0 right-0 top-14 bottom-0 z-10 bg-black/40 backdrop-blur-[1px]"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
         <div
-          className={`fixed right-0 top-14 z-20 h-[calc(100dvh-3.5rem)] w-[92vw] max-w-md transform transition-transform duration-300 ease-in-out lg:static lg:block lg:h-auto lg:w-96 lg:max-w-none lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-            } border-l bg-card shadow-2xl lg:shadow-none flex min-h-0 flex-col overflow-hidden`}
+          className={`flex flex-col min-h-0 border-l border-border bg-card shadow-2xl overflow-hidden
+            ${isMobile ? (
+              isSidebarOpen 
+                ? 'fixed left-0 right-0 top-14 bottom-0 z-20 w-full' 
+                : 'hidden'
+            ) : (
+              'lg:shadow-none static w-96'
+            )}`}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="font-semibold text-foreground">Course Content</h2>
@@ -394,31 +404,35 @@ const Player = () => {
             </Button>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="border-b border-border px-3 py-1.5">
-              <TabsList className="grid w-full grid-cols-3 h-8">
-                <TabsTrigger value="content" className="text-xs">Lessons</TabsTrigger>
-                <TabsTrigger value="resources" className="text-xs">Files</TabsTrigger>
-                <TabsTrigger value="chat" className="text-xs">Chat</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1 overflow-hidden">
+            <div className="border-b border-border px-2 py-1.5">
+              <TabsList className="grid w-full grid-cols-3 h-9 gap-1">
+                <TabsTrigger value="content" className="text-xs sm:text-sm px-2 sm:px-4">Lessons</TabsTrigger>
+                <TabsTrigger value="resources" className="text-xs sm:text-sm px-2 sm:px-4">Files</TabsTrigger>
+                <TabsTrigger value="chat" className="text-xs sm:text-sm px-2 sm:px-4">Chat</TabsTrigger>
               </TabsList>
             </div>
 
             {/* Lessons tab */}
-            <TabsContent value="content" className="mt-0 min-h-0 flex-1 overflow-hidden p-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="flex-1 overflow-y-auto min-h-0 bg-card/50">
-                {sections.length === 0 ? (
-                  <div className="flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">
+            <TabsContent 
+              value="content" 
+              className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
+              style={{ display: activeTab === 'content' ? 'flex' : 'none', flexDirection: 'column' }}
+            >
+              <ScrollArea className="h-full w-full">
+                {(!sections || sections.length === 0) ? (
+                  <div className="flex h-96 items-center justify-center p-4 text-center text-sm text-muted-foreground">
                     <p>No lessons available</p>
                   </div>
                 ) : (
-                  <div className="p-2 space-y-3">
+                  <div className="p-3 space-y-3">
                     {sections.map((section, si) => (
-                      <div key={section.id}>
-                        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-foreground/70">
+                      <div key={section.id} className="space-y-1.5">
+                        <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-foreground/60">
                           {section.title}
                         </p>
-                        <div className="space-y-0.5">
-                          {section.lessons.map((lesson) => {
+                        <div className="space-y-1">
+                          {section.lessons && section.lessons.map((lesson) => {
                             const isActive = currentLessonId === lesson.id;
                             return (
                               <button
@@ -429,12 +443,12 @@ const Player = () => {
                                     setIsSidebarOpen(false);
                                   }
                                 }}
-                                className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-3 text-left transition-colors text-sm ${isActive
-                                  ? 'bg-primary/10 text-primary font-medium'
-                                  : 'hover:bg-accent/50 text-foreground'
+                                className={`w-full flex items-start gap-2 rounded-md px-2.5 py-2.5 text-left transition-all text-xs sm:text-sm ${isActive
+                                  ? 'bg-primary/15 text-primary font-semibold'
+                                  : 'text-foreground/85 hover:bg-accent/40'
                                   }`}
                               >
-                                <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+                                <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center mt-0.5">
                                   {lesson.isCompleted ? (
                                     <CheckCircle className="h-4 w-4 text-primary" />
                                   ) : lesson.type === 'video' ? (
@@ -443,12 +457,14 @@ const Player = () => {
                                     <FileText className="h-3.5 w-3.5 opacity-70" />
                                   )}
                                 </div>
-                                <span className="flex-1 line-clamp-2">{lesson.title}</span>
-                                {lesson.duration && (
-                                  <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                                    {lesson.duration}m
-                                  </span>
-                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="break-words line-clamp-2 leading-snug">{lesson.title}</p>
+                                  {lesson.duration && (
+                                    <span className="text-[9px] text-muted-foreground/70 block mt-0.5">
+                                      {lesson.duration}m
+                                    </span>
+                                  )}
+                                </div>
                               </button>
                             );
                           })}
@@ -457,12 +473,16 @@ const Player = () => {
                     ))}
                   </div>
                 )}
-              </div>
+              </ScrollArea>
             </TabsContent>
 
             {/* Files tab */}
-            <TabsContent value="resources" className="mt-0 min-h-0 flex-1 overflow-hidden p-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <ScrollArea className="min-h-0 flex-1">
+            <TabsContent 
+              value="resources" 
+              className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
+              style={{ display: activeTab === 'resources' ? 'flex' : 'none', flexDirection: 'column' }}
+            >
+              <ScrollArea className="h-full w-full">
                 <div className="p-3 space-y-2">
                   {allResources.length === 0 ? (
                     <div className="py-12 text-center">
@@ -503,8 +523,12 @@ const Player = () => {
             </TabsContent>
 
             {/* Chat tab */}
-            <TabsContent value="chat" className="mt-0 min-h-0 flex h-full flex-col p-0 data-[state=active]:flex">
-              <ScrollArea className="min-h-0 flex-1 p-3">
+            <TabsContent 
+              value="chat" 
+              className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
+              style={{ display: activeTab === 'chat' ? 'flex' : 'none', flexDirection: 'column' }}
+            >
+              <ScrollArea className="flex-1 min-h-0 p-3">
                 <div className="space-y-3">
                   {messages.length === 0 && (
                     <div className="py-12 text-center">

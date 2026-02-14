@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, X, BookOpen, User, LogOut, GraduationCap, LayoutDashboard } from 'lucide-react';
+import { Search, Menu, X, BookOpen, User, LogOut, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -86,9 +86,6 @@ const Navbar = () => {
                     </div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard">Dashboard</Link>
-                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/my-courses">My Courses</Link>
                   </DropdownMenuItem>
@@ -187,12 +184,6 @@ const Navbar = () => {
                       <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
                       <p className="text-xs text-muted-foreground">{user.email}</p>
                     </div>
-                    <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start">
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Button>
-                    </Link>
                     <Link to="/my-courses" onClick={() => setIsMenuOpen(false)}>
                       <Button variant="ghost" className="w-full justify-start">
                         <BookOpen className="mr-2 h-4 w-4" />

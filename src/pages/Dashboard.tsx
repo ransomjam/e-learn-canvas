@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   BookOpen, Clock, Award, Flame, Play,
-  TrendingUp, Calendar, ChevronRight, Settings, LogOut, Loader2
+  TrendingUp, Calendar, Loader2
 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,7 @@ import { enrollmentsService, Enrollment } from '@/services/enrollments.service';
 import { resolveMediaUrl } from '@/lib/media';
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Fetch enrollments
   const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
@@ -27,48 +26,27 @@ const Dashboard = () => {
     queryFn: () => enrollmentsService.getLearningStats(),
   });
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
-  };
-
   const isLoading = enrollmentsLoading || statsLoading;
 
   const statCards = [
     { icon: BookOpen, value: stats?.totalEnrollments || 0, label: 'Enrolled Courses', color: 'text-primary' },
-    { icon: Award, value: stats?.certificates || 0, label: 'Certificates', color: 'text-accent' },
     { icon: Clock, value: `${stats?.totalLessonsCompleted || 0}`, label: 'Lessons Completed', color: 'text-emerald-400' },
-    { icon: Flame, value: stats?.currentStreak || 0, label: 'Day Streak', color: 'text-orange-400' },
   ];
 
   return (
     <Layout>
-      <div className="py-12">
+      <div className="py-8 sm:py-12">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">
-                Welcome back, {user?.firstName}! 👋
-              </h1>
-              <p className="mt-1 text-muted-foreground">
-                {(stats?.currentStreak || 0) > 0
-                  ? `You're on a ${stats?.currentStreak} day learning streak. Keep it up!`
-                  : 'Start learning today to build your streak!'}
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Link to="/profile">
-                <Button variant="outline" size="sm">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </Button>
-            </div>
+          <div className="mb-4 sm:mb-6">
+            <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
+              Welcome back, {user?.firstName}!
+            </h1>
+            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+              {(stats?.currentStreak || 0) > 0
+                ? `You're on a ${stats?.currentStreak} day learning streak. Keep it up!`
+                : 'Start learning today to build your streak!'}
+            </p>
           </div>
 
           {isLoading ? (
@@ -78,143 +56,143 @@ const Dashboard = () => {
           ) : (
             <>
               {/* Stats Grid */}
-              <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+              <div className="mb-6 grid grid-cols-2 gap-2 sm:mb-8 sm:gap-2.5 lg:grid-cols-2 lg:gap-3">
                 {statCards.map((stat, index) => (
                   <div
                     key={index}
-                    className="rounded-xl border border-border bg-card p-3 transition-all hover:border-primary/50 lg:p-5"
+                    className="rounded-lg border border-border bg-card p-2 transition-all hover:border-primary/50 sm:rounded-lg sm:p-2.5 lg:p-3"
                   >
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-secondary lg:h-10 lg:w-10 ${stat.color}`}>
-                      <stat.icon className="h-4 w-4 lg:h-5 lg:w-5" />
+                    <div className={`flex h-7 w-7 items-center justify-center rounded-lg bg-secondary sm:h-7 sm:w-7 lg:h-8 lg:w-8 ${stat.color}`}>
+                      <stat.icon className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
                     </div>
-                    <p className="mt-2 font-display text-xl font-bold text-foreground lg:mt-3 lg:text-2xl">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground lg:text-sm">{stat.label}</p>
+                    <p className="mt-1 font-display text-sm font-bold text-foreground sm:text-base lg:mt-1.5 lg:text-lg">{stat.value}</p>
+                    <p className="hidden text-xs text-muted-foreground sm:block">{stat.label}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="grid gap-8 lg:grid-cols-3">
+              <div className="grid gap-4 sm:gap-5">
                 {/* Continue Learning */}
-                <div className="lg:col-span-2">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h2 className="font-display text-2xl font-bold text-foreground">
+                <div>
+                  <div className="mb-3 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <h2 className="font-display text-xl font-bold text-foreground sm:text-2xl">
                       Continue Learning
                     </h2>
-                    <Link to="/courses" className="text-sm text-primary hover:underline">
+                    <Link to="/courses" className="text-xs text-primary hover:underline sm:text-sm">
                       View all courses
                     </Link>
                   </div>
 
                   {enrollments && enrollments.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       {enrollments.map((enrollment: Enrollment) => (
                         <Link
                           key={enrollment.id}
                           to={`/player/${enrollment.courseId}`}
-                          className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/50 sm:flex-row"
+                          className="group flex flex-col gap-3 rounded-lg border border-border bg-card p-3 transition-all hover:border-primary/50 sm:rounded-lg sm:gap-4 sm:p-4 md:flex-row"
                         >
                           <img
                             src={resolveMediaUrl(enrollment.course.thumbnailUrl) || ''}
                             alt={enrollment.course.title}
-                            className="h-40 w-full flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-40"
+                            className="h-32 w-full flex-shrink-0 rounded-lg object-cover sm:h-28 sm:w-48"
                           />
                           <div className="flex flex-1 flex-col justify-between">
                             <div>
-                              <h3 className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                              <h3 className="text-base font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors sm:text-lg">
                                 {enrollment.course.title}
                               </h3>
-                              <p className="mt-1 text-sm text-muted-foreground">
+                              <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">
                                 {enrollment.course.instructor.firstName} {enrollment.course.instructor.lastName}
                               </p>
                             </div>
                             <div>
-                              <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center justify-between text-sm sm:text-base">
                                 <span className="text-muted-foreground">{enrollment.progressPercentage}% complete</span>
                                 <span className="text-muted-foreground">
                                   {new Date(enrollment.enrolledAt).toLocaleDateString()}
                                 </span>
                               </div>
-                              <Progress value={enrollment.progressPercentage} className="mt-2 h-2" />
+                              <Progress value={enrollment.progressPercentage} className="mt-2 h-2.5" />
                             </div>
                           </div>
                           <div className="flex items-center">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary opacity-0 transition-opacity group-hover:opacity-100">
-                              <Play className="h-5 w-5 text-primary-foreground" fill="currentColor" />
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary opacity-0 transition-opacity group-hover:opacity-100">
+                              <Play className="h-6 w-6 text-primary-foreground" fill="currentColor" />
                             </div>
                           </div>
                         </Link>
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
-                      <BookOpen className="mx-auto h-12 w-12 text-muted-foreground" />
-                      <h3 className="mt-4 font-semibold text-foreground">No courses yet</h3>
-                      <p className="mt-2 text-sm text-muted-foreground">
+                    <div className="rounded-lg border border-dashed border-border bg-card/50 p-4 text-center sm:rounded-lg sm:p-6">
+                      <BookOpen className="mx-auto h-9 w-9 text-muted-foreground sm:h-10 sm:w-10" />
+                      <h3 className="mt-2 font-semibold text-foreground sm:mt-3">No courses yet</h3>
+                      <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
                         Start your learning journey by enrolling in a course.
                       </p>
-                      <Link to="/courses">
-                        <Button className="mt-4">Browse Courses</Button>
+                      <Link to="/courses" className="block">
+                        <Button size="sm" className="mt-2 w-full sm:w-auto sm:mt-3">Browse Courses</Button>
                       </Link>
                     </div>
                   )}
                 </div>
 
                 {/* Sidebar */}
-                <div className="space-y-6">
+                <div className="grid gap-4 sm:gap-5 grid-cols-2 lg:grid-cols-1 lg:space-y-4">
                   {/* Weekly Goal */}
-                  <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="rounded-lg border border-border bg-card p-3 sm:rounded-lg sm:p-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-foreground">Weekly Goal</h3>
-                      <TrendingUp className="h-5 w-5 text-accent" />
+                      <h3 className="text-xs font-semibold text-foreground sm:text-sm">Weekly Goal</h3>
+                      <TrendingUp className="h-4 w-4 text-accent sm:h-4 sm:w-4" />
                     </div>
-                    <div className="mt-4">
+                    <div className="mt-2 sm:mt-3">
                       <div className="flex items-end justify-between">
-                        <span className="font-display text-3xl font-bold text-foreground">
+                        <span className="font-display text-xl font-bold text-foreground sm:text-2xl">
                           {stats?.totalLessonsCompleted || 0}
                         </span>
-                        <span className="text-sm text-muted-foreground">/ 10 lessons</span>
+                        <span className="text-xs text-muted-foreground sm:text-xs">/ 10 lessons</span>
                       </div>
-                      <Progress value={Math.min((stats?.totalLessonsCompleted || 0) * 10, 100)} className="mt-3 h-3" />
-                      <p className="mt-2 text-sm text-muted-foreground">
+                      <Progress value={Math.min((stats?.totalLessonsCompleted || 0) * 10, 100)} className="mt-1.5 h-2 sm:mt-2" />
+                      <p className="mt-1.5 text-xs text-muted-foreground sm:text-xs">
                         {(stats?.totalLessonsCompleted || 0) >= 10
-                          ? "🎉 Goal achieved! Great work!"
+                          ? "Goal achieved! Great work!"
                           : `${10 - (stats?.totalLessonsCompleted || 0)} more lessons to hit your goal.`}
                       </p>
                     </div>
                   </div>
 
                   {/* Upcoming */}
-                  <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="rounded-lg border border-border bg-card p-3 sm:rounded-lg sm:p-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-foreground">Upcoming</h3>
-                      <Calendar className="h-5 w-5 text-primary" />
+                      <h3 className="text-xs font-semibold text-foreground sm:text-sm">Upcoming</h3>
+                      <Calendar className="h-4 w-4 text-primary sm:h-4 sm:w-4" />
                     </div>
-                    <div className="mt-4 space-y-4">
-                      <div className="flex gap-3">
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                          <Play className="h-5 w-5 text-primary" />
+                    <div className="mt-2 space-y-2 sm:mt-3 sm:space-y-2.5">
+                      <div className="flex gap-2">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-8 sm:w-8">
+                          <Play className="h-4 w-4 text-primary sm:h-4 sm:w-4" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">Continue Learning</p>
-                          <p className="text-sm text-muted-foreground">Pick up where you left off</p>
+                          <p className="text-xs font-medium text-foreground sm:text-xs">Continue Learning</p>
+                          <p className="text-xs text-muted-foreground sm:text-xs">Pick up where you left off</p>
                         </div>
                       </div>
-                      <div className="flex gap-3">
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                          <Award className="h-5 w-5 text-accent" />
+                      <div className="flex gap-2">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10 sm:h-8 sm:w-8">
+                          <Award className="h-4 w-4 text-accent sm:h-4 sm:w-4" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">Complete a Course</p>
-                          <p className="text-sm text-muted-foreground">Earn your certificate</p>
+                          <p className="text-xs font-medium text-foreground sm:text-xs">Complete a Course</p>
+                          <p className="text-xs text-muted-foreground sm:text-xs">Earn your certificate</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Achievements */}
-                  <div className="rounded-xl border border-border bg-card p-6">
-                    <h3 className="font-semibold text-foreground">Achievements</h3>
-                    <div className="mt-4 flex gap-3">
+                  <div className="rounded-lg border border-border bg-card p-3 sm:rounded-lg sm:p-4">
+                    <h3 className="text-xs font-semibold text-foreground sm:text-sm">Achievements</h3>
+                    <div className="mt-2 flex gap-2 sm:mt-3">
                       {(stats?.currentStreak || 0) >= 7 && (
                         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500">
                           <Flame className="h-6 w-6 text-background" />

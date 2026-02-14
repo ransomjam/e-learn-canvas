@@ -17,7 +17,7 @@ const Index = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 lg:py-32">
+      <section className="relative overflow-hidden py-16 sm:py-20 lg:py-28">
         {/* Background Effects */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-primary/20 blur-[100px]" />
@@ -26,24 +26,24 @@ const Index = () => {
 
         <div className="container relative mx-auto px-4">
           <div className="mx-auto max-w-3xl text-center animate-fade-in">
-            <h1 className="font-display text-4xl font-bold leading-tight text-foreground md:text-5xl lg:text-6xl">
+            <h1 className="font-display text-4xl font-bold leading-tight text-foreground sm:text-5xl md:text-6xl">
               Unlock Your{' '}
               <span className="text-gradient">Potential</span> with Expert-Led Courses
             </h1>
 
-            <p className="mt-6 text-lg text-muted-foreground md:text-xl">
+            <p className="mt-5 text-base text-muted-foreground sm:mt-6 sm:text-lg md:text-lg">
               Master in-demand skills with courses taught by industry experts.
             </p>
 
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link to="/courses">
-                <Button size="xl">
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:mt-10 sm:gap-4 sm:flex-row">
+              <Link to="/courses" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto font-semibold h-11">
                   Explore Courses
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link to="/auth?mode=signup">
-                <Button variant="outline" size="xl">
+              <Link to="/auth?mode=signup" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto font-semibold h-11">
                   Get Started Free
                 </Button>
               </Link>
@@ -53,19 +53,19 @@ const Index = () => {
       </section>
 
       {/* Courses Section */}
-      <section className="py-20">
+      <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent">
         <div className="container mx-auto px-4">
-          <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="font-display text-3xl font-bold text-foreground md:text-4xl">
+          <div className="mb-8 flex flex-col gap-3 sm:mb-10 sm:gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-xl">
+              <h2 className="font-display text-3xl font-bold text-foreground sm:text-4xl md:text-4xl lg:text-5xl">
                 Popular Courses
               </h2>
-              <p className="mt-2 text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
                 Trending courses picked by our community
               </p>
             </div>
-            <Link to="/courses">
-              <Button variant="outline">
+            <Link to="/courses" className="hidden sm:block">
+              <Button variant="outline" size="lg" className="font-semibold h-11">
                 View All
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -77,31 +77,38 @@ const Index = () => {
               <CourseCard key={course.id} course={course} />
             ))}
           </div>
+          
+          <Link to="/courses" className="mt-8 block sm:hidden">
+            <Button variant="outline" className="w-full text-base h-11 font-semibold">
+              View All
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="relative overflow-hidden py-20">
+      <section className="relative overflow-hidden py-16 sm:py-20 md:py-24 lg:py-28">
         <div className="absolute inset-0">
-          <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-[120px]" />
+          <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-[120px]" />
         </div>
 
         <div className="container relative mx-auto px-4 text-center">
-          <h2 className="font-display text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">
+          <h2 className="font-display text-3xl font-bold text-foreground sm:text-4xl md:text-5xl max-w-2xl mx-auto">
             Ready to Start Learning?
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+          <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:mt-6 sm:text-lg">
             Join our community of learners and unlock access to thousands of courses, personalized recommendations, and exclusive content.
           </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link to="/auth?mode=signup">
-              <Button size="xl">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:mt-10 sm:gap-4 sm:flex-row">
+            <Link to="/auth?mode=signup" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto font-semibold h-11">
                 Get Started Free
-                <ArrowRight className="ml-2 h-5 w-5" />
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link to="/courses">
-              <Button variant="outline" size="xl">
+            <Link to="/courses" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto font-semibold h-11">
                 Browse Courses
               </Button>
             </Link>

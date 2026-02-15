@@ -265,27 +265,23 @@ const Auth = () => {
             </Button>
             </form>
 
-            {/* Google Sign-In divider and button */}
-            {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
-              <>
-                <div className="relative my-5">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border" />
-                  </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-card/50 px-2 text-muted-foreground">
-                      or continue with
-                    </span>
-                  </div>
-                </div>
+            {/* Google Sign-In */}
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-card/50 px-2 text-muted-foreground">
+                  or continue with
+                </span>
+              </div>
+            </div>
 
-                <GoogleButton
-                  isLogin={isLogin}
-                  isLoading={isLoading}
-                  selectedRole={selectedRole}
-                />
-              </>
-            )}
+            <GoogleButton
+              isLogin={isLogin}
+              isLoading={isLoading}
+              selectedRole={selectedRole}
+            />
           </div>
 
           {/* === DEMO DATA === Only visible in development (localhost) */}

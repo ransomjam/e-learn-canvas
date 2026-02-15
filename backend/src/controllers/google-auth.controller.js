@@ -1,11 +1,9 @@
-const { OAuth2Client } = require('google-auth-library');
+const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/database');
 const { jwt: jwtConfig } = require('../config/constants');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
-
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /**
  * Generate access and refresh tokens (same as auth.controller)
@@ -30,34 +28,36 @@ const generateTokens = (userId) => {
  * @desc    Authenticate with Google (login or register)
  * @route   POST /api/v1/auth/google
  * @access  Public
+ *
+ * Accepts a Google OAuth2 access_token from the frontend implicit flow.
+ * Verifies it by calling Google's userinfo endpoint.
  */
 const googleAuth = asyncHandler(async (req, res) => {
     const { credential, role = 'learner' } = req.body;
 
     if (!credential) {
-        throw new ApiError(400, 'Google credential token is required');
+        throw new ApiError(400, 'Google access token is required');
     }
 
-    if (!process.env.GOOGLE_CLIENT_ID) {
-        throw new ApiError(500, 'Google authentication is not configured');
-    }
-
-    // Verify the Google ID token
-    let payload;
+    // Fetch user info from Google using the access token
+    let googleUser;
     try {
-        const ticket = await googleClient.verifyIdToken({
-            idToken: credential,
-            audience: process.env.GOOGLE_CLIENT_ID,
+        const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${credential}` },
         });
-        payload = ticket.getPayload();
+        googleUser = response.data;
     } catch (error) {
-        console.error('Google token verification failed:', error.message);
-        throw new ApiError(401, 'Invalid Google token');
+        console.error('Google userinfo fetch failed:', error.response?.data || error.message);
+        throw new ApiError(401, 'Invalid Google access token');
     }
 
-    const { email, given_name, family_name, picture, email_verified, sub: googleId } = payload;
+    const { email, given_name, family_name, picture, email_verified, sub: googleId } = googleUser;
 
-    if (!email_verified) {
+    if (!email) {
+        throw new ApiError(401, 'Could not retrieve email from Google');
+    }
+
+    if (email_verified === false) {
         throw new ApiError(401, 'Google email is not verified');
     }
 

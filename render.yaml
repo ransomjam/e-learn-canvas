@@ -43,6 +43,10 @@ services:
         value: https://live.fapshi.com
       - key: FAPSHI_WEBHOOK_URL
         sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
     disk:
       name: uploads
       mountPath: /opt/render/project/src/backend/uploads

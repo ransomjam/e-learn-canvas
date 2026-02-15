@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, User, LogOut, Menu, X, ChevronLeft, Ticket, Users, FileText } from 'lucide-react';
+import { LayoutDashboard, BookOpen, User, LogOut, Menu, X, ChevronLeft, Ticket, Users, FileText, Settings, ShieldCheck, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,11 +17,15 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+    const isAdmin = user?.role === 'admin';
+
     const sidebarLinks = [
         { icon: LayoutDashboard, label: 'Overview', path: '/instructor' },
         { icon: BookOpen, label: 'My Courses', path: '/instructor/courses' },
         { icon: FileText, label: 'Submissions', path: '/instructor/submissions' },
-        ...(user?.role === 'admin' ? [
+        ...(isAdmin ? [
+            { icon: ShieldCheck, label: 'All Courses', path: '/instructor/admin-courses' },
+            { icon: Users, label: 'Instructors', path: '/instructor/instructors' },
             { icon: Ticket, label: 'Enrollment Codes', path: '/instructor/enrollment-codes' },
             { icon: Users, label: 'Students', path: '/instructor/students' },
         ] : []),
@@ -38,12 +42,15 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             {/* Brand */}
             <div className="flex h-16 items-center border-b border-slate-800 px-6">
                 <LayoutDashboard className="mr-2 h-6 w-6 text-indigo-500" />
-                <span className="font-display text-xl font-bold text-white">E-Learn Admin</span>
+                <span className="font-display text-xl font-bold text-white">E-Learn {isAdmin ? 'Admin' : 'Panel'}</span>
             </div>
 
             {/* Navigation */}
             <nav className="flex-1 space-y-1 px-3 py-6">
-                {sidebarLinks.map((link) => {
+                {isAdmin && (
+                    <p className="px-3 mb-2 text-[10px] uppercase tracking-widest text-slate-500">Instructor</p>
+                )}
+                {sidebarLinks.filter(l => !['All Courses', 'Instructors', 'Enrollment Codes', 'Students'].includes(l.label)).map((link) => {
                     const isActive = location.pathname === link.path ||
                         (link.path !== '/instructor' && location.pathname.startsWith(link.path));
                     return (
@@ -51,8 +58,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                             key={link.path}
                             to={link.path}
                             className={`group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'hover:bg-slate-800 hover:text-white'
+                                ? 'bg-indigo-600 text-white'
+                                : 'hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
                             <link.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
@@ -60,6 +67,30 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                         </Link>
                     )
                 })}
+
+                {isAdmin && (
+                    <>
+                        <div className="my-4 border-t border-slate-800" />
+                        <p className="px-3 mb-2 text-[10px] uppercase tracking-widest text-slate-500">Administration</p>
+                        {sidebarLinks.filter(l => ['All Courses', 'Instructors', 'Enrollment Codes', 'Students'].includes(l.label)).map((link) => {
+                            const isActive = location.pathname === link.path ||
+                                (link.path !== '/instructor' && location.pathname.startsWith(link.path));
+                            return (
+                                <Link
+                                    key={link.path}
+                                    to={link.path}
+                                    className={`group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'hover:bg-slate-800 hover:text-white'
+                                        }`}
+                                >
+                                    <link.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                                    {link.label}
+                                </Link>
+                            )
+                        })}
+                    </>
+                )}
             </nav>
 
             {/* User & Logout */}
@@ -75,7 +106,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                         <p className="truncate text-sm font-medium text-white">
                             {user?.firstName} {user?.lastName}
                         </p>
-                        <p className="truncate text-xs text-slate-500">Instructor</p>
+                        <p className="truncate text-xs text-slate-500">{isAdmin ? 'Administrator' : 'Instructor'}</p>
                     </div>
                 </div>
                 <Button
@@ -91,7 +122,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     );
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-zinc-950">
+        <div className="min-h-screen bg-background">
             {/* Mobile Sidebar Overlay */}
             {isMobileOpen && (
                 <div
@@ -109,11 +140,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             {/* Main Content */}
             <div className="flex min-h-screen flex-col lg:pl-64">
                 {/* Mobile Header */}
-                <header className="sticky top-0 z-30 flex h-16 items-center gap-4 bg-white px-4 shadow-sm dark:bg-zinc-900 lg:hidden">
+                <header className="sticky top-0 z-30 flex h-16 items-center gap-4 bg-background border-b border-border px-4 shadow-sm lg:hidden">
                     <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(true)}>
                         <Menu className="h-6 w-6" />
                     </Button>
-                    <span className="font-display text-lg font-bold">E-Learn Admin</span>
+                    <span className="font-display text-lg font-bold">E-Learn {isAdmin ? 'Admin' : 'Panel'}</span>
                 </header>
 
                 <main className="flex-1 p-4 lg:p-8">

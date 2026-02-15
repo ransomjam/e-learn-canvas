@@ -16,6 +16,7 @@ export interface Course {
     duration?: number;
     lessonCount: number;
     enrollmentCount: number;
+    likesCount?: number;
     ratingAvg: number;
     ratingCount: number;
     instructor: {
@@ -168,6 +169,27 @@ export const coursesService = {
         return response.data.data;
     },
 
+    // Review methods
+    async getReviews(courseId: string, params?: { page?: number; limit?: number }): Promise<any> {
+        const response = await api.get(`/courses/${courseId}/reviews`, { params });
+        return response.data.data;
+    },
+
+    async addReview(courseId: string, data: { rating: number; title?: string; comment?: string }): Promise<any> {
+        const response = await api.post(`/courses/${courseId}/reviews`, data);
+        return response.data.data;
+    },
+
+    async updateReview(courseId: string, data: { rating: number; title?: string; comment?: string }): Promise<any> {
+        const response = await api.put(`/courses/${courseId}/reviews/me`, data);
+        return response.data.data;
+    },
+
+    async getUserReview(courseId: string): Promise<any> {
+        const response = await api.get(`/courses/${courseId}/reviews/me`);
+        return response.data.data;
+    },
+
     // Lesson likes
     async toggleLessonLike(lessonId: string): Promise<{ liked: boolean; likesCount: number }> {
         const response = await api.post(`/lessons/${lessonId}/like`);
@@ -177,5 +199,24 @@ export const coursesService = {
     async getLessonLikes(lessonId: string): Promise<{ likesCount: number; liked: boolean }> {
         const response = await api.get(`/lessons/${lessonId}/likes`);
         return response.data.data;
-    }
+    },
+
+    // Course likes (global)
+    async getCourseLikes(courseId: string): Promise<{ likesCount: number; liked: boolean }> {
+        const response = await api.get(`/courses/${courseId}/likes`);
+        return response.data.data;
+    },
+
+    // Admin methods
+    async getAllCoursesAdmin(params?: { page?: number; limit?: number; search?: string; status?: string; instructorId?: string }): Promise<PaginatedResponse<Course>> {
+        const response = await api.get('/courses/admin/all', { params });
+        return {
+            data: response.data.data.courses,
+            pagination: response.data.data.pagination,
+        };
+    },
+
+    async unpublishCourse(id: string): Promise<void> {
+        await api.put(`/courses/${id}/unpublish`);
+    },
 };

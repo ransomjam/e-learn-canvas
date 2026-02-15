@@ -448,6 +448,52 @@ const allMigrations = [
         name: '026_add_practice_files', up: `
         ALTER TABLE lessons ADD COLUMN IF NOT EXISTS practice_files JSONB DEFAULT '[]'::jsonb;
     `},
+
+    // ── global course likes ──────────────────────────────────────────────
+    {
+        name: '027_create_course_likes', up: `
+        CREATE TABLE IF NOT EXISTS course_likes (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, course_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_course_likes_user_id ON course_likes(user_id);
+        CREATE INDEX IF NOT EXISTS idx_course_likes_course_id ON course_likes(course_id);
+        ALTER TABLE courses ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0;
+    `},
+
+    // ── project attachment columns ───────────────────────────────────────
+    {
+        name: '028_project_attachment_columns', up: `
+        ALTER TABLE projects ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+        ALTER TABLE projects ADD COLUMN IF NOT EXISTS attachment_name VARCHAR(255);
+    `},
+
+    // ── seed popular categories ──────────────────────────────────────────
+    {
+        name: '029_seed_popular_categories', up: `
+        INSERT INTO categories (name, slug, description) VALUES
+            ('Web Development', 'web-development', 'Build websites and web applications'),
+            ('Mobile Development', 'mobile-development', 'Create mobile apps for iOS and Android'),
+            ('Data Science', 'data-science', 'Analyze data and build machine learning models'),
+            ('Design', 'design', 'UI/UX design, graphic design, and more'),
+            ('Business', 'business', 'Entrepreneurship, marketing, and management'),
+            ('Programming', 'programming', 'Learn programming languages and concepts'),
+            ('Cloud Computing', 'cloud-computing', 'AWS, Azure, Google Cloud and DevOps'),
+            ('Cybersecurity', 'cybersecurity', 'Network security, ethical hacking, and more'),
+            ('AI & Machine Learning', 'ai-machine-learning', 'Artificial intelligence and deep learning'),
+            ('Digital Marketing', 'digital-marketing', 'SEO, social media, and online marketing')
+        ON CONFLICT (slug) DO NOTHING;
+    `},
+
+    // ── Google OAuth support ─────────────────────────────────────────────
+    {
+        name: '030_add_google_id_to_users', up: `
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255);
+        CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+    `},
 ];
 
 // ─── runner ─────────────────────────────────────────────────────────────────

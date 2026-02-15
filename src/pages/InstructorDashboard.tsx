@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
     BookOpen, Users, DollarSign, Star, Plus, BarChart3, Clock,
-    TrendingUp, ChevronRight, Loader2, Bell, GraduationCap, Settings, LogOut, Eye, ArrowUpRight
+    TrendingUp, ChevronRight, Loader2, Bell, GraduationCap, Settings, LogOut, Eye, ArrowUpRight, Heart, FolderOpen
 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { instructorService } from '@/services/instructor.service';
-import { coursesService, Course } from '@/services/courses.service';
+import { coursesService, Course, Category } from '@/services/courses.service';
 import { resolveMediaUrl } from '@/lib/media';
 
 const InstructorDashboard = () => {
@@ -36,6 +36,17 @@ const InstructorDashboard = () => {
         queryKey: ['instructorStudents'],
         queryFn: () => instructorService.getStudents({ limit: 5 }),
     });
+
+    // Fetch categories
+    const { data: categories = [] } = useQuery({
+        queryKey: ['categories'],
+        queryFn: () => coursesService.getCategories(),
+    });
+
+    const popularCategories = categories
+        .filter(c => c.courseCount > 0)
+        .sort((a, b) => b.courseCount - a.courseCount)
+        .slice(0, 8);
 
     const isLoading = dashboardLoading || coursesLoading;
 
@@ -209,6 +220,9 @@ const InstructorDashboard = () => {
                                                         <span className="flex items-center gap-1">
                                                             <Star className="h-3 w-3 text-amber-500" /> {course.ratingAvg?.toFixed(1) || '0.0'}
                                                         </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Heart className="h-3 w-3 fill-red-400 text-red-400" /> {course.likesCount || 0}
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
@@ -253,6 +267,26 @@ const InstructorDashboard = () => {
                                             <p className="font-bold text-foreground">{dashboard?.totalStudents || 0}</p>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Popular Categories */}
+                                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <h3 className="font-semibold text-foreground">Popular Categories</h3>
+                                        <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    {popularCategories.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {popularCategories.map((cat) => (
+                                                <div key={cat.id} className="flex items-center justify-between rounded-lg bg-secondary/30 px-3 py-2">
+                                                    <span className="text-sm text-foreground">{cat.name}</span>
+                                                    <Badge variant="secondary" className="text-xs">{cat.courseCount} courses</Badge>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground text-center py-4">No categories yet</p>
+                                    )}
                                 </div>
                             </div>
                         </div>

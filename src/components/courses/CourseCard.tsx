@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Users, BookOpen } from 'lucide-react';
+import { Star, Users, BookOpen, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Course } from '@/services/courses.service';
 import { resolveMediaUrl } from '@/lib/media';
@@ -37,6 +37,13 @@ const CourseCard = ({ course }: CourseCardProps) => {
           <Badge variant="secondary" className="absolute top-3 left-3 text-[10px] uppercase tracking-wider">
             {course.level}
           </Badge>
+          {/* Likes badge */}
+          {(course.likesCount ?? 0) > 0 && (
+            <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-black/50 backdrop-blur-sm px-2 py-0.5">
+              <Heart className="h-3 w-3 fill-red-400 text-red-400" />
+              <span className="text-[10px] font-medium text-white">{course.likesCount}</span>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -49,7 +56,7 @@ const CourseCard = ({ course }: CourseCardProps) => {
             {course.instructor.firstName} {course.instructor.lastName}
           </p>
 
-          {/* Rating + students row */}
+          {/* Rating + students + likes row */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Star className="h-3.5 w-3.5 fill-accent text-accent" />
@@ -60,6 +67,12 @@ const CourseCard = ({ course }: CourseCardProps) => {
               <Users className="h-3.5 w-3.5" />
               {(course.enrollmentCount || 0).toLocaleString()}
             </span>
+            {(course.likesCount ?? 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Heart className="h-3.5 w-3.5 fill-red-400 text-red-400" />
+                {course.likesCount}
+              </span>
+            )}
           </div>
 
           {/* Price */}

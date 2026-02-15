@@ -20,6 +20,7 @@ import { enrollmentsService } from '@/services/enrollments.service';
 import { paymentsService } from '@/services/payments.service';
 import { wishlistService } from '@/services/wishlist.service';
 import { resolveMediaUrl } from '@/lib/media';
+import { ReviewDialog } from '@/components/courses/ReviewDialog';
 
 const CourseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +36,7 @@ const CourseDetail = () => {
   const [isRedirectingToPayment, setIsRedirectingToPayment] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
 
   // Fetch course
   const { data: course, isLoading: courseLoading } = useQuery({
@@ -74,6 +76,12 @@ const CourseDetail = () => {
 
   const totalLessons = sections.reduce((acc, section) => acc + section.lessons.length, 0);
   const isEnrolled = !!enrollment;
+
+  const { data: userReview } = useQuery({
+    queryKey: ['userReview', id],
+    queryFn: () => coursesService.getUserReview(id!),
+    enabled: !!id && isAuthenticated && isEnrolled,
+  });
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
@@ -156,7 +164,7 @@ const CourseDetail = () => {
     setIsRedirectingToPayment(true);
     try {
       const result = await paymentsService.createFapshiPayment(id!);
-      
+
       if (result.link) {
         // Redirect to Fapshi payment page
         window.location.href = result.link;
@@ -377,12 +385,22 @@ const CourseDetail = () => {
                   </div>
 
                   {isEnrolled ? (
-                    <Link to={`/player/${course.id}`}>
-                      <Button size="lg" className="mt-6 w-full">
-                        <Play className="mr-2 h-5 w-5" />
-                        Continue Learning
+                    <>
+                      <Link to={`/player/${course.id}`}>
+                        <Button size="lg" className="mt-6 w-full">
+                          <Play className="mr-2 h-5 w-5" />
+                          Continue Learning
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="outline"
+                        className="mt-3 w-full"
+                        onClick={() => setShowReviewDialog(true)}
+                      >
+                        <Star className={`mr-2 h-4 w-4 ${userReview?.rating ? 'fill-amber-400 text-amber-400' : ''}`} />
+                        {userReview ? 'Edit Your Review' : 'Rate this Course'}
                       </Button>
-                    </Link>
+                    </>
                   ) : (
                     <Button
                       size="lg"
@@ -410,9 +428,9 @@ const CourseDetail = () => {
                   )}
 
                   {!isEnrolled && (
-                    <Button 
-                      variant="outline" 
-                      size="lg" 
+                    <Button
+                      variant="outline"
+                      size="lg"
                       className="mt-3 w-full"
                       onClick={handleWishlist}
                       disabled={wishlistLoading}
@@ -598,7 +616,7 @@ const CourseDetail = () => {
       {/* Enrollment Dialog */}
       <Dialog open={showEnrollDialog} onOpenChange={(open) => {
         if (!open) {
-          setPollingPayment(false);
+          setIsRedirectingToPayment(false);
         }
         setShowEnrollDialog(open);
       }}>
@@ -652,7 +670,7 @@ const CourseDetail = () => {
                     {isRedirectingToPayment ? 'Redirecting...' : 'Pay Now'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {isRedirectingToPayment 
+                    {isRedirectingToPayment
                       ? 'Taking you to payment page...'
                       : `Pay ${course ? (course.discountPrice || course.price).toLocaleString() + ' CFA' : ''} with mobile money (MTN/Orange)`
                     }
@@ -701,7 +719,14 @@ const CourseDetail = () => {
           )}
         </DialogContent>
       </Dialog>
-    </Layout>
+
+      <ReviewDialog
+        open={showReviewDialog}
+        onOpenChange={setShowReviewDialog}
+        courseId={id!}
+        initialReview={userReview}
+      />
+    </Layout >
   );
 };
 

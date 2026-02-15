@@ -12,6 +12,8 @@ const {
     resetPassword
 } = require('../controllers/auth.controller');
 
+const { googleAuth } = require('../controllers/google-auth.controller');
+
 const {
     registerValidation,
     loginValidation,
@@ -79,5 +81,12 @@ router.post('/forgot-password', forgotPasswordValidation, validate, forgotPasswo
  * @access  Public
  */
 router.post('/reset-password', resetPasswordValidation, validate, resetPassword);
+
+/**
+ * @route   POST /api/v1/auth/google
+ * @desc    Authenticate with Google (login or register)
+ * @access  Public
+ */
+router.post('/google', googleAuth);
 
 module.exports = router;

@@ -38,10 +38,20 @@ const getCourses = asyncHandler(async (req, res) => {
     const params = [];
     let paramIndex = 1;
 
-    // Public users can only see published courses
-    if (!req.user || req.user.role === 'learner') {
+    // 1. Visibility Filter
+    if (req.user && req.user.role === 'admin') {
+        // Admin sees all courses by default (no base restriction)
+    } else if (req.user && req.user.role === 'instructor') {
+        // Instructors see all published courses AND their own courses (regardless of status)
+        whereClause += ` AND ((c.status = 'published' AND c.moderation_status = 'approved') OR c.instructor_id = $${paramIndex++})`;
+        params.push(req.user.id);
+    } else {
+        // Public/Learners see ONLY published and approved courses
         whereClause += ` AND c.status = 'published' AND c.moderation_status = 'approved'`;
-    } else if (status) {
+    }
+
+    // 2. Status Filter (applied on top of visibility)
+    if (status) {
         whereClause += ` AND c.status = $${paramIndex++}`;
         params.push(status);
     }
@@ -99,6 +109,7 @@ const getCourses = asyncHandler(async (req, res) => {
             c.price, c.discount_price, c.currency, c.level, c.language,
             c.duration_hours, c.status, c.is_featured, c.rating_avg, c.rating_count,
             c.enrollment_count, c.published_at, c.created_at,
+            COALESCE(c.likes_count, 0) as likes_count,
             u.id as instructor_id, u.first_name as instructor_first_name, 
             u.last_name as instructor_last_name, u.avatar_url as instructor_avatar,
             cat.id as category_id, cat.name as category_name, cat.slug as category_slug
@@ -131,6 +142,7 @@ const getCourses = asyncHandler(async (req, res) => {
                 ratingAvg: parseFloat(course.rating_avg),
                 ratingCount: course.rating_count,
                 enrollmentCount: course.enrollment_count,
+                likesCount: parseInt(course.likes_count || 0),
                 publishedAt: course.published_at,
                 createdAt: course.created_at,
                 instructor: {
@@ -254,6 +266,7 @@ const getCourseById = asyncHandler(async (req, res) => {
             ratingAvg: parseFloat(course.rating_avg),
             ratingCount: course.rating_count,
             enrollmentCount: course.enrollment_count,
+            likesCount: parseInt(course.likes_count || 0),
             publishedAt: course.published_at,
             createdAt: course.created_at,
             instructor: {
@@ -413,8 +426,8 @@ const updateCourse = asyncHandler(async (req, res) => {
 
     res.json({
         success: true,
-        message: req.user.role !== 'admin' && courseResult.rows[0].status === 'published' 
-            ? 'Course updated and sent for re-approval' 
+        message: req.user.role !== 'admin' && courseResult.rows[0].status === 'published'
+            ? 'Course updated and sent for re-approval'
             : 'Course updated successfully',
         data: result.rows[0]
     });
@@ -611,7 +624,8 @@ const getInstructorCourses = asyncHandler(async (req, res) => {
 
     const result = await query(
         `SELECT c.id, c.title, c.slug, c.thumbnail_url, c.status, c.price,
-            c.rating_avg, c.enrollment_count, c.created_at, c.published_at
+            c.rating_avg, c.enrollment_count, c.created_at, c.published_at,
+            COALESCE(c.likes_count, 0) as likes_count
      FROM courses c
      ${whereClause}
      ORDER BY c.created_at DESC
@@ -631,6 +645,7 @@ const getInstructorCourses = asyncHandler(async (req, res) => {
                 price: parseFloat(course.price),
                 ratingAvg: parseFloat(course.rating_avg),
                 enrollmentCount: course.enrollment_count,
+                likesCount: parseInt(course.likes_count || 0),
                 createdAt: course.created_at,
                 publishedAt: course.published_at
             })),
@@ -672,6 +687,130 @@ const getCategories = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * @desc    Unpublish a course (set status to draft)
+ * @route   PUT /api/v1/courses/:id/unpublish
+ * @access  Private/Admin
+ */
+const unpublishCourse = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const result = await query(
+        `UPDATE courses SET status = 'draft', updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 RETURNING id, title, status`,
+        [id]
+    );
+
+    if (result.rows.length === 0) {
+        throw new ApiError(404, 'Course not found');
+    }
+
+    res.json({
+        success: true,
+        message: 'Course unpublished successfully',
+        data: result.rows[0]
+    });
+});
+
+/**
+ * @desc    Get ALL courses for admin (no status filter by default)
+ * @route   GET /api/v1/courses/admin/all
+ * @access  Private/Admin
+ */
+const getAllCoursesAdmin = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 50, search, status, instructorId } = req.query;
+    const offset = (page - 1) * limit;
+    let whereClause = 'WHERE 1=1';
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+        whereClause += ` AND c.status = $${paramIndex++}`;
+        params.push(status);
+    }
+
+    if (instructorId) {
+        whereClause += ` AND c.instructor_id = $${paramIndex++}`;
+        params.push(instructorId);
+    }
+
+    if (search) {
+        whereClause += ` AND (c.title ILIKE $${paramIndex} OR c.description ILIKE $${paramIndex})`;
+        params.push(`%${search}%`);
+        paramIndex++;
+    }
+
+    const countResult = await query(
+        `SELECT COUNT(*) FROM courses c ${whereClause}`,
+        params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    const result = await query(
+        `SELECT c.id, c.title, c.slug, c.short_description, c.thumbnail_url,
+            c.price, c.discount_price, c.currency, c.level, c.language,
+            c.duration_hours, c.status, c.is_featured, c.rating_avg, c.rating_count,
+            c.enrollment_count, c.published_at, c.created_at,
+            COALESCE(c.likes_count, 0) as likes_count,
+            c.moderation_status,
+            u.id as instructor_id, u.first_name as instructor_first_name, 
+            u.last_name as instructor_last_name, u.avatar_url as instructor_avatar,
+            cat.id as category_id, cat.name as category_name, cat.slug as category_slug
+     FROM courses c
+     LEFT JOIN users u ON c.instructor_id = u.id
+     LEFT JOIN categories cat ON c.category_id = cat.id
+     ${whereClause}
+     ORDER BY c.created_at DESC
+     LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
+        [...params, limit, offset]
+    );
+
+    res.json({
+        success: true,
+        data: {
+            courses: result.rows.map(course => ({
+                id: course.id,
+                title: course.title,
+                slug: course.slug,
+                shortDescription: course.short_description,
+                thumbnailUrl: course.thumbnail_url,
+                price: parseFloat(course.price),
+                discountPrice: course.discount_price ? parseFloat(course.discount_price) : null,
+                currency: course.currency,
+                level: course.level,
+                language: course.language,
+                durationHours: parseFloat(course.duration_hours),
+                status: course.status,
+                isFeatured: course.is_featured,
+                ratingAvg: parseFloat(course.rating_avg),
+                ratingCount: course.rating_count,
+                enrollmentCount: course.enrollment_count,
+                likesCount: parseInt(course.likes_count || 0),
+                moderationStatus: course.moderation_status,
+                publishedAt: course.published_at,
+                createdAt: course.created_at,
+                instructor: {
+                    id: course.instructor_id,
+                    firstName: course.instructor_first_name,
+                    lastName: course.instructor_last_name,
+                    avatarUrl: course.instructor_avatar
+                },
+                category: course.category_id ? {
+                    id: course.category_id,
+                    name: course.category_name,
+                    slug: course.category_slug
+                } : null
+            })),
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        }
+    });
+});
+
 module.exports = {
     getCourses,
     getCourseById,
@@ -679,8 +818,10 @@ module.exports = {
     updateCourse,
     submitForReview,
     publishCourse,
+    unpublishCourse,
     archiveCourse,
     deleteCourse,
     getInstructorCourses,
-    getCategories
+    getCategories,
+    getAllCoursesAdmin
 };

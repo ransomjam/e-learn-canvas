@@ -9,11 +9,15 @@ const {
     updateCourse,
     submitForReview,
     publishCourse,
+    unpublishCourse,
     archiveCourse,
     deleteCourse,
     getInstructorCourses,
-    getCategories
+    getCategories,
+    getAllCoursesAdmin
 } = require('../controllers/course.controller');
+
+const { getCourseLikes } = require('../controllers/likes.controller');
 
 const { createSection } = require('../controllers/lesson.controller');
 
@@ -52,6 +56,13 @@ router.get('/categories', getCategories);
  * @access  Private/Instructor
  */
 router.get('/instructor/me', authenticate, authorize('instructor', 'admin'), getInstructorCourses);
+
+/**
+ * @route   GET /api/v1/courses/admin/all
+ * @desc    Get ALL courses for admin dashboard
+ * @access  Private/Admin
+ */
+router.get('/admin/all', authenticate, authorize('admin'), getAllCoursesAdmin);
 
 // ===== Standalone project routes (no courseId needed) =====
 // These handle /courses/projects/... paths from the frontend
@@ -165,6 +176,20 @@ router.put('/:id/publish', authenticate, authorize('instructor', 'admin'), publi
 router.put('/:id/archive', authenticate, authorize('instructor', 'admin'), courseIdValidation, validate, archiveCourse);
 
 /**
+ * @route   PUT /api/v1/courses/:id/unpublish
+ * @desc    Unpublish a course (set to draft)
+ * @access  Private/Admin
+ */
+router.put('/:id/unpublish', authenticate, authorize('admin'), unpublishCourse);
+
+/**
+ * @route   GET /api/v1/courses/:id/likes
+ * @desc    Get course global likes count
+ * @access  Public
+ */
+router.get('/:id/likes', optionalAuth, getCourseLikes);
+
+/**
  * @route   DELETE /api/v1/courses/:id
  * @desc    Delete a course
  * @access  Private/Instructor
@@ -214,7 +239,10 @@ router.get('/:id/chat', authenticate, getChatMessages);
  */
 router.post('/:id/chat', authenticate, postChatMessage);
 
+const reviewRoutes = require('./review.routes');
+
 // Nested projects routes
 router.use('/:courseId/projects', projectsRoutes);
+router.use('/:id/reviews', reviewRoutes);
 
 module.exports = router;

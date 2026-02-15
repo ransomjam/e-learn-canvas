@@ -973,6 +973,81 @@ const refundTransaction = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * @desc    Get all instructors with their courses
+ * @route   GET /api/v1/admin/instructors
+ * @access  Private/Admin
+ */
+const getInstructors = asyncHandler(async (req, res) => {
+    const { search } = req.query;
+
+    let whereClause = `WHERE u.role = 'instructor'`;
+    const params = [];
+    let paramIndex = 1;
+
+    if (search) {
+        whereClause += ` AND (u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`;
+        params.push(`%${search}%`);
+        paramIndex++;
+    }
+
+    // Get instructors
+    const instructorsResult = await query(
+        `SELECT u.id, u.first_name, u.last_name, u.email, u.avatar_url, u.bio
+         FROM users u
+         ${whereClause}
+         ORDER BY u.created_at DESC`,
+        params
+    );
+
+    // For each instructor, get their courses with details
+    const instructors = await Promise.all(instructorsResult.rows.map(async (instructor) => {
+        const coursesResult = await query(
+            `SELECT c.id, c.title, c.status, c.thumbnail_url,
+                    c.enrollment_count, COALESCE(c.likes_count, 0) as likes_count,
+                    c.rating_avg
+             FROM courses c
+             WHERE c.instructor_id = $1
+             ORDER BY c.created_at DESC`,
+            [instructor.id]
+        );
+
+        const courses = coursesResult.rows;
+        const totalStudents = courses.reduce((sum, c) => sum + (c.enrollment_count || 0), 0);
+        const totalLikes = courses.reduce((sum, c) => sum + parseInt(c.likes_count || 0), 0);
+        const avgRating = courses.length > 0
+            ? courses.reduce((sum, c) => sum + parseFloat(c.rating_avg || 0), 0) / courses.length
+            : 0;
+
+        return {
+            id: instructor.id,
+            firstName: instructor.first_name,
+            lastName: instructor.last_name,
+            email: instructor.email,
+            avatarUrl: instructor.avatar_url,
+            bio: instructor.bio,
+            courseCount: courses.length,
+            totalStudents,
+            totalLikes,
+            avgRating,
+            courses: courses.map(c => ({
+                id: c.id,
+                title: c.title,
+                status: c.status,
+                thumbnailUrl: c.thumbnail_url,
+                enrollmentCount: c.enrollment_count,
+                likesCount: parseInt(c.likes_count || 0),
+                ratingAvg: parseFloat(c.rating_avg || 0),
+            }))
+        };
+    }));
+
+    res.json({
+        success: true,
+        data: instructors
+    });
+});
+
 module.exports = {
     // Users
     getAdminUsers,
@@ -1000,5 +1075,8 @@ module.exports = {
 
     // Notifications
     getNotifications,
-    markNotificationsRead
+    markNotificationsRead,
+
+    // Instructors
+    getInstructors
 };

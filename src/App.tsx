@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -20,6 +21,8 @@ import InstructorSubmissions from "./pages/InstructorSubmissions";
 import AddLesson from "./pages/AddLesson";
 import AdminEnrollmentCodes from "./pages/AdminEnrollmentCodes";
 import AdminStudents from "./pages/AdminStudents";
+import AdminCourses from "./pages/AdminCourses";
+import AdminInstructors from "./pages/AdminInstructors";
 import PaymentCallback from "./pages/PaymentCallback";
 import Wishlist from "./pages/Wishlist";
 import ProjectDetail from "./pages/ProjectDetail";
@@ -34,7 +37,10 @@ const queryClient = new QueryClient({
   },
 });
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
 const App = () => (
+  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <AuthProvider>
@@ -157,7 +163,22 @@ const App = () => (
               }
             />
 
-            {/* Admin Only Routes */}
+            <Route
+              path="/instructor/admin-courses"
+              element={
+                <ProtectedRoute requiredRoles={['admin']}>
+                  <AdminCourses />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/instructors"
+              element={
+                <ProtectedRoute requiredRoles={['admin']}>
+                  <AdminInstructors />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/instructor/enrollment-codes"
               element={
@@ -181,6 +202,7 @@ const App = () => (
       </AuthProvider>
     </BrowserRouter>
   </QueryClientProvider>
+  </GoogleOAuthProvider>
 );
 
 export default App;

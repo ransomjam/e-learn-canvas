@@ -10,15 +10,17 @@ const toggleLessonLike = asyncHandler(async (req, res) => {
     const { lessonId } = req.params;
     const userId = req.user.id;
 
-    // Check if lesson exists
+    // Check if lesson exists and get course_id
     const lessonResult = await query(
-        'SELECT id FROM lessons WHERE id = $1',
+        'SELECT id, course_id FROM lessons WHERE id = $1',
         [lessonId]
     );
 
     if (lessonResult.rows.length === 0) {
         throw new ApiError(404, 'Lesson not found');
     }
+
+    const courseId = lessonResult.rows[0].course_id;
 
     // Check if already liked
     const existingLike = await query(
@@ -32,6 +34,29 @@ const toggleLessonLike = asyncHandler(async (req, res) => {
             'DELETE FROM lesson_likes WHERE user_id = $1 AND lesson_id = $2',
             [userId, lessonId]
         );
+
+        // Check if user still has likes on other lessons in the same course
+        const otherLikes = await query(
+            `SELECT ll.id FROM lesson_likes ll
+             JOIN lessons l ON ll.lesson_id = l.id
+             WHERE ll.user_id = $1 AND l.course_id = $2`,
+            [userId, courseId]
+        );
+
+        // If no more lesson likes for this course, remove the course-level like
+        if (otherLikes.rows.length === 0) {
+            await query(
+                'DELETE FROM course_likes WHERE user_id = $1 AND course_id = $2',
+                [userId, courseId]
+            );
+            // Update cached count
+            await query(
+                `UPDATE courses SET likes_count = (
+                    SELECT COUNT(DISTINCT user_id) FROM course_likes WHERE course_id = $1
+                ) WHERE id = $1`,
+                [courseId]
+            );
+        }
 
         // Get updated count
         const countResult = await query(
@@ -51,6 +76,21 @@ const toggleLessonLike = asyncHandler(async (req, res) => {
         await query(
             'INSERT INTO lesson_likes (user_id, lesson_id) VALUES ($1, $2)',
             [userId, lessonId]
+        );
+
+        // Also add a course-level like (if not already present)
+        await query(
+            `INSERT INTO course_likes (user_id, course_id) VALUES ($1, $2)
+             ON CONFLICT (user_id, course_id) DO NOTHING`,
+            [userId, courseId]
+        );
+
+        // Update cached count
+        await query(
+            `UPDATE courses SET likes_count = (
+                SELECT COUNT(DISTINCT user_id) FROM course_likes WHERE course_id = $1
+            ) WHERE id = $1`,
+            [courseId]
         );
 
         // Get updated count
@@ -99,7 +139,45 @@ const getLessonLikes = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * @desc    Get global course likes count (for course cards)
+ * @route   GET /api/v1/courses/:courseId/likes
+ * @access  Public
+ */
+const getCourseLikes = asyncHandler(async (req, res) => {
+    const { courseId } = req.params;
+
+    // Get likes count from cached column
+    const countResult = await query(
+        'SELECT likes_count FROM courses WHERE id = $1',
+        [courseId]
+    );
+
+    if (countResult.rows.length === 0) {
+        throw new ApiError(404, 'Course not found');
+    }
+
+    // Check if current user liked (optional auth)
+    let liked = false;
+    if (req.user) {
+        const userLiked = await query(
+            'SELECT id FROM course_likes WHERE user_id = $1 AND course_id = $2',
+            [req.user.id, courseId]
+        );
+        liked = userLiked.rows.length > 0;
+    }
+
+    res.json({
+        success: true,
+        data: {
+            likesCount: parseInt(countResult.rows[0].likes_count || 0),
+            liked
+        }
+    });
+});
+
 module.exports = {
     toggleLessonLike,
-    getLessonLikes
+    getLessonLikes,
+    getCourseLikes
 };

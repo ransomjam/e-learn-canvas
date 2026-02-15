@@ -110,6 +110,17 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Environment info endpoint (tells frontend if demo mode is available)
+app.get('/api/v1/config', (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            demoMode: process.env.NODE_ENV !== 'production',
+            googleAuthEnabled: !!(process.env.GOOGLE_CLIENT_ID),
+        }
+    });
+});
+
 // API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);

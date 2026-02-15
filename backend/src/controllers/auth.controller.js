@@ -92,6 +92,11 @@ const register = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
+    // Block demo account login in production
+    if (process.env.NODE_ENV === 'production' && email.toLowerCase().endsWith('@demo.com')) {
+        throw new ApiError(403, 'Demo accounts are not available in production');
+    }
+
     // Get user
     const result = await query(
         `SELECT id, email, password_hash, first_name, last_name, role, is_active, is_verified

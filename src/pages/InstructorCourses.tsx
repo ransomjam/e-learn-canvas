@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-    BookOpen, Users, Star, Plus, Eye, MoreVertical, Edit, Trash2
+    BookOpen, Users, Star, Plus, Eye, MoreVertical, Edit, Trash2, Heart
 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -88,6 +88,10 @@ const InstructorCourses = () => {
                                         <span className="flex items-center gap-1">
                                             <Star className="h-4 w-4 text-amber-500" />
                                             {course.ratingAvg?.toFixed(1) || '0.0'}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <Heart className="h-4 w-4 fill-red-400 text-red-400" />
+                                            {course.likesCount || 0} likes
                                         </span>
                                         <span className="flex items-center gap-1">
                                             <BookOpen className="h-4 w-4" />

@@ -45,6 +45,13 @@ export const authService = {
         return { user, accessToken, refreshToken };
     },
 
+    async googleAuth(credential: string, role?: 'learner' | 'instructor'): Promise<AuthResponse & { isNewUser?: boolean }> {
+        const response = await api.post('/auth/google', { credential, role });
+        const { user, accessToken, refreshToken, isNewUser } = response.data.data;
+        setTokens(accessToken, refreshToken);
+        return { user, accessToken, refreshToken, isNewUser };
+    },
+
     async logout(): Promise<void> {
         try {
             const refreshToken = getRefreshToken();

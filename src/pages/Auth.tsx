@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { BookOpen, Mail, Lock, User, Eye, EyeOff, Loader2, ArrowRight, GraduationCap, Presentation } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, googleLogin, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
   const [isLogin, setIsLogin] = useState(searchParams.get('mode') !== 'signup');
@@ -263,10 +264,69 @@ const Auth = () => {
               {isLogin ? 'Sign In' : 'Create Account'}
             </Button>
             </form>
+
+            {/* Google Sign-In divider and button */}
+            {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+              <>
+                <div className="relative my-5">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-card/50 px-2 text-muted-foreground">
+                      or continue with
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={async (credentialResponse) => {
+                      if (!credentialResponse.credential) return;
+                      setIsLoading(true);
+                      try {
+                        const { isNewUser } = await googleLogin(
+                          credentialResponse.credential,
+                          isLogin ? undefined : selectedRole
+                        );
+                        toast({
+                          title: isNewUser ? 'Account created!' : 'Welcome back!',
+                          description: isNewUser
+                            ? 'Your account was created with Google.'
+                            : 'You have been logged in with Google.',
+                        });
+                        const from = (location.state as { from?: Location })?.from?.pathname || '/dashboard';
+                        navigate(from, { replace: true });
+                      } catch (error) {
+                        toast({
+                          title: 'Google sign-in failed',
+                          description: getErrorMessage(error),
+                          variant: 'destructive',
+                        });
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    onError={() => {
+                      toast({
+                        title: 'Google sign-in failed',
+                        description: 'Could not authenticate with Google. Please try again.',
+                        variant: 'destructive',
+                      });
+                    }}
+                    theme="outline"
+                    size="large"
+                    width="100%"
+                    text={isLogin ? 'signin_with' : 'signup_with'}
+                    shape="pill"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
-          {/* === DEMO DATA === Remove this entire block before production */}
-          {isLogin && (
+          {/* === DEMO DATA === Only visible in development (localhost) */}
+          {import.meta.env.DEV && isLogin && (
             <div className="mt-5 rounded-lg border border-dashed border-border/50 bg-secondary/20 p-4">
               <p className="text-center text-xs text-muted-foreground mb-3">
                 Demo Login <span className="opacity-60">(password: demo123)</span>

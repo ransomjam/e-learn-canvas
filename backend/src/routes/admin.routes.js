@@ -28,7 +28,10 @@ const {
 
     // Notifications
     getNotifications,
-    markNotificationsRead
+    markNotificationsRead,
+
+    // Instructors
+    getInstructors
 } = require('../controllers/admin.controller');
 
 const {
@@ -76,6 +79,13 @@ router.use(authorize('admin'));
  * @access  Private/Admin
  */
 router.get('/users', getAdminUsers);
+
+/**
+ * @route   GET /api/v1/admin/instructors
+ * @desc    Get all instructors with courses
+ * @access  Private/Admin
+ */
+router.get('/instructors', getInstructors);
 
 /**
  * @route   PUT /api/v1/admin/users/:id/ban

@@ -144,14 +144,24 @@ app.get('/api/v1', (req, res) => {
 });
 
 // In production, serve the React frontend from dist/
-if (process.env.NODE_ENV === 'production') {
-    const frontendPath = path.join(__dirname, '../../dist');
+const fs = require('fs');
+const frontendPath = path.join(__dirname, '../../dist');
+const frontendIndex = path.join(frontendPath, 'index.html');
+
+if (fs.existsSync(frontendIndex)) {
+    console.log('📦 Serving frontend from', frontendPath);
     app.use(express.static(frontendPath));
 
     // SPA catch-all: any non-API, non-upload GET request serves index.html
-    app.get(/^\/(?!api|uploads|health).*/, (req, res) => {
-        res.sendFile(path.join(frontendPath, 'index.html'));
+    app.get('*', (req, res, next) => {
+        // Let API/upload/health requests fall through to 404 handler
+        if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path === '/health') {
+            return next();
+        }
+        res.sendFile(frontendIndex);
     });
+} else {
+    console.log('⚠️  No frontend dist/ found at', frontendPath, '— SPA serving disabled');
 }
 
 // Error handling (API 404s and server errors)

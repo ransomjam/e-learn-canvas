@@ -471,6 +471,9 @@ async function migrateAll() {
         }
 
         console.log(`\n✅ Migrations complete (${ran} new, ${allMigrations.length - ran} skipped).`);
+
+        // ── seed default admin account ───────────────────────────────────
+        await seedDefaultAdmin(client);
     } catch (err) {
         console.error('\n❌ Migration failed:', err.message);
         process.exit(1);
@@ -478,6 +481,35 @@ async function migrateAll() {
         client.release();
         await pool.end();
     }
+}
+
+// ─── default admin seed ─────────────────────────────────────────────────────
+
+async function seedDefaultAdmin(client) {
+    const bcrypt = require('bcryptjs');
+
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@learnhub.com';
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin@2026';
+
+    // Check if admin already exists
+    const { rows } = await client.query(
+        'SELECT id FROM users WHERE email = $1',
+        [ADMIN_EMAIL.toLowerCase()]
+    );
+
+    if (rows.length > 0) {
+        console.log(`\n👤 Admin account already exists (${ADMIN_EMAIL})`);
+        return;
+    }
+
+    const hash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+    await client.query(
+        `INSERT INTO users (email, password_hash, first_name, last_name, role, is_active, is_verified)
+         VALUES ($1, $2, 'Admin', 'User', 'admin', true, true)`,
+        [ADMIN_EMAIL.toLowerCase(), hash]
+    );
+    console.log(`\n👤 Default admin created: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+    console.log('   ⚠️  Change the password after first login!');
 }
 
 migrateAll();

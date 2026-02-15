@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Mail, Lock, User, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import { BookOpen, Mail, Lock, User, Eye, EyeOff, Loader2, ArrowRight, GraduationCap, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,8 @@ const Auth = () => {
     email: '',
     password: '',
   });
+
+  const [selectedRole, setSelectedRole] = useState<'learner' | 'instructor'>('learner');
 
   if (isAuthenticated) {
     const from = (location.state as { from?: Location })?.from?.pathname || '/dashboard';
@@ -52,6 +54,7 @@ const Auth = () => {
           password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
+          role: selectedRole,
         });
         toast({
           title: "Account created!",
@@ -137,6 +140,38 @@ const Auth = () => {
           <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-6 sm:p-8 shadow-lg">
             <form className="space-y-5" onSubmit={handleSubmit}>
             {!isLogin && (
+              <>
+              {/* Role selector */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">I want to</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('learner')}
+                    className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-all ${
+                      selectedRole === 'learner'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
+                    }`}
+                  >
+                    <GraduationCap className="h-5 w-5" />
+                    <span className="text-xs font-medium">Learn</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('instructor')}
+                    className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-all ${
+                      selectedRole === 'instructor'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
+                    }`}
+                  >
+                    <Presentation className="h-5 w-5" />
+                    <span className="text-xs font-medium">Teach</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName" className="text-sm font-medium">First name</Label>
@@ -166,6 +201,7 @@ const Auth = () => {
                   />
                 </div>
               </div>
+              </>
             )}
 
             <div className="space-y-2 pt-2">

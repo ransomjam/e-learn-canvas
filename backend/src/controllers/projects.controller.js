@@ -1,31 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-
-// Configure multer for project file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = path.join(__dirname, '../../uploads');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
-const projectUpload = multer({
-    storage,
-    limits: { fileSize: 200 * 1024 * 1024 }, // 200MB
-    fileFilter: (req, file, cb) => {
-        cb(null, true); // Accept all file types
-    }
-});
+const { projectUpload, uploadToCloudinary, cloudinaryEnabled } = require('./upload.controller');
 
 /**
  * @desc    Create a project for a course
@@ -54,7 +29,12 @@ const createProject = asyncHandler(async (req, res) => {
     let attachmentUrl = null;
     let attachmentName = null;
     if (req.file) {
-        attachmentUrl = `/uploads/${req.file.filename}`;
+        if (cloudinaryEnabled) {
+            const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+            attachmentUrl = result.url;
+        } else {
+            attachmentUrl = `/uploads/${req.file.filename}`;
+        }
         attachmentName = req.file.originalname;
     }
 
@@ -166,9 +146,14 @@ const submitProject = asyncHandler(async (req, res) => {
     let fileName = req.body.fileName || null;
     let fileSize = req.body.fileSize || null;
     if (req.file) {
-        submissionUrl = `/uploads/${req.file.filename}`;
+        if (cloudinaryEnabled) {
+            const uploaded = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+            submissionUrl = uploaded.url;
+        } else {
+            submissionUrl = `/uploads/${req.file.filename}`;
+        }
         fileName = req.file.originalname;
-        fileSize = req.file.size;
+        fileSize = req.file.size || req.file.buffer?.length;
     }
 
     // Insert or update submission
@@ -420,7 +405,12 @@ const updateProject = asyncHandler(async (req, res) => {
     let attachmentUrl = projectResult.rows[0].attachment_url;
     let attachmentName = projectResult.rows[0].attachment_name;
     if (req.file) {
-        attachmentUrl = `/uploads/${req.file.filename}`;
+        if (cloudinaryEnabled) {
+            const uploaded = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+            attachmentUrl = uploaded.url;
+        } else {
+            attachmentUrl = `/uploads/${req.file.filename}`;
+        }
         attachmentName = req.file.originalname;
     }
 

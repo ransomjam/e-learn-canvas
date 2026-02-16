@@ -6,27 +6,29 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
-import Courses from "./pages/Courses";
-import CourseDetail from "./pages/CourseDetail";
-import Auth from "./pages/Auth";
-import Player from "./pages/Player";
+import { lazy, Suspense } from "react";
 
-import Profile from "./pages/Profile";
-import InstructorDashboard from "./pages/InstructorDashboard";
-import CourseEditor from "./pages/CourseEditor";
-import MyCourses from "./pages/MyCourses";
-import InstructorCourses from "./pages/InstructorCourses";
-import InstructorSubmissions from "./pages/InstructorSubmissions";
-import AddLesson from "./pages/AddLesson";
-import AdminEnrollmentCodes from "./pages/AdminEnrollmentCodes";
-import AdminStudents from "./pages/AdminStudents";
-import AdminCourses from "./pages/AdminCourses";
-import AdminInstructors from "./pages/AdminInstructors";
-import PaymentCallback from "./pages/PaymentCallback";
-import Wishlist from "./pages/Wishlist";
-import ProjectDetail from "./pages/ProjectDetail";
-import NotFound from "./pages/NotFound";
+// Lazy-loaded pages (each gets its own chunk)
+const Index = lazy(() => import("./pages/Index"));
+const Courses = lazy(() => import("./pages/Courses"));
+const CourseDetail = lazy(() => import("./pages/CourseDetail"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Player = lazy(() => import("./pages/Player"));
+const Profile = lazy(() => import("./pages/Profile"));
+const InstructorDashboard = lazy(() => import("./pages/InstructorDashboard"));
+const CourseEditor = lazy(() => import("./pages/CourseEditor"));
+const MyCourses = lazy(() => import("./pages/MyCourses"));
+const InstructorCourses = lazy(() => import("./pages/InstructorCourses"));
+const InstructorSubmissions = lazy(() => import("./pages/InstructorSubmissions"));
+const AddLesson = lazy(() => import("./pages/AddLesson"));
+const AdminEnrollmentCodes = lazy(() => import("./pages/AdminEnrollmentCodes"));
+const AdminStudents = lazy(() => import("./pages/AdminStudents"));
+const AdminCourses = lazy(() => import("./pages/AdminCourses"));
+const AdminInstructors = lazy(() => import("./pages/AdminInstructors"));
+const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
+const Wishlist = lazy(() => import("./pages/Wishlist"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +49,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/courses" element={<Courses />} />
@@ -198,6 +201,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </TooltipProvider>
       </AuthProvider>
     </BrowserRouter>

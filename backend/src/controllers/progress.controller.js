@@ -27,7 +27,7 @@ const updateProgress = asyncHandler(async (req, res) => {
         [req.user.id, courseId]
     );
 
-    if (enrollmentResult.rows.length === 0 || enrollmentResult.rows[0].status !== 'active') {
+    if (enrollmentResult.rows.length === 0 || !['active', 'completed'].includes(enrollmentResult.rows[0].status)) {
         throw new ApiError(403, 'You must be enrolled in this course to track progress');
     }
 
@@ -99,7 +99,7 @@ const completeLesson = asyncHandler(async (req, res) => {
         [req.user.id, courseId]
     );
 
-    if (enrollmentResult.rows.length === 0 || enrollmentResult.rows[0].status !== 'active') {
+    if (enrollmentResult.rows.length === 0 || !['active', 'completed'].includes(enrollmentResult.rows[0].status)) {
         throw new ApiError(403, 'You must be enrolled in this course');
     }
 

@@ -158,7 +158,7 @@ const enrollInCourse = asyncHandler(async (req, res) => {
 
     // Check if course exists and is published
     const courseResult = await query(
-        'SELECT id, title, price, status FROM courses WHERE id = $1',
+        'SELECT id, title, price, status, is_free FROM courses WHERE id = $1',
         [courseId]
     );
 
@@ -188,8 +188,8 @@ const enrollInCourse = asyncHandler(async (req, res) => {
         }
     }
 
-    // For paid courses, check if payment is completed
-    if (parseFloat(course.price) > 0) {
+    // For paid courses (not free), check if payment is completed
+    if (!course.is_free && parseFloat(course.price) > 0) {
         const paymentResult = await query(
             `SELECT id FROM payments 
        WHERE user_id = $1 AND course_id = $2 AND status = 'completed'`,

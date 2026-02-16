@@ -107,7 +107,7 @@ const getCourses = asyncHandler(async (req, res) => {
     const result = await query(
         `SELECT c.id, c.title, c.slug, c.short_description, c.thumbnail_url,
             c.price, c.discount_price, c.currency, c.level, c.language,
-            c.duration_hours, c.status, c.is_featured, c.rating_avg, c.rating_count,
+            c.duration_hours, c.status, c.is_featured, c.is_free, c.rating_avg, c.rating_count,
             c.enrollment_count, c.published_at, c.created_at,
             COALESCE(c.likes_count, 0) as likes_count,
             u.id as instructor_id, u.first_name as instructor_first_name, 
@@ -139,6 +139,7 @@ const getCourses = asyncHandler(async (req, res) => {
                 durationHours: parseFloat(course.duration_hours),
                 status: course.status,
                 isFeatured: course.is_featured,
+                isFree: course.is_free || false,
                 ratingAvg: parseFloat(course.rating_avg),
                 ratingCount: course.rating_count,
                 enrollmentCount: course.enrollment_count,
@@ -260,6 +261,7 @@ const getCourseById = asyncHandler(async (req, res) => {
             durationHours: parseFloat(course.duration_hours),
             status: course.status,
             isFeatured: course.is_featured,
+            isFree: course.is_free || false,
             requirements: course.requirements || [],
             objectives: course.objectives || [],
             tags: course.tags || [],
@@ -314,8 +316,12 @@ const createCourse = asyncHandler(async (req, res) => {
         language = 'English',
         requirements = [],
         objectives = [],
-        tags = []
+        tags = [],
+        isFree = false
     } = req.body;
+
+    // If course is free, set price to 0
+    const finalPrice = isFree ? 0 : price;
 
     // Generate unique slug
     let slug = generateSlug(title);
@@ -331,13 +337,13 @@ const createCourse = asyncHandler(async (req, res) => {
         `INSERT INTO courses (
       instructor_id, category_id, title, slug, description, short_description,
       thumbnail_url, preview_video_url, price, discount_price, currency,
-      level, language, requirements, objectives, tags
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      level, language, requirements, objectives, tags, is_free
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     RETURNING *`,
         [
             req.user.id, categoryId, title, slug, description, shortDescription,
-            thumbnailUrl, previewVideoUrl, price, discountPrice, currency,
-            level, language, requirements, objectives, tags
+            thumbnailUrl, previewVideoUrl, finalPrice, discountPrice, currency,
+            level, language, requirements, objectives, tags, isFree
         ]
     );
 
@@ -381,7 +387,7 @@ const updateCourse = asyncHandler(async (req, res) => {
     const allowedFields = [
         'title', 'description', 'shortDescription', 'categoryId', 'thumbnailUrl',
         'previewVideoUrl', 'price', 'discountPrice', 'currency', 'level',
-        'language', 'durationHours', 'requirements', 'objectives', 'tags'
+        'language', 'durationHours', 'requirements', 'objectives', 'tags', 'isFree'
     ];
 
     const fieldMapping = {
@@ -390,8 +396,14 @@ const updateCourse = asyncHandler(async (req, res) => {
         thumbnailUrl: 'thumbnail_url',
         previewVideoUrl: 'preview_video_url',
         discountPrice: 'discount_price',
-        durationHours: 'duration_hours'
+        durationHours: 'duration_hours',
+        isFree: 'is_free'
     };
+
+    // If setting course as free, also set price to 0
+    if (req.body.isFree === true) {
+        req.body.price = 0;
+    }
 
     const updates = [];
     const params = [];

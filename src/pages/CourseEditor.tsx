@@ -48,6 +48,7 @@ const CourseEditor = () => {
         requirements: [''] as string[],
         categoryId: '',
         language: 'English',
+        isFree: false,
     });
 
     const [activeTab, setActiveTab] = useState('details');
@@ -105,6 +106,7 @@ const CourseEditor = () => {
                 requirements: course.requirements?.length ? course.requirements : [''],
                 categoryId: course.category?.id || '',
                 language: course.language || 'English',
+                isFree: course.isFree || false,
             });
             if (course.thumbnailUrl) {
                 setThumbnailPreview(resolveMediaUrl(course.thumbnailUrl));
@@ -371,16 +373,17 @@ const CourseEditor = () => {
             title: formData.title,
             shortDescription: formData.shortDescription,
             description: formData.description,
-            price: formData.price,
+            price: formData.isFree ? 0 : formData.price,
             level: formData.level,
             currency: formData.currency,
             thumbnailUrl: formData.thumbnailUrl,
             objectives: formData.objectives.filter((o) => o.trim()),
             requirements: formData.requirements.filter((r) => r.trim()),
             language: formData.language,
+            isFree: formData.isFree,
         };
 
-        if (formData.discountPrice !== undefined && formData.discountPrice > 0) {
+        if (!formData.isFree && formData.discountPrice !== undefined && formData.discountPrice > 0) {
             data.discountPrice = formData.discountPrice;
         }
 
@@ -693,37 +696,57 @@ const CourseEditor = () => {
                                             Pricing
                                         </h3>
                                         <div className="space-y-4">
-                                            <div>
-                                                <Label htmlFor="price">Price ($)</Label>
-                                                <Input
-                                                    id="price"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    value={formData.price}
-                                                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                                                    className="mt-2"
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    id="isFree"
+                                                    checked={formData.isFree}
+                                                    onChange={(e) => setFormData({ ...formData, isFree: e.target.checked, price: e.target.checked ? 0 : formData.price })}
+                                                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                                                 />
-                                                <p className="text-xs text-muted-foreground mt-1">Set to 0 for a free course</p>
+                                                <Label htmlFor="isFree" className="cursor-pointer font-medium">
+                                                    Make this course free
+                                                </Label>
                                             </div>
-                                            <div>
-                                                <Label htmlFor="discountPrice">Discount Price ($)</Label>
-                                                <Input
-                                                    id="discountPrice"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    value={formData.discountPrice || ''}
-                                                    onChange={(e) =>
-                                                        setFormData({
-                                                            ...formData,
-                                                            discountPrice: e.target.value ? parseFloat(e.target.value) : undefined,
-                                                        })
-                                                    }
-                                                    placeholder="Optional"
-                                                    className="mt-2"
-                                                />
-                                            </div>
+                                            {formData.isFree && (
+                                                <p className="text-sm text-accent bg-accent/10 px-3 py-2 rounded-lg">
+                                                    This course will be available for free enrollment without payment or enrollment codes.
+                                                </p>
+                                            )}
+                                            {!formData.isFree && (
+                                                <>
+                                                    <div>
+                                                        <Label htmlFor="price">Price ($)</Label>
+                                                        <Input
+                                                            id="price"
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            value={formData.price}
+                                                            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                                                            className="mt-2"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label htmlFor="discountPrice">Discount Price ($)</Label>
+                                                        <Input
+                                                            id="discountPrice"
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            value={formData.discountPrice || ''}
+                                                            onChange={(e) =>
+                                                                setFormData({
+                                                                    ...formData,
+                                                                    discountPrice: e.target.value ? parseFloat(e.target.value) : undefined,
+                                                                })
+                                                            }
+                                                            placeholder="Optional"
+                                                            className="mt-2"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
 

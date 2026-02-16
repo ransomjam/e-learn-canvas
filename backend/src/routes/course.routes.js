@@ -201,7 +201,8 @@ const {
     addResource,
     deleteResource,
     getChatMessages,
-    postChatMessage
+    postChatMessage,
+    deleteChatMessage
 } = require('../controllers/course-features.controller');
 
 /**
@@ -238,6 +239,13 @@ router.get('/:id/chat', authenticate, getChatMessages);
  * @access  Private
  */
 router.post('/:id/chat', authenticate, postChatMessage);
+
+/**
+ * @route   DELETE /api/v1/courses/:id/chat/:messageId
+ * @desc    Delete a chat message
+ * @access  Private (Owner/Instructor/Admin)
+ */
+router.delete('/:id/chat/:messageId', authenticate, deleteChatMessage);
 
 const reviewRoutes = require('./review.routes');
 

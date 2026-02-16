@@ -5,7 +5,17 @@ import { API_BASE_URL } from '@/lib/api';
 // In development API_BASE_URL is "http://localhost:3001/api/v1", so origin = "http://localhost:3001".
 let apiOrigin = '';
 try {
-  apiOrigin = new URL(API_BASE_URL).origin;
+  const parsedUrl = new URL(API_BASE_URL);
+  apiOrigin = parsedUrl.origin;
+  
+  // If the API origin is localhost but we're not on localhost, use current origin
+  // This handles the case where VITE_API_URL wasn't set during production build
+  if (typeof window !== 'undefined' && 
+      (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') &&
+      window.location.hostname !== 'localhost' && 
+      window.location.hostname !== '127.0.0.1') {
+    apiOrigin = window.location.origin;
+  }
 } catch {
   // relative URL – uploads are served from the same origin
   apiOrigin = '';

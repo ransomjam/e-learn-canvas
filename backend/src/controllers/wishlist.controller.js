@@ -4,9 +4,15 @@ const { asyncHandler, ApiError } = require('../middleware/error.middleware');
 const getWishlist = asyncHandler(async (req, res) => {
     const result = await query(
         `SELECT w.id, w.course_id as "courseId", w.created_at as "createdAt",
-                c.title, c.slug, c.price, c.thumbnail_url as thumbnail, c.category
+                c.title, c.slug, c.price, c.discount_price as "discountPrice",
+                c.thumbnail_url as "thumbnailUrl", c.level, c.rating_avg as "ratingAvg",
+                c.rating_count as "ratingCount",
+                cat.name as "categoryName",
+                u.first_name as "instructorFirstName", u.last_name as "instructorLastName"
          FROM wishlist w
          JOIN courses c ON w.course_id = c.id
+         LEFT JOIN categories cat ON c.category_id = cat.id
+         LEFT JOIN users u ON c.instructor_id = u.id
          WHERE w.user_id = $1
          ORDER BY w.created_at DESC`,
         [req.user.id]

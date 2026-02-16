@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Play, ChevronLeft, CheckCircle, Menu, X, FileText, Clock, Loader2,
-  Send, Download, ChevronRight, Lock, ThumbsUp, Paperclip, Upload, Calendar
+  Send, Download, ChevronRight, Lock, ThumbsUp, Paperclip, Upload, Calendar, Star,
+  Trash2, Reply, CornerDownRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -19,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { projectsService, Project } from '@/services/projects.service';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +36,9 @@ const Player = () => {
   const [activeTab, setActiveTab] = useState('content');
   const [chatMessage, setChatMessage] = useState('');
   const [projectSubmissionText, setProjectSubmissionText] = useState('');
+  const [showRating, setShowRating] = useState(false);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [replyTo, setReplyTo] = useState<{ id: string; userName: string; message: string } | null>(null);
 
   // Queries
   const { data: course, isLoading: courseLoading } = useQuery({
@@ -79,6 +84,12 @@ const Player = () => {
     enabled: !!currentLessonId,
   });
 
+  const { data: userReview } = useQuery({
+    queryKey: ['userReview', id],
+    queryFn: () => coursesService.getUserReview(id!),
+    enabled: !!id && !!progress,
+  });
+
   // Mutations
   const completeLessonMutation = useMutation({
     mutationFn: (lessonId: string) => enrollmentsService.completeLesson(lessonId),
@@ -93,13 +104,26 @@ const Player = () => {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: (message: string) => coursesService.postChatMessage(id!, message),
+    mutationFn: ({ message, replyToId }: { message: string; replyToId?: string }) =>
+      coursesService.postChatMessage(id!, message, replyToId),
     onSuccess: () => {
       setChatMessage('');
+      setReplyTo(null);
       queryClient.invalidateQueries({ queryKey: ['courseChat', id] });
     },
     onError: () => {
       toast({ title: 'Failed to send message', variant: 'destructive' });
+    }
+  });
+
+  const deleteMessageMutation = useMutation({
+    mutationFn: (messageId: string) => coursesService.deleteChatMessage(id!, messageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courseChat', id] });
+      toast({ title: 'Message deleted' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to delete message', variant: 'destructive' });
     }
   });
 
@@ -110,6 +134,24 @@ const Player = () => {
     },
     onError: () => {
       toast({ title: 'Failed to like lesson', variant: 'destructive' });
+    }
+  });
+
+  const ratingMutation = useMutation({
+    mutationFn: (rating: number) => {
+      if (userReview) {
+        return coursesService.updateReview(id!, { rating });
+      }
+      return coursesService.addReview(id!, { rating });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userReview', id] });
+      queryClient.invalidateQueries({ queryKey: ['course', id] });
+      setShowRating(false);
+      toast({ title: 'Rating submitted!', description: 'Thank you for your feedback.' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to submit rating', variant: 'destructive' });
     }
   });
 
@@ -170,7 +212,9 @@ const Player = () => {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (chatMessage.trim()) sendMessageMutation.mutate(chatMessage);
+    if (chatMessage.trim()) {
+      sendMessageMutation.mutate({ message: chatMessage, replyToId: replyTo?.id });
+    }
   };
 
   const goToLesson = (direction: 'prev' | 'next') => {
@@ -350,8 +394,8 @@ const Player = () => {
               </div>
 
               {/* Action buttons row - YouTube style */}
-              <div className="flex items-center justify-between py-3 border-y border-border">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 border-y border-border">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                   {/* Like button */}
                   <Button
                     variant={likesData?.liked ? "default" : "outline"}
@@ -363,6 +407,59 @@ const Player = () => {
                     <ThumbsUp className={`h-4 w-4 ${likesData?.liked ? 'fill-current' : ''}`} />
                     <span>{likesData?.likesCount || 0}</span>
                   </Button>
+
+                  {/* Rating button */}
+                  <div className="relative">
+                    <Button
+                      variant={userReview?.rating ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowRating(!showRating)}
+                      disabled={!progress}
+                      className="gap-2"
+                    >
+                      <Star className={`h-4 w-4 ${userReview?.rating ? 'fill-current text-yellow-400' : ''}`} />
+                      <span>{userReview?.rating || course?.ratingAvg?.toFixed(1) || '0.0'}</span>
+                    </Button>
+                    
+                    {/* Rating dropdown */}
+                    {showRating && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setShowRating(false)} 
+                        />
+                        <div className="absolute left-0 top-full mt-2 z-50 bg-card border border-border rounded-lg shadow-xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <p className="text-xs text-muted-foreground mb-2 text-center">Rate this course</p>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                className="p-1 hover:scale-110 transition-transform"
+                                onMouseEnter={() => setHoverRating(star)}
+                                onMouseLeave={() => setHoverRating(0)}
+                                onClick={() => ratingMutation.mutate(star)}
+                                disabled={ratingMutation.isPending}
+                              >
+                                <Star 
+                                  className={`h-6 w-6 transition-colors ${
+                                    star <= (hoverRating || userReview?.rating || 0)
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-muted-foreground'
+                                  }`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                          {ratingMutation.isPending && (
+                            <div className="flex justify-center mt-2">
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
 
                   {/* Complete button */}
                   {currentLesson && !currentLesson.isCompleted && (
@@ -378,7 +475,7 @@ const Player = () => {
                       ) : (
                         <CheckCircle className="h-4 w-4" />
                       )}
-                      Mark as Complete
+                      <span className="hidden xs:inline">Mark as</span> Complete
                     </Button>
                   )}
                   {currentLesson?.isCompleted && (
@@ -389,24 +486,26 @@ const Player = () => {
                 </div>
 
                 {/* Navigation buttons */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => goToLesson('prev')}
                     disabled={currentIndex <= 0}
+                    className="flex-1 sm:flex-none"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
+                    <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Previous</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => goToLesson('next')}
                     disabled={currentIndex >= allLessons.length - 1}
+                    className="flex-1 sm:flex-none"
                   >
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="h-4 w-4 sm:ml-1" />
                   </Button>
                 </div>
               </div>
@@ -428,17 +527,38 @@ const Player = () => {
 
                 {/* Chat input */}
                 <form onSubmit={handleSendMessage} className="mb-6">
+                  {/* Reply banner */}
+                  {replyTo && (
+                    <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-muted/50 rounded-md border-l-2 border-primary text-sm">
+                      <CornerDownRight className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">Replying to</span>
+                      <span className="font-medium truncate">{replyTo.userName}</span>
+                      <span className="text-muted-foreground truncate flex-1">— {replyTo.message}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 flex-shrink-0"
+                        onClick={() => setReplyTo(null)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                   <div className="flex gap-3">
                     <div className="flex-shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                        {user?.firstName?.[0]}
-                      </div>
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={resolveMediaUrl(user?.avatarUrl)} alt={user?.firstName} />
+                        <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                          {user?.firstName?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
                     </div>
                     <div className="flex-1">
                       <Input
                         value={chatMessage}
                         onChange={(e) => setChatMessage(e.target.value)}
-                        placeholder="Add a chat message..."
+                        placeholder={replyTo ? `Reply to ${replyTo.userName}...` : "Add a chat message..."}
                         className="mb-2"
                       />
                       <div className="flex justify-end gap-2">
@@ -446,8 +566,8 @@ const Player = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setChatMessage('')}
-                          disabled={!chatMessage.trim()}
+                          onClick={() => { setChatMessage(''); setReplyTo(null); }}
+                          disabled={!chatMessage.trim() && !replyTo}
                         >
                           Cancel
                         </Button>
@@ -459,7 +579,7 @@ const Player = () => {
                           {sendMessageMutation.isPending ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            'Chat'
+                            replyTo ? 'Reply' : 'Chat'
                           )}
                         </Button>
                       </div>
@@ -476,12 +596,17 @@ const Player = () => {
                   )}
                   {messages.map((msg: any) => {
                     const isMe = msg.user.id === user?.id;
+                    const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
+                    const canDelete = isMe || isInstructor;
                     return (
-                      <div key={msg.id} className="flex gap-3">
+                      <div key={msg.id} className="group flex gap-3">
                         <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                            {msg.user.firstName[0]}
-                          </div>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={resolveMediaUrl(msg.user.avatarUrl)} alt={msg.user.firstName} />
+                            <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                              {msg.user.firstName[0]}
+                            </AvatarFallback>
+                          </Avatar>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-baseline gap-2 mb-1">
@@ -492,9 +617,51 @@ const Player = () => {
                               {new Date(msg.createdAt).toLocaleDateString()} at {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
+                          {/* Reply context */}
+                          {msg.replyTo && (
+                            <div className="flex items-center gap-1.5 mb-1 px-2 py-1 bg-muted/40 rounded text-xs border-l-2 border-muted-foreground/30">
+                              <CornerDownRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium text-muted-foreground">
+                                {msg.replyTo.user?.firstName} {msg.replyTo.user?.lastName}
+                              </span>
+                              <span className="text-muted-foreground truncate">
+                                {msg.replyTo.message?.substring(0, 80)}{msg.replyTo.message?.length > 80 ? '...' : ''}
+                              </span>
+                            </div>
+                          )}
                           <p className="text-sm text-foreground break-words">
                             {msg.message}
                           </p>
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
+                              onClick={() => {
+                                setReplyTo({
+                                  id: msg.id,
+                                  userName: `${msg.user.firstName} ${msg.user.lastName}`,
+                                  message: msg.message
+                                });
+                              }}
+                            >
+                              <Reply className="h-3.5 w-3.5 mr-1" />
+                              Reply
+                            </Button>
+                            {canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                                onClick={() => deleteMessageMutation.mutate(msg.id)}
+                                disabled={deleteMessageMutation.isPending}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                Delete
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

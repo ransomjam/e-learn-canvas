@@ -165,9 +165,13 @@ export const coursesService = {
         return response.data.data;
     },
 
-    async postChatMessage(courseId: string, message: string): Promise<any> {
-        const response = await api.post(`/courses/${courseId}/chat`, { message });
+    async postChatMessage(courseId: string, message: string, replyTo?: string): Promise<any> {
+        const response = await api.post(`/courses/${courseId}/chat`, { message, replyTo });
         return response.data.data;
+    },
+
+    async deleteChatMessage(courseId: string, messageId: string): Promise<void> {
+        await api.delete(`/courses/${courseId}/chat/${messageId}`);
     },
 
     // Review methods

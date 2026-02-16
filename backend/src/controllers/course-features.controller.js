@@ -29,7 +29,7 @@ const getResources = asyncHandler(async (req, res) => {
             'SELECT status FROM enrollments WHERE user_id = $1 AND course_id = $2',
             [req.user.id, id]
         );
-        if (enrollment.rows.length === 0 || enrollment.rows[0].status !== 'active') {
+        if (enrollment.rows.length === 0 || !['active', 'completed'].includes(enrollment.rows[0].status)) {
             throw new ApiError(403, 'You must be enrolled to access resources');
         }
     }
@@ -143,13 +143,13 @@ const getChatMessages = asyncHandler(async (req, res) => {
             'SELECT status FROM enrollments WHERE user_id = $1 AND course_id = $2',
             [req.user.id, id]
         );
-        if (enrollment.rows.length === 0 || enrollment.rows[0].status !== 'active') {
+        if (enrollment.rows.length === 0 || !['active', 'completed'].includes(enrollment.rows[0].status)) {
             throw new ApiError(403, 'You must be enrolled to access chat');
         }
     }
 
     let queryStr = `
-        SELECT m.id, m.message, m.created_at, 
+        SELECT m.id, m.message, m.created_at, m.reply_to,
                u.id as user_id, u.first_name, u.last_name, u.avatar_url, u.role
         FROM chat_messages m
         JOIN users u ON m.user_id = u.id
@@ -168,11 +168,36 @@ const getChatMessages = asyncHandler(async (req, res) => {
 
     const result = await query(queryStr, params);
 
+    // Collect all reply_to ids so we can fetch parent messages
+    const replyToIds = [...new Set(result.rows.filter(r => r.reply_to).map(r => r.reply_to))];
+    let parentMessages = {};
+    if (replyToIds.length > 0) {
+        const parentResult = await query(
+            `SELECT m.id, m.message, u.id as user_id, u.first_name, u.last_name
+             FROM chat_messages m
+             JOIN users u ON m.user_id = u.id
+             WHERE m.id = ANY($1)`,
+            [replyToIds]
+        );
+        for (const p of parentResult.rows) {
+            parentMessages[p.id] = {
+                id: p.id,
+                message: p.message,
+                user: {
+                    id: p.user_id,
+                    firstName: p.first_name,
+                    lastName: p.last_name
+                }
+            };
+        }
+    }
+
     // Reverse to show oldest first in chat UI, but we fetched newest first for pagination
     const messages = result.rows.reverse().map(msg => ({
         id: msg.id,
         message: msg.message,
         createdAt: msg.created_at,
+        replyTo: msg.reply_to ? (parentMessages[msg.reply_to] || { id: msg.reply_to }) : null,
         user: {
             id: msg.user_id,
             firstName: msg.first_name,
@@ -195,7 +220,7 @@ const getChatMessages = asyncHandler(async (req, res) => {
  */
 const postChatMessage = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { message } = req.body;
+    const { message, replyTo } = req.body;
 
     if (!message || !message.trim()) {
         throw new ApiError(400, 'Message cannot be empty');
@@ -216,16 +241,27 @@ const postChatMessage = asyncHandler(async (req, res) => {
             'SELECT status FROM enrollments WHERE user_id = $1 AND course_id = $2',
             [req.user.id, id]
         );
-        if (enrollment.rows.length === 0 || enrollment.rows[0].status !== 'active') {
+        if (enrollment.rows.length === 0 || !['active', 'completed'].includes(enrollment.rows[0].status)) {
             throw new ApiError(403, 'You must be enrolled to post in chat');
         }
     }
 
+    // Validate replyTo if provided
+    if (replyTo) {
+        const parentMsg = await query(
+            'SELECT id FROM chat_messages WHERE id = $1 AND course_id = $2',
+            [replyTo, id]
+        );
+        if (parentMsg.rows.length === 0) {
+            throw new ApiError(400, 'Reply target message not found');
+        }
+    }
+
     const result = await query(
-        `INSERT INTO chat_messages (course_id, user_id, message)
-         VALUES ($1, $2, $3)
-         RETURNING id, message, created_at`,
-        [id, req.user.id, message.trim()]
+        `INSERT INTO chat_messages (course_id, user_id, message, reply_to)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, message, created_at, reply_to`,
+        [id, req.user.id, message.trim(), replyTo || null]
     );
 
     // Fetch user details to return complete message object
@@ -233,7 +269,26 @@ const postChatMessage = asyncHandler(async (req, res) => {
         'SELECT first_name, last_name, avatar_url, role FROM users WHERE id = $1',
         [req.user.id]
     );
-    const user = userResult.rows[0];
+    const u = userResult.rows[0];
+
+    // If replying, fetch parent message info
+    let replyToData = null;
+    if (result.rows[0].reply_to) {
+        const parentResult = await query(
+            `SELECT m.id, m.message, u.first_name, u.last_name, u.id as user_id
+             FROM chat_messages m JOIN users u ON m.user_id = u.id
+             WHERE m.id = $1`,
+            [result.rows[0].reply_to]
+        );
+        if (parentResult.rows.length > 0) {
+            const p = parentResult.rows[0];
+            replyToData = {
+                id: p.id,
+                message: p.message,
+                user: { id: p.user_id, firstName: p.first_name, lastName: p.last_name }
+            };
+        }
+    }
 
     res.status(201).json({
         success: true,
@@ -241,14 +296,51 @@ const postChatMessage = asyncHandler(async (req, res) => {
             id: result.rows[0].id,
             message: result.rows[0].message,
             createdAt: result.rows[0].created_at,
+            replyTo: replyToData,
             user: {
                 id: req.user.id,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                avatarUrl: user.avatar_url,
-                role: user.role
+                firstName: u.first_name,
+                lastName: u.last_name,
+                avatarUrl: u.avatar_url,
+                role: u.role
             }
         }
+    });
+});
+
+/**
+ * @desc    Delete a chat message
+ * @route   DELETE /api/v1/courses/:id/chat/:messageId
+ * @access  Private (Owner/Instructor/Admin)
+ */
+const deleteChatMessage = asyncHandler(async (req, res) => {
+    const { id, messageId } = req.params;
+
+    // Get the message and course info
+    const msgResult = await query(
+        `SELECT m.user_id, c.instructor_id
+         FROM chat_messages m
+         JOIN courses c ON m.course_id = c.id
+         WHERE m.id = $1 AND m.course_id = $2`,
+        [messageId, id]
+    );
+
+    if (msgResult.rows.length === 0) {
+        throw new ApiError(404, 'Message not found');
+    }
+
+    const msg = msgResult.rows[0];
+
+    // Only the message author, course instructor, or admin can delete
+    if (req.user.role !== 'admin' && req.user.id !== msg.user_id && req.user.id !== msg.instructor_id) {
+        throw new ApiError(403, 'You can only delete your own messages');
+    }
+
+    await query('DELETE FROM chat_messages WHERE id = $1', [messageId]);
+
+    res.json({
+        success: true,
+        message: 'Message deleted successfully'
     });
 });
 
@@ -257,5 +349,6 @@ module.exports = {
     addResource,
     deleteResource,
     getChatMessages,
-    postChatMessage
+    postChatMessage,
+    deleteChatMessage
 };

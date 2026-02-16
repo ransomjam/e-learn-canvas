@@ -35,7 +35,7 @@ app.use(helmet({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https:", "http://localhost:*"],
             connectSrc: ["'self'", "http://localhost:*", "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com"],
-            frameSrc: ["'self'", "https://accounts.google.com"],
+            frameSrc: ["'self'", "https://accounts.google.com", "https://drive.google.com", "https://*.google.com"],
         },
     },
 }));
@@ -63,14 +63,18 @@ app.use(cors({
     credentials: true
 }));
 
-// Rate limiting
+// Rate limiting - more lenient for development
+const isDev = process.env.NODE_ENV !== 'production';
 const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || (isDev ? 1 * 60 * 1000 : 15 * 60 * 1000), // 1 min dev, 15 min prod
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || (isDev ? 1000 : 100), // 1000 dev, 100 prod
     message: {
         success: false,
         message: 'Too many requests, please try again later.'
-    }
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => isDev && req.path === '/api/v1/auth/me', // Skip rate limit for auth/me in dev
 });
 app.use('/api/', limiter);
 

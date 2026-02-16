@@ -24,6 +24,10 @@ const createCourseValidation = [
         .optional()
         .isFloat({ min: 0 })
         .withMessage('Price must be a positive number'),
+    body('isFree')
+        .optional()
+        .isBoolean()
+        .withMessage('isFree must be a boolean'),
     body('level')
         .optional()
         .isIn(['beginner', 'intermediate', 'advanced'])

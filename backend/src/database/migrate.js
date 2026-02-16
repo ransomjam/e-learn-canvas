@@ -345,6 +345,19 @@ const migrations = [
     down: `DROP TABLE IF EXISTS chat_messages CASCADE;`
   },
 
+  // Chat reply support
+  {
+    name: '015_add_chat_reply_to',
+    up: `
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to UUID REFERENCES chat_messages(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_reply_to ON chat_messages(reply_to);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_chat_messages_reply_to;
+      ALTER TABLE chat_messages DROP COLUMN IF EXISTS reply_to;
+    `
+  },
+
   // Migrations tracking table
   {
     name: '000_create_migrations',

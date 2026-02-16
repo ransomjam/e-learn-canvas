@@ -361,6 +361,7 @@ function GoogleButton({ isLogin, isLoading: parentLoading, selectedRole }: {
 
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
+      console.log('[Google Auth] onSuccess fired, token type:', tokenResponse.token_type);
       setLoading(true);
       try {
         const { isNewUser } = await googleLogin(
@@ -376,6 +377,7 @@ function GoogleButton({ isLogin, isLoading: parentLoading, selectedRole }: {
         const from = (location.state as { from?: Location })?.from?.pathname || '/dashboard';
         navigate(from, { replace: true });
       } catch (error) {
+        console.error('[Google Auth] Backend call failed:', error);
         toast({
           title: 'Google sign-in failed',
           description: getErrorMessage(error),
@@ -385,12 +387,29 @@ function GoogleButton({ isLogin, isLoading: parentLoading, selectedRole }: {
         setLoading(false);
       }
     },
-    onError: () => {
+    onError: (errorResponse) => {
+      console.error('[Google Auth] onError:', errorResponse);
       toast({
         title: 'Google sign-in failed',
-        description: 'Could not authenticate with Google. Please try again.',
+        description: `OAuth error: ${errorResponse?.error_description || errorResponse?.error || 'Unknown error. Make sure the OAuth consent screen is published in Google Cloud Console.'}`,
         variant: 'destructive',
       });
+    },
+    onNonOAuthError: (nonOAuthError) => {
+      console.error('[Google Auth] onNonOAuthError:', nonOAuthError);
+      if (nonOAuthError?.type === 'popup_closed') {
+        toast({
+          title: 'Sign-in cancelled',
+          description: 'The Google sign-in popup was closed before completing.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Google sign-in failed',
+          description: `Popup error: ${nonOAuthError?.type || 'Unknown'}. Try disabling popup blockers.`,
+          variant: 'destructive',
+        });
+      }
     },
   });
 

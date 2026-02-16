@@ -79,7 +79,7 @@ api.interceptors.response.use(
             const refreshToken = getRefreshToken();
             if (!refreshToken) {
                 clearTokens();
-                window.location.href = '/auth';
+                // Return a settled rejection so callers can catch it silently
                 return Promise.reject(error);
             }
 
@@ -99,7 +99,7 @@ api.interceptors.response.use(
             } catch (refreshError) {
                 processQueue(refreshError as Error, null);
                 clearTokens();
-                window.location.href = '/auth';
+                // Don't redirect here — let the caller (AuthContext) handle navigation
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;

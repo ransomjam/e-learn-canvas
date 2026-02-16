@@ -58,12 +58,28 @@ app.use(cors({
             }
         }
 
+        // Check direct match or wildcard
         if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            console.error(`Blocked CORS origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
+            return callback(null, true);
         }
+
+        // Also match www/non-www variants automatically
+        let variant;
+        try {
+            const url = new URL(origin);
+            if (url.hostname.startsWith('www.')) {
+                variant = origin.replace('://www.', '://');
+            } else {
+                variant = origin.replace('://', '://www.');
+            }
+        } catch (e) { /* ignore parse errors */ }
+
+        if (variant && allowedOrigins.includes(variant)) {
+            return callback(null, true);
+        }
+
+        console.error(`Blocked CORS origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
     },
     credentials: true
 }));

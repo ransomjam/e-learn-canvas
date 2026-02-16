@@ -32,11 +32,9 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <BookOpen className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <img src="/logo.png" alt="Cradema" className="h-9 w-9 rounded-lg" />
             <span className="font-display text-xl font-bold text-foreground">
-              Learn<span className="text-primary">Hub</span>
+              Cra<span className="text-primary">dema</span>
             </span>
           </Link>
 

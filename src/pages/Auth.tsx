@@ -87,15 +87,9 @@ const Auth = () => {
         </div>
 
         <Link to="/" className="relative flex items-center gap-2">
-<<<<<<< HEAD
           <Logo size="sm" className="h-8 w-8" />
           <span className="font-display text-xl font-bold text-foreground">
             Crad<span className="text-primary">ema</span>
-=======
-          <img src="/logo.png" alt="Cradema" className="h-9 w-9 rounded-lg" />
-          <span className="font-display text-xl font-bold text-foreground">
-            Cra<span className="text-primary">dema</span>
->>>>>>> 0a999ef1c7db9892e164ecf68d33fdccd5e26edb
           </span>
         </Link>
 
@@ -121,17 +115,10 @@ const Auth = () => {
       <div className="flex w-full lg:w-1/2 flex-col items-center justify-center px-4 py-8 sm:px-6 lg:px-12">
         <div className="w-full max-w-sm">
           {/* Mobile logo - centered at top */}
-<<<<<<< HEAD
           <Link to="/" className="flex items-center justify-center gap-2 lg:hidden mb-8 sm:mb-10">
             <Logo size="md" className="h-9 w-9" />
             <span className="font-display text-lg font-bold text-foreground sm:text-xl">
               Crad<span className="text-primary">ema</span>
-=======
-           <Link to="/" className="flex items-center justify-center gap-2 lg:hidden mb-8 sm:mb-10">
-            <img src="/logo.png" alt="Cradema" className="h-10 w-10 rounded-lg" />
-            <span className="font-display text-lg font-bold text-foreground sm:text-xl">
-              Cra<span className="text-primary">dema</span>
->>>>>>> 0a999ef1c7db9892e164ecf68d33fdccd5e26edb
             </span>
           </Link>
 

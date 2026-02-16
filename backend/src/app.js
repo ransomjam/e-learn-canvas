@@ -157,19 +157,37 @@ app.get('/api/v1', (req, res) => {
 
 // In production, serve the React frontend from dist/
 const fs = require('fs');
+const mime = require('mime-types');
 const frontendPath = path.join(__dirname, '../../dist');
 const frontendIndex = path.join(frontendPath, 'index.html');
 
 if (fs.existsSync(frontendIndex)) {
     console.log('📦 Serving frontend from', frontendPath);
-    app.use(express.static(frontendPath));
+    app.use(express.static(frontendPath, {
+        // Explicitly set correct MIME types for static assets
+        setHeaders: (res, filePath) => {
+            const mimeType = mime.lookup(filePath);
+            if (mimeType) {
+                res.setHeader('Content-Type', mimeType);
+            }
+        },
+        // Allow long-term caching for hashed assets
+        maxAge: '1y',
+        immutable: true,
+        index: false, // Don't auto-serve index.html from static middleware
+    }));
 
-    // SPA catch-all: any non-API, non-upload GET request serves index.html
+    // SPA catch-all: only serve index.html for navigation routes, NOT for asset files
     app.get('*', (req, res, next) => {
         // Let API/upload/health requests fall through to 404 handler
         if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path === '/health') {
             return next();
         }
+        // Don't serve index.html for static asset requests (js, css, images, fonts, etc.)
+        if (req.path.match(/\.(js|css|map|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json|webp|avif|mp4|webm)$/)) {
+            return next(); // Let it 404 properly instead of returning HTML
+        }
+        res.setHeader('Content-Type', 'text/html');
         res.sendFile(frontendIndex);
     });
 } else {

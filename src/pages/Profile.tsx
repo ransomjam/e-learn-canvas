@@ -105,6 +105,23 @@ const Profile = () => {
     };
   }, [previewSize, selectedImageDimensions, zoom]);
 
+  const previewImageStyle = useMemo(() => {
+    if (!selectedImageDimensions) return undefined;
+    const baseScale = Math.max(
+      previewSize / selectedImageDimensions.width,
+      previewSize / selectedImageDimensions.height,
+    );
+    const imgW = selectedImageDimensions.width * baseScale;
+    const imgH = selectedImageDimensions.height * baseScale;
+    return {
+      position: 'absolute' as const,
+      width: `${imgW}px`,
+      height: `${imgH}px`,
+      left: `${(previewSize - imgW) / 2}px`,
+      top: `${(previewSize - imgH) / 2}px`,
+    };
+  }, [previewSize, selectedImageDimensions]);
+
   useEffect(() => {
     setOffsetX((current) => Math.min(movementLimits.x, Math.max(-movementLimits.x, current)));
     setOffsetY((current) => Math.min(movementLimits.y, Math.max(-movementLimits.y, current)));
@@ -334,12 +351,12 @@ const Profile = () => {
 
               {selectedImageSrc && (
                 <div className="space-y-5">
-                  <div className="mx-auto h-64 w-64 overflow-hidden rounded-full border border-border bg-secondary">
+                  <div className="relative mx-auto h-64 w-64 overflow-hidden rounded-full border border-border bg-secondary">
                     <img
                       src={selectedImageSrc}
                       alt="Profile crop preview"
-                      className="h-full w-full object-cover"
                       style={{
+                        ...previewImageStyle,
                         transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
                         transformOrigin: 'center',
                       }}

@@ -5,6 +5,15 @@ import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { resolveMediaUrl } from '@/lib/media';
@@ -17,7 +26,63 @@ const Profile = () => {
   const [lastName, setLastName] = useState(user?.lastName || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null);
+  const [selectedImageName, setSelectedImageName] = useState('avatar.jpg');
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [offsetX, setOffsetX] = useState(0);
+  const [offsetY, setOffsetY] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const previewSize = 256;
+
+  const resetEditor = () => {
+    setSelectedImageSrc(null);
+    setZoom(1);
+    setOffsetX(0);
+    setOffsetY(0);
+    setIsEditorOpen(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const createEditedAvatarFile = async () => {
+    if (!selectedImageSrc) return null;
+
+    const image = new Image();
+    image.src = selectedImageSrc;
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+    });
+
+    const outputSize = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    const baseScale = Math.max(outputSize / image.width, outputSize / image.height);
+    const drawWidth = image.width * baseScale * zoom;
+    const drawHeight = image.height * baseScale * zoom;
+    const drawX = (outputSize - drawWidth) / 2 + (offsetX * outputSize) / previewSize;
+    const drawY = (outputSize - drawHeight) / 2 + (offsetY * outputSize) / previewSize;
+
+    context.clearRect(0, 0, outputSize, outputSize);
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.92);
+    });
+
+    if (!blob) return null;
+
+    const baseName = selectedImageName.replace(/\.[^.]+$/, '') || 'avatar';
+    return new File([blob], `${baseName}-edited.jpg`, { type: 'image/jpeg' });
+  };
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -81,15 +146,32 @@ const Profile = () => {
       return;
     }
 
-    // Show preview immediately
+    setSelectedImageName(file.name);
+
+    // Show editor with selected image
     const reader = new FileReader();
     reader.onloadend = () => {
-      setAvatarPreview(reader.result as string);
+      setSelectedImageSrc(reader.result as string);
+      setIsEditorOpen(true);
     };
     reader.readAsDataURL(file);
+  };
 
-    // Upload the file
-    uploadAvatarMutation.mutate(file);
+  const handleSaveEditedAvatar = async () => {
+    const editedFile = await createEditedAvatarFile();
+    if (!editedFile) {
+      toast({
+        title: 'Image processing failed',
+        description: 'Unable to prepare your photo. Please try another image.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(editedFile);
+    setAvatarPreview(previewUrl);
+    setIsEditorOpen(false);
+    uploadAvatarMutation.mutate(editedFile);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -203,6 +285,84 @@ const Profile = () => {
               </Button>
             </form>
           </div>
+
+          <Dialog
+            open={isEditorOpen}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) resetEditor();
+            }}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Adjust Profile Photo</DialogTitle>
+                <DialogDescription>
+                  Move and zoom your photo so your face fits perfectly inside the profile icon.
+                </DialogDescription>
+              </DialogHeader>
+
+              {selectedImageSrc && (
+                <div className="space-y-5">
+                  <div className="mx-auto h-64 w-64 overflow-hidden rounded-full border border-border bg-secondary">
+                    <img
+                      src={selectedImageSrc}
+                      alt="Profile crop preview"
+                      className="h-full w-full object-cover"
+                      style={{
+                        transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
+                        transformOrigin: 'center',
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Zoom</Label>
+                    <Slider
+                      min={1}
+                      max={2.8}
+                      step={0.05}
+                      value={[zoom]}
+                      onValueChange={(value) => setZoom(value[0])}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Move Left / Right</Label>
+                    <Slider
+                      min={-120}
+                      max={120}
+                      step={1}
+                      value={[offsetX]}
+                      onValueChange={(value) => setOffsetX(value[0])}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Move Up / Down</Label>
+                    <Slider
+                      min={-120}
+                      max={120}
+                      step={1}
+                      value={[offsetY]}
+                      onValueChange={(value) => setOffsetY(value[0])}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button type="button" variant="outline" onClick={resetEditor}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveEditedAvatar}
+                  disabled={uploadAvatarMutation.isPending}
+                >
+                  Save Photo
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </Layout>

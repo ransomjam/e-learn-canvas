@@ -501,6 +501,11 @@ const allMigrations = [
         ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255);
         CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
     `},
+    {
+        name: '031_add_is_free_to_courses', up: `
+        ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT false;
+        CREATE INDEX IF NOT EXISTS idx_courses_is_free ON courses(is_free);
+    `},
 ];
 
 // ─── runner ─────────────────────────────────────────────────────────────────

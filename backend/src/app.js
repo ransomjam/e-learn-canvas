@@ -24,6 +24,11 @@ const { errorHandler, notFound } = require('./middleware/error.middleware');
 
 const app = express();
 
+// Trust proxy in production (Render, Heroku, etc.) - required for express-rate-limit
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Security middleware - configure CSP for dashboard
 app.use(helmet({
     contentSecurityPolicy: {

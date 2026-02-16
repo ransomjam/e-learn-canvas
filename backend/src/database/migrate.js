@@ -358,6 +358,19 @@ const migrations = [
     `
   },
 
+  // Add is_free column to courses
+  {
+    name: '031_add_is_free_to_courses',
+    up: `
+      ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT false;
+      CREATE INDEX IF NOT EXISTS idx_courses_is_free ON courses(is_free);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_courses_is_free;
+      ALTER TABLE courses DROP COLUMN IF EXISTS is_free;
+    `
+  },
+
   // Migrations tracking table
   {
     name: '000_create_migrations',

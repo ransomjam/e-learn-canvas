@@ -12,7 +12,11 @@ const notFound = (req, res, next) => {
  * Global error handler
  */
 const errorHandler = (err, req, res, next) => {
-    console.error('Error:', err);
+    // Log with request context for easier debugging
+    console.error(`[${req.method} ${req.originalUrl}] Error:`, err.message || err);
+    if (process.env.NODE_ENV === 'production' && err.stack) {
+        console.error(err.stack);
+    }
 
     // Default error
     let statusCode = err.statusCode || 500;
@@ -51,11 +55,18 @@ const errorHandler = (err, req, res, next) => {
         message = 'Required field is missing';
     }
 
+    // PostgreSQL: undefined column / syntax error → 500, not 400
+    if (err.code === '42703' || err.code === '42601') {
+        statusCode = 500;
+        message = 'Database query error';
+        console.error('DB schema issue:', err.message);
+    }
+
     // Send error response
     res.status(statusCode).json({
         success: false,
         message,
-        ...(process.env.NODE_ENV === 'development' && {
+        ...(process.env.NODE_ENV !== 'production' && {
             stack: err.stack,
             error: err
         })

@@ -105,11 +105,26 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files with CORS
 const path = require('path');
+const uploadsDir = path.join(__dirname, '../uploads');
 app.use('/uploads', cors(), (req, res, next) => {
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     next();
-}, express.static(path.join(__dirname, '../uploads')));
+}, express.static(uploadsDir), (req, res) => {
+    // If the static middleware didn't find the file, return a proper 404
+    // instead of falling through to the SPA catch-all (which would return HTML)
+    res.status(404).json({
+        success: false,
+        message: 'File not found'
+    });
+});
 app.use(express.static(path.join(__dirname, '../public')));
+
+// Ensure uploads directory exists on startup (Render disk mount may not auto-create it)
+const fs = require('fs');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('📁 Created uploads directory:', uploadsDir);
+}
 
 // Dashboard redirect — unified dashboard lives in the React frontend
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
@@ -181,7 +196,6 @@ app.get('/api/v1', (req, res) => {
 });
 
 // In production, serve the React frontend from dist/
-const fs = require('fs');
 const mime = require('mime-types');
 const frontendPath = path.join(__dirname, '../../dist');
 const frontendIndex = path.join(frontendPath, 'index.html');

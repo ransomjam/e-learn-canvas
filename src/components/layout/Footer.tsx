@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
+<<<<<<< HEAD
 import Logo from '@/components/common/Logo';
+=======
+>>>>>>> 0a999ef1c7db9892e164ecf68d33fdccd5e26edb
 
 const Footer = () => {
   return (
@@ -8,9 +11,15 @@ const Footer = () => {
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
           {/* Brand */}
           <Link to="/" className="flex items-center gap-2">
+<<<<<<< HEAD
             <Logo size="sm" className="h-7 w-7" />
             <span className="font-display text-lg font-bold">
               Crad<span className="text-primary">ema</span>
+=======
+            <img src="/logo.png" alt="Cradema" className="h-8 w-8 rounded-lg" />
+            <span className="font-display text-lg font-bold">
+              Cra<span className="text-primary">dema</span>
+>>>>>>> 0a999ef1c7db9892e164ecf68d33fdccd5e26edb
             </span>
           </Link>
 

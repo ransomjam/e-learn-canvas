@@ -33,9 +33,15 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
+<<<<<<< HEAD
             <Logo size="sm" className="h-8 w-8" />
             <span className="font-display text-xl font-bold text-foreground">
               Crad<span className="text-primary">ema</span>
+=======
+            <img src="/logo.png" alt="Cradema" className="h-9 w-9 rounded-lg" />
+            <span className="font-display text-xl font-bold text-foreground">
+              Cra<span className="text-primary">dema</span>
+>>>>>>> 0a999ef1c7db9892e164ecf68d33fdccd5e26edb
             </span>
           </Link>
 

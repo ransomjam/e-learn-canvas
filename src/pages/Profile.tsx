@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Camera, Save, User } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
@@ -32,12 +32,14 @@ const Profile = () => {
   const [zoom, setZoom] = useState(1);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
+  const [selectedImageDimensions, setSelectedImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const previewSize = 256;
 
   const resetEditor = () => {
     setSelectedImageSrc(null);
+    setSelectedImageDimensions(null);
     setZoom(1);
     setOffsetX(0);
     setOffsetY(0);
@@ -48,7 +50,7 @@ const Profile = () => {
   };
 
   const createEditedAvatarFile = async () => {
-    if (!selectedImageSrc) return null;
+    if (!selectedImageSrc || !selectedImageDimensions) return null;
 
     const image = new Image();
     image.src = selectedImageSrc;
@@ -65,7 +67,7 @@ const Profile = () => {
     const context = canvas.getContext('2d');
     if (!context) return null;
 
-    const baseScale = Math.max(outputSize / image.width, outputSize / image.height);
+    const baseScale = Math.max(outputSize / selectedImageDimensions.width, outputSize / selectedImageDimensions.height);
     const drawWidth = image.width * baseScale * zoom;
     const drawHeight = image.height * baseScale * zoom;
     const drawX = (outputSize - drawWidth) / 2 + (offsetX * outputSize) / previewSize;
@@ -83,6 +85,30 @@ const Profile = () => {
     const baseName = selectedImageName.replace(/\.[^.]+$/, '') || 'avatar';
     return new File([blob], `${baseName}-edited.jpg`, { type: 'image/jpeg' });
   };
+
+  const movementLimits = useMemo(() => {
+    if (!selectedImageDimensions) {
+      return { x: 0, y: 0 };
+    }
+
+    const baseScale = Math.max(
+      previewSize / selectedImageDimensions.width,
+      previewSize / selectedImageDimensions.height,
+    );
+
+    const drawWidth = selectedImageDimensions.width * baseScale * zoom;
+    const drawHeight = selectedImageDimensions.height * baseScale * zoom;
+
+    return {
+      x: Math.max(0, (drawWidth - previewSize) / 2),
+      y: Math.max(0, (drawHeight - previewSize) / 2),
+    };
+  }, [previewSize, selectedImageDimensions, zoom]);
+
+  useEffect(() => {
+    setOffsetX((current) => Math.min(movementLimits.x, Math.max(-movementLimits.x, current)));
+    setOffsetY((current) => Math.min(movementLimits.y, Math.max(-movementLimits.y, current)));
+  }, [movementLimits.x, movementLimits.y]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -151,8 +177,14 @@ const Profile = () => {
     // Show editor with selected image
     const reader = new FileReader();
     reader.onloadend = () => {
-      setSelectedImageSrc(reader.result as string);
-      setIsEditorOpen(true);
+      const imageSrc = reader.result as string;
+      const image = new Image();
+      image.onload = () => {
+        setSelectedImageDimensions({ width: image.naturalWidth, height: image.naturalHeight });
+        setSelectedImageSrc(imageSrc);
+        setIsEditorOpen(true);
+      };
+      image.src = imageSrc;
     };
     reader.readAsDataURL(file);
   };
@@ -328,22 +360,24 @@ const Profile = () => {
                   <div className="space-y-1">
                     <Label>Move Left / Right</Label>
                     <Slider
-                      min={-120}
-                      max={120}
+                      min={-movementLimits.x}
+                      max={movementLimits.x}
                       step={1}
                       value={[offsetX]}
                       onValueChange={(value) => setOffsetX(value[0])}
+                      disabled={movementLimits.x === 0}
                     />
                   </div>
 
                   <div className="space-y-1">
                     <Label>Move Up / Down</Label>
                     <Slider
-                      min={-120}
-                      max={120}
+                      min={-movementLimits.y}
+                      max={movementLimits.y}
                       step={1}
                       value={[offsetY]}
                       onValueChange={(value) => setOffsetY(value[0])}
+                      disabled={movementLimits.y === 0}
                     />
                   </div>
                 </div>

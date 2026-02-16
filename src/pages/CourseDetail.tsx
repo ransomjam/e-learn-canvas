@@ -165,9 +165,9 @@ const CourseDetail = () => {
     try {
       const result = await paymentsService.createFapshiPayment(id!);
 
-      if (result.link) {
+      if (result.checkoutUrl) {
         // Redirect to Fapshi payment page
-        window.location.href = result.link;
+        window.location.href = result.checkoutUrl;
       } else {
         throw new Error('No payment link received');
       }

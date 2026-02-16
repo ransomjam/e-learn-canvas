@@ -35,6 +35,7 @@ export interface Course {
     objectives?: string[];
     requirements?: string[];
     isEnrolled?: boolean;
+    sections?: any[];
 }
 
 export interface Category {

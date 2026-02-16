@@ -60,6 +60,8 @@ const uploadToCloudinary = (fileBuffer, originalname) => {
     const resourceType = getCloudinaryResourceType(fileType);
     const folder = `cradema/${fileType === 'image' ? 'images' : fileType === 'video' ? 'videos' : 'files'}`;
 
+    console.log(`☁️  Uploading to Cloudinary: ${originalname} (${resourceType}, ${(fileBuffer.length / 1024).toFixed(1)} KB)`);
+
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
             {
@@ -69,7 +71,11 @@ const uploadToCloudinary = (fileBuffer, originalname) => {
                 ...(resourceType === 'raw' ? { use_filename: true, unique_filename: true } : {}),
             },
             (error, result) => {
-                if (error) return reject(error);
+                if (error) {
+                    console.error('❌ Cloudinary upload failed:', error.message || error);
+                    return reject(new Error(`Cloudinary upload failed: ${error.message || 'Unknown error'}`));
+                }
+                console.log(`✅ Cloudinary upload success: ${result.secure_url}`);
                 resolve({ url: result.secure_url, publicId: result.public_id });
             }
         );

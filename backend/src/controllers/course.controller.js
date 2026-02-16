@@ -199,9 +199,11 @@ const getCourseById = asyncHandler(async (req, res) => {
 
     const course = result.rows[0];
 
-    // Check access for unpublished courses
-    if (course.status !== 'published') {
-        if (!req.user || (req.user.role !== 'admin' && req.user.id !== course.instructor_id)) {
+    // Check access: non-admin/non-owner users can only see published AND approved courses
+    const isOwner = req.user && req.user.id === course.instructor_id;
+    const isAdmin = req.user && req.user.role === 'admin';
+    if (!isAdmin && !isOwner) {
+        if (course.status !== 'published' || course.moderation_status !== 'approved') {
             throw new ApiError(404, 'Course not found');
         }
     }
@@ -525,11 +527,17 @@ const publishCourse = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Course must have at least one lesson before publishing');
     }
 
+    // When admin publishes directly, also set moderation_status to approved
+    // so the course is visible to all users (visibility filter requires both
+    // status='published' AND moderation_status='approved')
     const result = await query(
         `UPDATE courses 
-     SET status = 'published', published_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+     SET status = 'published', 
+         moderation_status = 'approved',
+         published_at = COALESCE(published_at, CURRENT_TIMESTAMP), 
+         updated_at = CURRENT_TIMESTAMP
      WHERE id = $1
-     RETURNING id, title, status, published_at`,
+     RETURNING id, title, status, moderation_status, published_at`,
         [id]
     );
 

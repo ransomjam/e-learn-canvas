@@ -506,6 +506,12 @@ const allMigrations = [
         ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT false;
         CREATE INDEX IF NOT EXISTS idx_courses_is_free ON courses(is_free);
     `},
+    {
+        name: '032_fix_published_courses_moderation_status', up: `
+        UPDATE courses 
+        SET moderation_status = 'approved' 
+        WHERE status = 'published' AND moderation_status != 'approved';
+    `},
 ];
 
 // ─── runner ─────────────────────────────────────────────────────────────────

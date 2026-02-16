@@ -534,7 +534,7 @@ async function migrateAll() {
 async function seedDefaultAdmin(client) {
     const bcrypt = require('bcryptjs');
 
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@learnhub.com';
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@cradema.com';
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin@2026';
 
     // Check if admin already exists

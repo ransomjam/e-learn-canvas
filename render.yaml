@@ -1,4 +1,4 @@
-# Render Blueprint – deploy LearnHub as a single web service + managed PostgreSQL
+# Render Blueprint – deploy Cradema as a single web service + managed PostgreSQL
 # https://render.com/docs/blueprint-spec
 
 databases:

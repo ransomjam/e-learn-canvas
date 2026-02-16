@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Mail, Lock, User, Eye, EyeOff, Loader2, ArrowRight, GraduationCap, Presentation } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Loader2, ArrowRight, GraduationCap, Presentation } from 'lucide-react';
+import Logo from '@/components/common/Logo';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +60,7 @@ const Auth = () => {
         });
         toast({
           title: "Account created!",
-          description: "Welcome to LearnHub. Start exploring courses.",
+          description: "Welcome to Cradema. Start exploring courses.",
         });
       }
 
@@ -86,11 +87,9 @@ const Auth = () => {
         </div>
 
         <Link to="/" className="relative flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <BookOpen className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <Logo size="sm" className="h-8 w-8" />
           <span className="font-display text-xl font-bold text-foreground">
-            Learn<span className="text-primary">Hub</span>
+            Crad<span className="text-primary">ema</span>
           </span>
         </Link>
 
@@ -108,7 +107,7 @@ const Auth = () => {
         </div>
 
         <p className="relative text-xs text-muted-foreground">
-          © {new Date().getFullYear()} LearnHub. All rights reserved.
+          © {new Date().getFullYear()} Cradema. All rights reserved.
         </p>
       </div>
 
@@ -117,11 +116,9 @@ const Auth = () => {
         <div className="w-full max-w-sm">
           {/* Mobile logo - centered at top */}
           <Link to="/" className="flex items-center justify-center gap-2 lg:hidden mb-8 sm:mb-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <BookOpen className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <Logo size="md" className="h-9 w-9" />
             <span className="font-display text-lg font-bold text-foreground sm:text-xl">
-              Learn<span className="text-primary">Hub</span>
+              Crad<span className="text-primary">ema</span>
             </span>
           </Link>
 
@@ -140,129 +137,127 @@ const Auth = () => {
           {/* Form card */}
           <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-6 sm:p-8 shadow-lg">
             <form className="space-y-5" onSubmit={handleSubmit}>
-            {!isLogin && (
-              <>
-              {/* Role selector */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">I want to</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('learner')}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-all ${
-                      selectedRole === 'learner'
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
-                    }`}
-                  >
-                    <GraduationCap className="h-5 w-5" />
-                    <span className="text-xs font-medium">Learn</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('instructor')}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-all ${
-                      selectedRole === 'instructor'
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
-                    }`}
-                  >
-                    <Presentation className="h-5 w-5" />
-                    <span className="text-xs font-medium">Teach</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName" className="text-sm font-medium">First name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="firstName"
-                      placeholder="John"
-                      className="pl-10 h-10 bg-background/50 border-border hover:border-border focus:border-primary/50 transition-colors"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      required={!isLogin}
-                      disabled={isLoading}
-                    />
+              {!isLogin && (
+                <>
+                  {/* Role selector */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">I want to</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRole('learner')}
+                        className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-all ${selectedRole === 'learner'
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
+                          }`}
+                      >
+                        <GraduationCap className="h-5 w-5" />
+                        <span className="text-xs font-medium">Learn</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRole('instructor')}
+                        className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-all ${selectedRole === 'instructor'
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
+                          }`}
+                      >
+                        <Presentation className="h-5 w-5" />
+                        <span className="text-xs font-medium">Teach</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName" className="text-sm font-medium">Last name</Label>
+
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName" className="text-sm font-medium">First name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          id="firstName"
+                          placeholder="John"
+                          className="pl-10 h-10 bg-background/50 border-border hover:border-border focus:border-primary/50 transition-colors"
+                          value={formData.firstName}
+                          onChange={handleChange}
+                          required={!isLogin}
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName" className="text-sm font-medium">Last name</Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Doe"
+                        className="h-10 bg-background/50 border-border hover:border-border focus:border-primary/50 transition-colors"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        required={!isLogin}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="email" className="text-sm font-medium">Email address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="lastName"
-                    placeholder="Doe"
-                    className="h-10 bg-background/50 border-border hover:border-border focus:border-primary/50 transition-colors"
-                    value={formData.lastName}
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    className="pl-10 h-10 bg-background/50 border-border hover:border-border focus:border-primary/50 transition-colors"
+                    value={formData.email}
                     onChange={handleChange}
-                    required={!isLogin}
+                    required
                     disabled={isLoading}
                   />
                 </div>
               </div>
-              </>
-            )}
 
-            <div className="space-y-2 pt-2">
-              <Label htmlFor="email" className="text-sm font-medium">Email address</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  className="pl-10 h-10 bg-background/50 border-border hover:border-border focus:border-primary/50 transition-colors"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  disabled={isLoading}
-                />
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    className="pl-10 pr-10 h-10 bg-background/50 border-border hover:border-border focus:border-primary/50 transition-colors"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    minLength={6}
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2 pt-2">
-              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  className="pl-10 pr-10 h-10 bg-background/50 border-border hover:border-border focus:border-primary/50 transition-colors"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  minLength={6}
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {isLogin && (
-              <div className="flex justify-end pt-1">
-                <Link to="/forgot-password" className="text-xs text-primary/80 hover:text-primary transition-colors">
-                  Forgot password?
-                </Link>
-              </div>
-            )}
-
-            <Button size="lg" className="w-full h-10 font-semibold mt-2" type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowRight className="mr-2 h-4 w-4" />
+              {isLogin && (
+                <div className="flex justify-end pt-1">
+                  <Link to="/forgot-password" className="text-xs text-primary/80 hover:text-primary transition-colors">
+                    Forgot password?
+                  </Link>
+                </div>
               )}
-              {isLogin ? 'Sign In' : 'Create Account'}
-            </Button>
+
+              <Button size="lg" className="w-full h-10 font-semibold mt-2" type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="mr-2 h-4 w-4" />
+                )}
+                {isLogin ? 'Sign In' : 'Create Account'}
+              </Button>
             </form>
 
             {/* Google Sign-In */}

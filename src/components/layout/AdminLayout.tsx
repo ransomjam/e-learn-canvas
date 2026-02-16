@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { resolveMediaUrl } from '@/lib/media';
+import Logo from '@/components/common/Logo';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -41,8 +42,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         <div className="flex h-full flex-col bg-slate-900 text-slate-300">
             {/* Brand */}
             <div className="flex h-16 items-center border-b border-slate-800 px-6">
-                <LayoutDashboard className="mr-2 h-6 w-6 text-indigo-500" />
-                <span className="font-display text-xl font-bold text-white">E-Learn {isAdmin ? 'Admin' : 'Panel'}</span>
+                <Logo size="sm" className="mr-2 h-8 w-8" />
+                <span className="font-display text-xl font-bold text-white">Cradema {isAdmin ? 'Admin' : 'Panel'}</span>
             </div>
 
             {/* Navigation */}
@@ -144,7 +145,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(true)}>
                         <Menu className="h-6 w-6" />
                     </Button>
-                    <span className="font-display text-lg font-bold">E-Learn {isAdmin ? 'Admin' : 'Panel'}</span>
+                    <span className="font-display text-lg font-bold">Cradema {isAdmin ? 'Admin' : 'Panel'}</span>
                 </header>
 
                 <main className="flex-1 p-4 lg:p-8">

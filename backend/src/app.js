@@ -140,7 +140,7 @@ app.use('/api/v1/wishlist', wishlistRoutes);
 // API documentation endpoint
 app.get('/api/v1', (req, res) => {
     res.json({
-        message: 'E-Learn Canvas API',
+        message: 'Cradema API',
         version: '1.0.0',
         endpoints: {
             auth: '/api/v1/auth',

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, X, BookOpen, User, LogOut, GraduationCap } from 'lucide-react';
+import { Search, Menu, X, User, LogOut, GraduationCap, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
+import Logo from '@/components/common/Logo';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,11 +33,9 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <BookOpen className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <Logo size="sm" className="h-8 w-8" />
             <span className="font-display text-xl font-bold text-foreground">
-              Learn<span className="text-primary">Hub</span>
+              Crad<span className="text-primary">ema</span>
             </span>
           </Link>
 

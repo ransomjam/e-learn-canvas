@@ -1,7 +1,7 @@
 {
-    "name": "e-learn-canvas-backend",
+    "name": "cradema-backend",
     "version": "1.0.0",
-    "description": "E-Learning Platform Backend API",
+    "description": "Cradema - E-Learning Platform Backend API",
     "main": "src/index.js",
     "scripts": {
         "start": "node src/index.js",

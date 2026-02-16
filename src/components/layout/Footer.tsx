@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen } from 'lucide-react';
+import Logo from '@/components/common/Logo';
 
 const Footer = () => {
   return (
@@ -8,11 +8,9 @@ const Footer = () => {
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
           {/* Brand */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <BookOpen className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <Logo size="sm" className="h-7 w-7" />
             <span className="font-display text-lg font-bold">
-              Learn<span className="text-primary">Hub</span>
+              Crad<span className="text-primary">ema</span>
             </span>
           </Link>
 
@@ -26,7 +24,7 @@ const Footer = () => {
 
         <div className="mt-6 border-t border-border pt-4">
           <p className="text-center text-xs text-muted-foreground">
-            © {new Date().getFullYear()} LearnHub. All rights reserved.
+            © {new Date().getFullYear()} Cradema. All rights reserved.
           </p>
         </div>
       </div>

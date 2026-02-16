@@ -59,7 +59,7 @@ const Auth = () => {
         });
         toast({
           title: "Account created!",
-          description: "Welcome to LearnHub. Start exploring courses.",
+          description: "Welcome to Cradema. Start exploring courses.",
         });
       }
 
@@ -86,11 +86,9 @@ const Auth = () => {
         </div>
 
         <Link to="/" className="relative flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <BookOpen className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img src="/logo.png" alt="Cradema" className="h-9 w-9 rounded-lg" />
           <span className="font-display text-xl font-bold text-foreground">
-            Learn<span className="text-primary">Hub</span>
+            Cra<span className="text-primary">dema</span>
           </span>
         </Link>
 
@@ -108,7 +106,7 @@ const Auth = () => {
         </div>
 
         <p className="relative text-xs text-muted-foreground">
-          © {new Date().getFullYear()} LearnHub. All rights reserved.
+          © {new Date().getFullYear()} Cradema. All rights reserved.
         </p>
       </div>
 
@@ -116,12 +114,10 @@ const Auth = () => {
       <div className="flex w-full lg:w-1/2 flex-col items-center justify-center px-4 py-8 sm:px-6 lg:px-12">
         <div className="w-full max-w-sm">
           {/* Mobile logo - centered at top */}
-          <Link to="/" className="flex items-center justify-center gap-2 lg:hidden mb-8 sm:mb-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <BookOpen className="h-5 w-5 text-primary-foreground" />
-            </div>
+           <Link to="/" className="flex items-center justify-center gap-2 lg:hidden mb-8 sm:mb-10">
+            <img src="/logo.png" alt="Cradema" className="h-10 w-10 rounded-lg" />
             <span className="font-display text-lg font-bold text-foreground sm:text-xl">
-              Learn<span className="text-primary">Hub</span>
+              Cra<span className="text-primary">dema</span>
             </span>
           </Link>
 

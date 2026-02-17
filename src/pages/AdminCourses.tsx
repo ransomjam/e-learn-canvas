@@ -55,8 +55,8 @@ const AdminCourses = () => {
             queryClient.invalidateQueries({ queryKey: ['adminCourses'] });
             toast({ title: 'Course unpublished', description: 'The course has been set to draft.' });
         },
-        onError: () => {
-            toast({ title: 'Error', description: 'Failed to unpublish course.', variant: 'destructive' });
+        onError: (error: any) => {
+            toast({ title: 'Error', description: error.response?.data?.message || 'Failed to unpublish course.', variant: 'destructive' });
         },
     });
 
@@ -66,8 +66,8 @@ const AdminCourses = () => {
             queryClient.invalidateQueries({ queryKey: ['adminCourses'] });
             toast({ title: 'Course published', description: 'The course is now visible to students.' });
         },
-        onError: () => {
-            toast({ title: 'Error', description: 'Failed to publish course.', variant: 'destructive' });
+        onError: (error: any) => {
+            toast({ title: 'Failed to publish', description: error.response?.data?.message || 'Failed to publish course.', variant: 'destructive' });
         },
     });
 

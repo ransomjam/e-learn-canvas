@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Loader2, Maximize, Minimize } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Loader2, Maximize, Minimize, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -20,12 +20,14 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     const [pageNum, setPageNum] = useState(1);
     const [numPages, setNumPages] = useState(0);
     const [scale, setScale] = useState(1.0);
+    const [autoScale, setAutoScale] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const viewerAreaRef = useRef<HTMLDivElement>(null);
     const renderTaskRef = useRef<any>(null);
 
     // Initial load for PDF
@@ -48,6 +50,29 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
         }
     }, [url, type]);
 
+    // Compute a scale that fits the PDF page width into the container
+    const computeFitScale = useCallback(async () => {
+        if (!pdfDoc || !viewerAreaRef.current) return;
+        try {
+            const page = await pdfDoc.getPage(pageNum);
+            const defaultViewport = page.getViewport({ scale: 1.0 });
+            const containerWidth = viewerAreaRef.current.clientWidth - 32; // minus padding
+            const fitScale = containerWidth / defaultViewport.width;
+            setAutoScale(fitScale);
+            setScale(fitScale);
+        } catch { /* ignore */ }
+    }, [pdfDoc, pageNum]);
+
+    // Auto-fit on load and resize
+    useEffect(() => {
+        if (!pdfDoc) return;
+        computeFitScale();
+
+        const handleResize = () => computeFitScale();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [pdfDoc, computeFitScale]);
+
     // Render PDF page
     useEffect(() => {
         if (!pdfDoc || !canvasRef.current || type !== 'pdf') return;
@@ -60,9 +85,6 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                 }
 
                 const page = await pdfDoc.getPage(pageNum);
-
-                // Calculate scale to fit container width if not zoomed manually
-                // But we'll stick to a base scale for now
                 const viewport = page.getViewport({ scale });
                 const canvas = canvasRef.current!;
                 const context = canvas.getContext('2d')!;
@@ -95,7 +117,11 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     };
 
     const zoom = (factor: number) => {
-        setScale((prev) => Math.max(0.5, Math.min(3.0, prev * factor)));
+        setScale((prev) => Math.max(0.25, Math.min(4.0, prev * factor)));
+    };
+
+    const resetZoom = () => {
+        if (autoScale) setScale(autoScale);
     };
 
     const toggleFullscreen = () => {
@@ -121,15 +147,18 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     }, []);
 
     if (type === 'ppt' || type === 'doc' || type === 'pptx' || type === 'docx') {
-        // Use Google Docs Viewer for Office files
-        // Note: URL must be publicly accessible or signed. localhost won't work with Google Docs Viewer.
-        // For localhost/dev, we show a download/fallback message if it fails or just a link.
+        // Use Office Online Viewer (works better on mobile than Google Docs Viewer)
+        // For localhost/dev, show a download fallback since external viewers can't reach local URLs.
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        // Office Online viewer URL (works for publicly accessible files)
+        const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+        const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
 
         return (
             <div className={cn("flex flex-col h-full bg-secondary/20 rounded-lg overflow-hidden", className)}>
                 {isLocalhost ? (
-                    <div className="flex flex-col items-center justify-center p-12 text-center h-full">
+                    <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center h-full">
                         <Download className="h-12 w-12 text-primary mb-4" />
                         <h3 className="text-lg font-semibold">Local Preview Unavailable</h3>
                         <div className="text-sm text-muted-foreground mb-6 max-w-sm space-y-2">
@@ -141,11 +170,26 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                         </Button>
                     </div>
                 ) : (
-                    <iframe
-                        src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
-                        className="w-full h-full min-h-[500px] border-none"
-                        title={title || "Document Viewer"}
-                    />
+                    <div className="flex flex-col h-full w-full">
+                        {/* Try Office Online viewer first (best mobile support), with Google as fallback */}
+                        <iframe
+                            src={(type === 'ppt' || type === 'pptx') ? officeViewerUrl : googleViewerUrl}
+                            className="w-full h-full min-h-[400px] sm:min-h-[500px] border-none"
+                            title={title || "Document Viewer"}
+                            allowFullScreen
+                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                        />
+                        {/* Fallback download button for mobile */}
+                        <div className="flex items-center justify-between px-3 py-2 bg-slate-800 border-t border-slate-700">
+                            <span className="text-xs text-slate-400 truncate">{title || 'Document'}</span>
+                            <Button variant="ghost" size="sm" asChild className="text-slate-300 hover:bg-slate-700 h-8 text-xs gap-1.5">
+                                <a href={url} download target="_blank" rel="noopener noreferrer">
+                                    <Download className="h-3.5 w-3.5" />
+                                    Download
+                                </a>
+                            </Button>
+                        </div>
+                    </div>
                 )}
             </div>
         );
@@ -173,7 +217,9 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     <Button variant="ghost" size="icon" onClick={() => zoom(0.8)} className="h-8 w-8 hover:bg-slate-700 text-slate-300">
                         <ZoomOut className="h-4 w-4" />
                     </Button>
-                    <span className="text-xs w-12 text-center">{Math.round(scale * 100)}%</span>
+                    <button onClick={resetZoom} className="text-xs w-12 text-center hover:text-white transition-colors" title="Reset zoom">
+                        {Math.round(scale * 100)}%
+                    </button>
                     <Button variant="ghost" size="icon" onClick={() => zoom(1.25)} className="h-8 w-8 hover:bg-slate-700 text-slate-300">
                         <ZoomIn className="h-4 w-4" />
                     </Button>
@@ -190,7 +236,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
             </div>
 
             {/* Viewer Area */}
-            <div className="flex-1 overflow-auto p-4 flex justify-center bg-slate-900/50 min-h-[500px] relative">
+            <div ref={viewerAreaRef} className="flex-1 overflow-auto p-2 sm:p-4 flex justify-center bg-slate-900/50 min-h-[300px] sm:min-h-[500px] relative">
                 {loading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -206,8 +252,8 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     </div>
                 )}
 
-                <div className="relative shadow-2xl">
-                    <canvas ref={canvasRef} className="max-w-full block" />
+                <div className="relative shadow-2xl" style={{ touchAction: 'pan-x pan-y' }}>
+                    <canvas ref={canvasRef} className="max-w-full block" style={{ width: '100%', height: 'auto' }} />
                 </div>
             </div>
 

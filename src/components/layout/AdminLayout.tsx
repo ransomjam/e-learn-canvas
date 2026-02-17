@@ -41,10 +41,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     const SidebarContent = () => (
         <div className="flex h-full flex-col bg-slate-900 text-slate-300">
             {/* Brand */}
-            <div className="flex h-16 items-center border-b border-slate-800 px-6">
+            <Link to="/" className="flex h-16 items-center border-b border-slate-800 px-6 hover:opacity-80 transition-opacity">
                 <Logo size="sm" className="mr-2 h-8 w-8" />
                 <span className="font-display text-xl font-bold text-white">Cradema {isAdmin ? 'Admin' : 'Panel'}</span>
-            </div>
+            </Link>
 
             {/* Navigation */}
             <nav className="flex-1 space-y-1 px-3 py-6">
@@ -145,7 +145,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(true)}>
                         <Menu className="h-6 w-6" />
                     </Button>
-                    <span className="font-display text-lg font-bold">Cradema {isAdmin ? 'Admin' : 'Panel'}</span>
+                    <Link to="/" className="font-display text-lg font-bold hover:opacity-80 transition-opacity">
+                        Crad<span className="text-primary">ema</span> {isAdmin ? 'Admin' : 'Panel'}
+                    </Link>
                 </header>
 
                 <main className="flex-1 p-4 lg:p-8">

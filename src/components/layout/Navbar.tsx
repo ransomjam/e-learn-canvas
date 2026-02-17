@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Menu, X, User, LogOut, GraduationCap, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,9 @@ import { resolveMediaUrl } from '@/lib/media';
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
 
   const navLinks = [
@@ -26,6 +28,16 @@ const Navbar = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchValue.trim()) {
+      navigate(`/courses?search=${encodeURIComponent(searchValue.trim())}`);
+      setSearchValue('');
+      setIsSearchOpen(false);
+      setIsMenuOpen(false);
+    }
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
@@ -42,13 +54,15 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-8 md:flex">
             {/* Search Bar */}
-            <div className="relative">
+            <form onSubmit={handleSearch} className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search courses..."
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
                 className="w-40 bg-secondary pl-10 transition-all duration-300 focus:w-44 sm:w-56 sm:focus:w-64 lg:w-64 lg:focus:w-72"
               />
-            </div>
+            </form>
 
             {/* Nav Links */}
             <div className="flex items-center gap-6">
@@ -150,14 +164,16 @@ const Navbar = () => {
         {/* Mobile Search */}
         {isSearchOpen && (
           <div className="border-t border-border py-3 md:hidden">
-            <div className="relative">
+            <form onSubmit={handleSearch} className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search courses..."
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
                 className="w-full bg-secondary pl-10"
                 autoFocus
               />
-            </div>
+            </form>
           </div>
         )}
 

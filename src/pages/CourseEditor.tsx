@@ -719,11 +719,16 @@ const CourseEditor = () => {
                                                         <Label htmlFor="price">Price ($)</Label>
                                                         <Input
                                                             id="price"
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            value={formData.price}
-                                                            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            value={formData.price || ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
+                                                                    setFormData({ ...formData, price: val === '' ? 0 : parseFloat(val) || 0 });
+                                                                }
+                                                            }}
+                                                            placeholder="0.00"
                                                             className="mt-2"
                                                         />
                                                     </div>
@@ -731,16 +736,18 @@ const CourseEditor = () => {
                                                         <Label htmlFor="discountPrice">Discount Price ($)</Label>
                                                         <Input
                                                             id="discountPrice"
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
+                                                            type="text"
+                                                            inputMode="decimal"
                                                             value={formData.discountPrice || ''}
-                                                            onChange={(e) =>
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    discountPrice: e.target.value ? parseFloat(e.target.value) : undefined,
-                                                                })
-                                                            }
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
+                                                                    setFormData({
+                                                                        ...formData,
+                                                                        discountPrice: val === '' ? undefined : parseFloat(val) || undefined,
+                                                                    });
+                                                                }
+                                                            }}
                                                             placeholder="Optional"
                                                             className="mt-2"
                                                         />
@@ -1059,14 +1066,19 @@ const CourseEditor = () => {
                                                                             <div>
                                                                                 <Label className="text-xs">Duration (minutes)</Label>
                                                                                 <Input
-                                                                                    type="number"
-                                                                                    value={lessonForm.duration}
-                                                                                    onChange={(e) =>
-                                                                                        setLessonForm((p) => ({
-                                                                                            ...p,
-                                                                                            duration: parseInt(e.target.value) || 0,
-                                                                                        }))
-                                                                                    }
+                                                                                    type="text"
+                                                                                    inputMode="numeric"
+                                                                                    value={lessonForm.duration || ''}
+                                                                                    onChange={(e) => {
+                                                                                        const val = e.target.value;
+                                                                                        if (val === '' || /^\d+$/.test(val)) {
+                                                                                            setLessonForm((p) => ({
+                                                                                                ...p,
+                                                                                                duration: val === '' ? 0 : parseInt(val) || 0,
+                                                                                            }));
+                                                                                        }
+                                                                                    }}
+                                                                                    placeholder="e.g. 15"
                                                                                     className="mt-1"
                                                                                 />
                                                                             </div>

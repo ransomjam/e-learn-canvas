@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Filter, ChevronDown, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import CourseCard from '@/components/courses/CourseCard';
@@ -16,11 +17,21 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Courses = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('created_at');
   const [page, setPage] = useState(1);
+
+  // Sync search query from URL params (e.g. when navigating from navbar search)
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    if (urlSearch && urlSearch !== searchQuery) {
+      setSearchQuery(urlSearch);
+      setPage(1);
+    }
+  }, [searchParams]);
 
   const levels = ['beginner', 'intermediate', 'advanced'];
 

@@ -151,6 +151,62 @@ const Navbar = () => {
             >
               <Search className="h-5 w-5" />
             </Button>
+
+            {/* Mobile User Avatar Dropdown */}
+            {isAuthenticated && user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={resolveMediaUrl(user.avatarUrl)} alt={user.firstName} />
+                      <AvatarFallback className="text-xs">{user.firstName[0]}{user.lastName[0]}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="flex items-center gap-3 p-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={resolveMediaUrl(user.avatarUrl)} alt={user.firstName} />
+                      <AvatarFallback>{user.firstName[0]}{user.lastName[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col space-y-0.5 min-w-0">
+                      <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-courses">
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      My Courses
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  {(user.role === 'instructor' || user.role === 'admin') && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to="/instructor">
+                          <GraduationCap className="mr-2 h-4 w-4" />
+                          Instructor Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <Button
               variant="ghost"
               size="icon"

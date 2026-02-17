@@ -147,12 +147,10 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     }, []);
 
     if (type === 'ppt' || type === 'doc' || type === 'pptx' || type === 'docx') {
-        // Use Office Online Viewer (works better on mobile than Google Docs Viewer)
+        // Use Google Docs Viewer for Office files (works with publicly accessible URLs)
         // For localhost/dev, show a download fallback since external viewers can't reach local URLs.
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-        // Office Online viewer URL (works for publicly accessible files)
-        const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
         const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
 
         return (
@@ -171,13 +169,11 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     </div>
                 ) : (
                     <div className="flex flex-col h-full w-full">
-                        {/* Try Office Online viewer first (best mobile support), with Google as fallback */}
                         <iframe
-                            src={(type === 'ppt' || type === 'pptx') ? officeViewerUrl : googleViewerUrl}
-                            className="w-full h-full min-h-[400px] sm:min-h-[500px] border-none"
+                            src={googleViewerUrl}
+                            className="w-full flex-1 min-h-[400px] sm:min-h-[500px] border-none"
                             title={title || "Document Viewer"}
                             allowFullScreen
-                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                         />
                         {/* Fallback download button for mobile */}
                         <div className="flex items-center justify-between px-3 py-2 bg-slate-800 border-t border-slate-700">

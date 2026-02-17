@@ -17,7 +17,6 @@ import { resolveMediaUrl } from '@/lib/media';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,7 +33,6 @@ const Navbar = () => {
     if (searchValue.trim()) {
       navigate(`/courses?search=${encodeURIComponent(searchValue.trim())}`);
       setSearchValue('');
-      setIsSearchOpen(false);
       setIsMenuOpen(false);
     }
   };
@@ -142,18 +140,9 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Actions */}
           <div className="flex items-center gap-2 md:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-
-            {/* Mobile User Avatar Dropdown */}
-            {isAuthenticated && user && (
+            {isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
@@ -205,38 +194,22 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
             )}
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
           </div>
         </div>
 
-        {/* Mobile Search */}
-        {isSearchOpen && (
-          <div className="border-t border-border py-3 md:hidden">
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search courses..."
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                className="w-full bg-secondary pl-10"
-                autoFocus
-              />
-            </form>
-          </div>
-        )}
-
       </div>
 
-      {/* Mobile Menu - rendered outside the container for proper stacking */}
-      {isMenuOpen && (
+      {/* Mobile Menu - only for non-authenticated users */}
+      {isMenuOpen && !isAuthenticated && (
         <>
           {/* Backdrop */}
           <div 
@@ -251,22 +224,6 @@ const Navbar = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col h-full overflow-y-auto">
-              {/* User Info Section */}
-              {isAuthenticated && user ? (
-                <div className="px-4 py-4 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={resolveMediaUrl(user.avatarUrl)} alt={user.firstName} />
-                      <AvatarFallback>{user.firstName[0]}{user.lastName[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
               {/* Navigation Links */}
               <div className="px-2 py-3 border-b border-border">
                 {navLinks.map((link) => (
@@ -285,65 +242,19 @@ const Navbar = () => {
                 ))}
               </div>
 
-              {/* Menu Items */}
-              <div className="px-2 py-3 flex-1">
-                {isAuthenticated && user ? (
-                  <div className="space-y-1">
-                    <Link 
-                      to="/my-courses" 
-                      onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
-                    >
-                      <BookOpen className="h-4 w-4" />
-                      My Courses
-                    </Link>
-                    <Link 
-                      to="/profile" 
-                      onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
-                    >
-                      <User className="h-4 w-4" />
-                      Profile
-                    </Link>
-                    {(user.role === 'instructor' || user.role === 'admin') && (
-                      <Link 
-                        to="/instructor" 
-                        onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
-                      >
-                        <GraduationCap className="h-4 w-4" />
-                        Instructor Dashboard
-                      </Link>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2 px-2">
-                    <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
-                      <Button variant="outline" className="w-full justify-center">
-                        Log In
-                      </Button>
-                    </Link>
-                    <Link to="/auth?mode=signup" onClick={() => setIsMenuOpen(false)}>
-                      <Button className="btn-primary w-full justify-center">
-                        Sign Up
-                      </Button>
-                    </Link>
-                  </div>
-                )}
+              {/* Auth Buttons */}
+              <div className="px-4 py-4 space-y-2">
+                <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="outline" className="w-full justify-center">
+                    Log In
+                  </Button>
+                </Link>
+                <Link to="/auth?mode=signup" onClick={() => setIsMenuOpen(false)}>
+                  <Button className="btn-primary w-full justify-center">
+                    Sign Up
+                  </Button>
+                </Link>
               </div>
-
-              {/* Logout Button at Bottom */}
-              {isAuthenticated && user && (
-                <div className="px-2 py-3 border-t border-border mt-auto">
-                  <button
-                    onClick={() => { logout(); setIsMenuOpen(false); }}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors w-full"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Log out
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </>

@@ -319,7 +319,7 @@ const Player = () => {
                     </div>
                   )
                 ) : currentLesson.type === 'document' || currentLesson.type === 'pdf' || currentLesson.type === 'ppt' || currentLesson.type === 'doc' ? (
-                  <div className="h-full w-full p-4 bg-slate-100 dark:bg-slate-900">
+                  <div className="h-full w-full p-4 bg-neutral-100 dark:bg-neutral-900">
                     {currentLesson.videoUrl ? (
                       <DocumentViewer
                         url={resolveMediaUrl(currentLesson.videoUrl)}

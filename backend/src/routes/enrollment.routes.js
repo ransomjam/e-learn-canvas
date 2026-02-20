@@ -36,6 +36,13 @@ router.get('/all', authenticate, authorize('admin'), listEnrollmentsValidation, 
 router.get('/course/:courseId', authenticate, authorize('instructor', 'admin'), getCourseEnrollments);
 
 /**
+ * @route   GET /api/v1/enrollments/available-codes
+ * @desc    Get available enrollment codes (for claim page)
+ * @access  Private
+ */
+router.get('/available-codes', authenticate, getAvailableCodes);
+
+/**
  * @route   GET /api/v1/enrollments
  * @desc    Get user's enrollments
  * @access  Private
@@ -62,13 +69,6 @@ router.post('/', authenticate, enrollValidation, validate, enrollInCourse);
  * @access  Private
  */
 router.post('/redeem-code', authenticate, redeemEnrollmentCode);
-
-/**
- * @route   GET /api/v1/enrollments/available-codes
- * @desc    Get available enrollment codes (for claim page)
- * @access  Private
- */
-router.get('/available-codes', authenticate, getAvailableCodes);
 
 /**
  * @route   POST /api/v1/enrollments/claim-code

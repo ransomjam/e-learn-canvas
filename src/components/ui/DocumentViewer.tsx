@@ -276,9 +276,15 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                             showToolbar ? "opacity-100" : "opacity-0"
                         )}>
                             <span className="text-[10px] text-neutral-500 truncate">{title || 'Document'}</span>
-                            <div className="flex items-center gap-0.5">
-                                <Button variant="ghost" size="icon" onClick={toggleLandscape} className="h-7 w-7 hover:bg-neutral-800 text-neutral-400 md:hidden" title="Toggle landscape">
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={toggleLandscape}
+                                    className="h-7 md:hidden flex flex-row items-center gap-1.5 px-3 bg-white/10 hover:bg-white/20 text-neutral-200 border-none rounded-full mr-2"
+                                >
                                     <Smartphone className={cn("h-3.5 w-3.5 transition-transform", isLandscape && "rotate-90")} />
+                                    <span className="text-[10px] font-medium leading-none">{isLandscape ? 'Portrait' : 'Landscape'}</span>
                                 </Button>
                                 <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-neutral-800 text-neutral-400">
                                     {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
@@ -338,8 +344,14 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     <Button variant="ghost" size="icon" onClick={() => zoom(1.25)} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
                         <ZoomIn className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={toggleLandscape} className="h-7 w-7 hover:bg-white/10 text-neutral-300 md:hidden" title="Toggle landscape view">
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={toggleLandscape}
+                        className="h-7 md:hidden flex flex-row items-center gap-1.5 px-3 bg-white/10 hover:bg-white/20 text-neutral-200 border-none rounded-full mx-2"
+                    >
                         <Smartphone className={cn("h-3.5 w-3.5 transition-transform", isLandscape && "rotate-90")} />
+                        <span className="text-[10px] font-medium leading-none">{isLandscape ? 'Portrait' : 'Landscape'}</span>
                     </Button>
                     <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
                         {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}

@@ -21,6 +21,7 @@ import DocumentViewer from '@/components/ui/DocumentViewer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { projectsService, Project } from '@/services/projects.service';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import CustomVideoPlayer from '@/components/ui/CustomVideoPlayer';
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -188,28 +189,65 @@ const Player = () => {
   const currentLesson = sections.flatMap(s => s.lessons).find(l => l.id === currentLessonId);
 
   const allResources = useMemo(() => {
-    if (!currentLesson) return resources || [];
+    const items: any[] = [];
 
-    const items = [...(resources || [])];
-
-    if (currentLesson.practiceFiles) {
-      try {
-        const parsed = typeof currentLesson.practiceFiles === 'string'
-          ? JSON.parse(currentLesson.practiceFiles)
-          : currentLesson.practiceFiles;
-        if (Array.isArray(parsed)) {
-          items.push(...parsed.map((p: any) => ({
-            ...p,
-            title: p.name,
-            lessonTitle: currentLesson.title,
-            id: `${currentLesson.id}-practice-${p.url}`
-          })));
-        }
-      } catch { }
+    // 1. Course-level resources (from the resources table)
+    if (resources && resources.length > 0) {
+      items.push(...resources.map((r: any) => ({
+        ...r,
+        url: resolveMediaUrl(r.url),
+      })));
     }
 
-    return items;
-  }, [currentLesson, resources]);
+    // 2. Lesson-level resources from all lessons (resources + practiceFiles JSON fields)
+    for (const section of sections) {
+      for (const lesson of (section.lessons || [])) {
+        // lesson.resources (what AddLesson saves)
+        if (lesson.resources) {
+          try {
+            const parsed = typeof lesson.resources === 'string'
+              ? JSON.parse(lesson.resources)
+              : lesson.resources;
+            if (Array.isArray(parsed)) {
+              items.push(...parsed.map((p: any) => ({
+                ...p,
+                title: p.title || p.name || 'Resource',
+                url: resolveMediaUrl(p.url),
+                lessonTitle: lesson.title,
+                id: `${lesson.id}-res-${p.url}`
+              })));
+            }
+          } catch { }
+        }
+
+        // lesson.practiceFiles (legacy field)
+        if (lesson.practiceFiles) {
+          try {
+            const parsed = typeof lesson.practiceFiles === 'string'
+              ? JSON.parse(lesson.practiceFiles)
+              : lesson.practiceFiles;
+            if (Array.isArray(parsed)) {
+              items.push(...parsed.map((p: any) => ({
+                ...p,
+                title: p.title || p.name || 'Practice File',
+                url: resolveMediaUrl(p.url),
+                lessonTitle: lesson.title,
+                id: `${lesson.id}-pf-${p.url}`
+              })));
+            }
+          } catch { }
+        }
+      }
+    }
+
+    // Deduplicate by url
+    const seen = new Set<string>();
+    return items.filter(item => {
+      if (!item.url || seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    });
+  }, [sections, resources]);
 
   const allLessons = sections.flatMap(s => s.lessons);
   const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
@@ -310,14 +348,11 @@ const Player = () => {
                         allowFullScreen
                       />
                     ) : (
-                      <video
+                      <CustomVideoPlayer
                         key={`${currentLessonId}-${resolvedVideoUrl}`}
                         src={resolvedVideoUrl}
-                        className="h-full w-full object-contain"
-                        controls
-                        autoPlay={false}
-                        preload="auto"
                         poster={resolveMediaUrl(course.thumbnailUrl)}
+                        title={currentLesson.title}
                       />
                     );
                   })() : (
@@ -454,8 +489,8 @@ const Player = () => {
                               >
                                 <Star
                                   className={`h-6 w-6 transition-colors ${star <= (hoverRating || userReview?.rating || 0)
-                                      ? 'fill-yellow-400 text-yellow-400'
-                                      : 'text-muted-foreground'
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-muted-foreground'
                                     }`}
                                 />
                               </button>
@@ -792,36 +827,51 @@ const Player = () => {
                   {allResources.length === 0 ? (
                     <div className="py-12 text-center">
                       <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
-                      <p className="mt-3 text-xs text-muted-foreground">No files for this course.</p>
+                      <p className="mt-3 text-xs text-muted-foreground">No resources for this course.</p>
                     </div>
                   ) : (
-                    allResources.map((res: any, idx: number) => (
-                      <a
-                        key={res.id || idx}
-                        href={res.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-secondary group"
-                      >
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                          {res.type === 'pdf' ? (
-                            <FileText className="h-4 w-4 text-primary" />
-                          ) : (
-                            <Paperclip className="h-4 w-4 text-primary" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-foreground truncate">{res.title}</p>
-                          {res.description && (
-                            <p className="text-[10px] text-muted-foreground truncate">{res.description}</p>
-                          )}
-                          {res.lessonTitle && (
-                            <p className="text-[10px] text-primary/70 truncate">Lesson: {res.lessonTitle}</p>
-                          )}
-                        </div>
-                        <Download className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </a>
-                    ))
+                    allResources.map((res: any, idx: number) => {
+                      const fileType = (res.type || '').toLowerCase();
+                      const isExternal = res.url?.startsWith('http') && !res.url?.includes(window.location.hostname);
+                      return (
+                        <a
+                          key={res.id || idx}
+                          href={res.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={!isExternal ? (res.title || true) : undefined}
+                          className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-secondary group"
+                        >
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                            {fileType === 'pdf' ? (
+                              <FileText className="h-4 w-4 text-red-400" />
+                            ) : fileType === 'ppt' || fileType === 'pptx' ? (
+                              <FileText className="h-4 w-4 text-orange-400" />
+                            ) : fileType === 'doc' || fileType === 'docx' ? (
+                              <FileText className="h-4 w-4 text-blue-400" />
+                            ) : fileType === 'image' ? (
+                              <FileText className="h-4 w-4 text-emerald-400" />
+                            ) : fileType === 'video' ? (
+                              <Play className="h-4 w-4 text-purple-400" />
+                            ) : fileType === 'link' ? (
+                              <Paperclip className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Paperclip className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">{res.title || 'Resource'}</p>
+                            {res.description && (
+                              <p className="text-[10px] text-muted-foreground truncate">{res.description}</p>
+                            )}
+                            {res.lessonTitle && (
+                              <p className="text-[10px] text-primary/70 truncate">Lesson: {res.lessonTitle}</p>
+                            )}
+                          </div>
+                          <Download className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                        </a>
+                      );
+                    })
                   )}
                 </div>
               </ScrollArea>

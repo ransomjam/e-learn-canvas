@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Ticket, Plus, Trash2, Loader2, Search, Copy, CheckCircle, XCircle,
-    Filter
+    Filter, Share2, ExternalLink, Link2
 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ const AdminEnrollmentCodes = () => {
     const [filterCourseId, setFilterCourseId] = useState<string | undefined>(undefined);
     const [page, setPage] = useState(1);
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
+    const [copiedClaimLink, setCopiedClaimLink] = useState(false);
 
     // Fetch enrollment codes
     const { data: codesData, isLoading: codesLoading } = useQuery({
@@ -110,9 +111,49 @@ const AdminEnrollmentCodes = () => {
                             Generate and manage enrollment codes for student course access.
                         </p>
                     </div>
-                    <Button className="gap-2" onClick={() => setShowGenerateDialog(true)}>
-                        <Plus className="h-4 w-4" />
-                        Generate Codes
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={() => {
+                                const url = `${window.location.origin}/enrollment`;
+                                navigator.clipboard.writeText(url);
+                                setCopiedClaimLink(true);
+                                setTimeout(() => setCopiedClaimLink(false), 2000);
+                                toast({ title: 'Claim link copied!', description: url });
+                            }}
+                        >
+                            {copiedClaimLink ? <CheckCircle className="h-4 w-4 text-emerald-400" /> : <Link2 className="h-4 w-4" />}
+                            {copiedClaimLink ? 'Copied!' : 'Copy Claim Link'}
+                        </Button>
+                        <Button className="gap-2" onClick={() => setShowGenerateDialog(true)}>
+                            <Plus className="h-4 w-4" />
+                            Generate Codes
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Public Claim Link Info */}
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center gap-2 flex-1">
+                        <Share2 className="h-5 w-5 text-primary flex-shrink-0" />
+                        <div>
+                            <p className="text-sm font-medium text-foreground">Public Enrollment Page</p>
+                            <p className="text-xs text-muted-foreground">
+                                Students can browse and claim available codes at{' '}
+                                <code className="text-primary font-mono">/enrollment</code>.
+                                Share the link so students can self-enroll.
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 flex-shrink-0"
+                        onClick={() => window.open('/enrollment', '_blank')}
+                    >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Open Page
                     </Button>
                 </div>
 

@@ -7,13 +7,13 @@ let apiOrigin = '';
 try {
   const parsedUrl = new URL(API_BASE_URL);
   apiOrigin = parsedUrl.origin;
-  
+
   // If the API origin is localhost but we're not on localhost, use current origin
   // This handles the case where VITE_API_URL wasn't set during production build
-  if (typeof window !== 'undefined' && 
-      (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') &&
-      window.location.hostname !== 'localhost' && 
-      window.location.hostname !== '127.0.0.1') {
+  if (typeof window !== 'undefined' &&
+    (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1') {
     apiOrigin = window.location.origin;
   }
 } catch {
@@ -66,4 +66,49 @@ export const resolveMediaUrl = (url?: string | null) => {
   // Ensure leading slash and prepend /uploads
   const withLeadingSlash = value.startsWith('/') ? value : `/${value}`;
   return `${apiOrigin}/uploads${withLeadingSlash}`;
+};
+
+/**
+ * Convert external video sharing URLs into direct-playable URLs.
+ * Supports Google Drive, Dropbox, and OneDrive sharing links.
+ * Falls through to the original URL if no transformation is needed.
+ */
+export const toDirectVideoUrl = (url: string): string => {
+  if (!url) return url;
+
+  // --- Google Drive ---
+  // Pattern: https://drive.google.com/file/d/FILE_ID/view?...
+  //       -> https://drive.google.com/uc?export=download&id=FILE_ID
+  // Also handles /preview variant
+  const gdMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+  if (gdMatch) {
+    return `https://drive.google.com/uc?export=download&id=${gdMatch[1]}`;
+  }
+
+  // Pattern: https://drive.google.com/open?id=FILE_ID
+  const gdOpenMatch = url.match(/drive\.google\.com\/open\?id=([^&]+)/i);
+  if (gdOpenMatch) {
+    return `https://drive.google.com/uc?export=download&id=${gdOpenMatch[1]}`;
+  }
+
+  // --- Dropbox ---
+  // Pattern: https://www.dropbox.com/...?dl=0
+  //       -> https://www.dropbox.com/...?dl=1   (or ?raw=1)
+  if (/dropbox\.com/i.test(url)) {
+    const u = new URL(url);
+    u.searchParams.set('dl', '1');
+    return u.toString();
+  }
+
+  // --- OneDrive / SharePoint ---
+  // Pattern: https://onedrive.live.com/...?e=...
+  //       -> https://onedrive.live.com/...?download=1
+  if (/1drv\.ms|onedrive\.live\.com|sharepoint\.com/i.test(url)) {
+    const u = new URL(url);
+    u.searchParams.set('download', '1');
+    return u.toString();
+  }
+
+  // No transformation needed
+  return url;
 };

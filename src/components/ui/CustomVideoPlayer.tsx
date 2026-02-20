@@ -30,8 +30,11 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isLandscape, setIsLandscape] = useState(false);
     const [showControls, setShowControls] = useState(true);
+    const [videoError, setVideoError] = useState(false);
     const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isMobile = useIsMobile();
+
+    const isExternal = src.startsWith('http://') || src.startsWith('https://');
 
     // Auto-hide controls
     const resetControlsTimeout = useCallback(() => {
@@ -161,6 +164,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
         setIsPlaying(false);
         setCurrentTime(0);
         setShowControls(true);
+        setVideoError(false);
     }, [src]);
 
     const displayLandscape = isLandscape && !isFullscreen;
@@ -180,6 +184,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 ref={videoRef}
                 src={src}
                 poster={poster}
+                crossOrigin={isExternal ? 'anonymous' : undefined}
                 className={cn(
                     "w-full h-full object-contain cursor-pointer",
                     displayLandscape ? "w-[100vh] h-[100vw]" : ""
@@ -188,10 +193,32 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => setIsPlaying(false)}
+                onError={() => setVideoError(true)}
                 playsInline
                 preload="auto"
                 controls={false}
             />
+
+            {/* Error fallback for external videos that cannot be played inline */}
+            {videoError && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/90 text-white gap-4 p-6 text-center">
+                    <div className="bg-white/10 p-4 rounded-full">
+                        <Play className="h-10 w-10 text-white/60" />
+                    </div>
+                    <p className="text-sm sm:text-base font-medium text-white/80 max-w-md">
+                        This video is hosted externally and cannot be played in the built-in player.
+                    </p>
+                    <a
+                        href={src}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-lg transition-colors"
+                    >
+                        <Play className="h-4 w-4" />
+                        Open Video
+                    </a>
+                </div>
+            )}
 
             {/* Giant center play button when paused */}
             {!isPlaying && (

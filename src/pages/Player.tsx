@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { coursesService, Section, Lesson } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
-import { resolveMediaUrl } from '@/lib/media';
+import { resolveMediaUrl, toDirectVideoUrl } from '@/lib/media';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -339,15 +339,8 @@ const Player = () => {
               {currentLesson ? (
                 currentLesson.type === 'video' ? (
                   currentLesson.videoUrl ? (() => {
-                    const resolvedVideoUrl = resolveMediaUrl(currentLesson.videoUrl);
-                    return resolvedVideoUrl.includes('drive.google.com') ? (
-                      <iframe
-                        src={resolvedVideoUrl.replace('/view', '/preview')}
-                        className="h-full w-full"
-                        allow="autoplay"
-                        allowFullScreen
-                      />
-                    ) : (
+                    const resolvedVideoUrl = toDirectVideoUrl(resolveMediaUrl(currentLesson.videoUrl));
+                    return (
                       <CustomVideoPlayer
                         key={`${currentLessonId}-${resolvedVideoUrl}`}
                         src={resolvedVideoUrl}

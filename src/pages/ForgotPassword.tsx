@@ -34,8 +34,8 @@ const ForgotPassword = () => {
             }
 
             toast({
-                title: 'Check your email',
-                description: 'If an account with that email exists, a reset link has been sent.',
+                title: 'Reset link generated',
+                description: 'Use the link below to reset your password.',
             });
         } catch (error) {
             toast({
@@ -76,7 +76,7 @@ const ForgotPassword = () => {
                         Don't worry,{'\n'}we've got you.
                     </h2>
                     <p className="max-w-sm text-muted-foreground">
-                        Enter your email and we'll send you instructions to reset your password.
+                        Enter your email and we'll generate a link to reset your password.
                     </p>
                 </div>
 
@@ -99,11 +99,11 @@ const ForgotPassword = () => {
                     {/* Header */}
                     <div className="text-center mb-8 sm:mb-10">
                         <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
-                            {isSubmitted ? 'Check your email' : 'Forgot password'}
+                            {isSubmitted ? 'Reset link ready' : 'Forgot password'}
                         </h1>
                         <p className="mt-2 text-sm text-muted-foreground">
                             {isSubmitted
-                                ? 'We sent password reset instructions to your email.'
+                                ? 'Use the link below to reset your password.'
                                 : 'Enter the email associated with your account.'}
                         </p>
                     </div>
@@ -119,19 +119,21 @@ const ForgotPassword = () => {
                                     </div>
                                 </div>
 
-                                <p className="text-center text-sm text-muted-foreground">
-                                    If an account exists for <span className="font-medium text-foreground">{email}</span>,
-                                    you'll receive a password reset link shortly.
-                                </p>
-
-                                {/* Dev-only: show reset link */}
-                                {resetLink && (
-                                    <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
-                                        <p className="text-xs font-medium text-amber-500 text-center">
-                                            🛠️ Dev Mode — Reset Link
+                                {resetLink ? (
+                                    <div className="space-y-4">
+                                        <p className="text-center text-sm text-muted-foreground">
+                                            A reset link has been generated for <span className="font-medium text-foreground">{email}</span>.
+                                            Click the button below to reset your password.
                                         </p>
+
+                                        <Link to={`/reset-password?token=${resetLink.split('token=')[1]}`}>
+                                            <Button size="lg" className="w-full h-10 font-semibold">
+                                                Reset Your Password
+                                            </Button>
+                                        </Link>
+
                                         <div className="flex items-center gap-2">
-                                            <code className="flex-1 text-xs bg-background/80 rounded px-2 py-1.5 break-all text-foreground/80 border border-border">
+                                            <code className="flex-1 text-xs bg-background/80 rounded px-2 py-1.5 break-all text-foreground/60 border border-border">
                                                 {resetLink}
                                             </code>
                                             <Button
@@ -144,13 +146,12 @@ const ForgotPassword = () => {
                                                 {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                                             </Button>
                                         </div>
-                                        <Link
-                                            to={`/reset-password?token=${resetLink.split('token=')[1]}`}
-                                            className="block text-center text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                                        >
-                                            Open Reset Page →
-                                        </Link>
                                     </div>
+                                ) : (
+                                    <p className="text-center text-sm text-muted-foreground">
+                                        No account found for <span className="font-medium text-foreground">{email}</span>.
+                                        Please check the email address and try again.
+                                    </p>
                                 )}
 
                                 <div className="space-y-3">

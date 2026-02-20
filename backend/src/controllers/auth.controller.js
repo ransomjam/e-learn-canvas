@@ -350,8 +350,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
     res.json({
         success: true,
         message: 'If an account with that email exists, a password reset link has been sent.',
-        // Only for development - remove in production
-        ...(process.env.NODE_ENV === 'development' && { resetToken })
+        resetToken
     });
 });
 

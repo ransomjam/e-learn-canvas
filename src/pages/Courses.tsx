@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Filter, ChevronDown, Loader2 } from 'lucide-react';
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { coursesService, Course } from '@/services/courses.service';
+import { enrollmentsService } from '@/services/enrollments.service';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +25,7 @@ const Courses = () => {
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('created_at');
   const [page, setPage] = useState(1);
+  const { isAuthenticated } = useAuth();
 
   // Sync search query from URL params (e.g. when navigating from navbar search)
   useEffect(() => {
@@ -54,8 +57,21 @@ const Courses = () => {
     queryFn: () => coursesService.getCategories(),
   });
 
+  // Fetch user enrollments to mark enrolled courses
+  const { data: enrollments } = useQuery({
+    queryKey: ['myEnrollments'],
+    queryFn: () => enrollmentsService.getMyEnrollments(),
+    enabled: isAuthenticated,
+  });
+
   const courses = coursesData?.data || [];
   const pagination = coursesData?.pagination;
+
+  // Create a Set of enrolled course IDs for O(1) lookup
+  const enrolledCourseIds = useMemo(() => {
+    if (!enrollments) return new Set<string>();
+    return new Set(enrollments.map(e => e.courseId || e.course?.id).filter(Boolean));
+  }, [enrollments]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -185,7 +201,7 @@ const Courses = () => {
             <>
               <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {courses.map((course) => (
-                  <CourseCard key={course.id} course={course} />
+                  <CourseCard key={course.id} course={course} isEnrolled={enrolledCourseIds.has(course.id)} />
                 ))}
               </div>
 

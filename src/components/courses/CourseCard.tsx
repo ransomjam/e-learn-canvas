@@ -1,22 +1,23 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Users, BookOpen, ThumbsUp } from 'lucide-react';
+import { Star, Users, BookOpen, ThumbsUp, CheckCircle, Play } from 'lucide-react';
 import { Course } from '@/services/courses.service';
 import { resolveMediaUrl } from '@/lib/media';
 
 interface CourseCardProps {
   course: Course;
+  isEnrolled?: boolean;
 }
 
-const CourseCard = ({ course }: CourseCardProps) => {
+const CourseCard = ({ course, isEnrolled = false }: CourseCardProps) => {
   const [imageError, setImageError] = useState(false);
   const thumbnail = resolveMediaUrl(course.thumbnailUrl);
   const displayPrice = course.discountPrice || course.price;
   const hasDiscount = course.discountPrice && course.discountPrice < course.price;
 
   return (
-    <Link to={`/course/${course.id}`} className="group block">
-      <div className="overflow-hidden rounded-xl border border-border bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5">
+    <Link to={isEnrolled ? `/player/${course.id}` : `/course/${course.id}`} className="group block">
+      <div className={`overflow-hidden rounded-xl border bg-card transition-all duration-300 hover:shadow-lg ${isEnrolled ? 'border-emerald-500/40 hover:border-emerald-500/60 hover:shadow-emerald-500/5' : 'border-border hover:border-primary/40 hover:shadow-primary/5'}`}>
         {/* Thumbnail */}
         <div className="relative aspect-video overflow-hidden bg-secondary">
           {thumbnail && !imageError ? (
@@ -30,6 +31,13 @@ const CourseCard = ({ course }: CourseCardProps) => {
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
               <BookOpen className="h-10 w-10 text-muted-foreground/30" />
+            </div>
+          )}
+          {/* Enrolled badge */}
+          {isEnrolled && (
+            <div className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-emerald-500/90 backdrop-blur-sm px-2.5 py-1">
+              <CheckCircle className="h-3 w-3 text-white" />
+              <span className="text-[10px] font-semibold text-white">Enrolled</span>
             </div>
           )}
           {/* Likes badge */}
@@ -70,9 +78,20 @@ const CourseCard = ({ course }: CourseCardProps) => {
             )}
           </div>
 
-          {/* Price */}
+          {/* Price or Enrolled status */}
           <div className="flex items-center gap-2 pt-1 border-t border-border">
-            {course.isFree || course.price === 0 ? (
+            {isEnrolled ? (
+              <div className="flex items-center justify-between w-full">
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-500">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  Already Enrolled
+                </span>
+                <span className="flex items-center gap-1 text-xs font-medium text-primary group-hover:underline">
+                  <Play className="h-3 w-3" />
+                  Go to Course
+                </span>
+              </div>
+            ) : course.isFree || course.price === 0 ? (
               <span className="text-sm font-bold text-accent">Free</span>
             ) : (
               <>

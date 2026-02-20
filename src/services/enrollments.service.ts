@@ -88,7 +88,7 @@ export const enrollmentsService = {
     async checkEnrollment(courseId: string): Promise<Enrollment | null> {
         try {
             const enrollments = await this.getMyEnrollments();
-            return enrollments.find(e => e.courseId === courseId) || null;
+            return enrollments.find(e => (e.courseId === courseId) || (e.course?.id === courseId)) || null;
         } catch {
             return null;
         }

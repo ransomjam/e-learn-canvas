@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
@@ -5,14 +6,31 @@ import Layout from '@/components/layout/Layout';
 import CourseCard from '@/components/courses/CourseCard';
 import { Button } from '@/components/ui/button';
 import { coursesService } from '@/services/courses.service';
+import { enrollmentsService } from '@/services/enrollments.service';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
+  const { isAuthenticated } = useAuth();
+
   const { data: coursesData } = useQuery({
     queryKey: ['courses', { limit: 8 }],
     queryFn: () => coursesService.getCourses({ limit: 8, sortBy: 'enrollment_count' }),
   });
 
+  // Fetch user enrollments to mark enrolled courses
+  const { data: enrollments } = useQuery({
+    queryKey: ['myEnrollments'],
+    queryFn: () => enrollmentsService.getMyEnrollments(),
+    enabled: isAuthenticated,
+  });
+
   const courses = coursesData?.data || [];
+
+  // Create a Set of enrolled course IDs for O(1) lookup
+  const enrolledCourseIds = useMemo(() => {
+    if (!enrollments) return new Set<string>();
+    return new Set(enrollments.map(e => e.courseId || e.course?.id).filter(Boolean));
+  }, [enrollments]);
 
   return (
     <Layout>
@@ -74,10 +92,10 @@ const Index = () => {
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {courses.slice(0, 4).map((course) => (
-              <CourseCard key={course.id} course={course} />
+              <CourseCard key={course.id} course={course} isEnrolled={enrolledCourseIds.has(course.id)} />
             ))}
           </div>
-          
+
           <Link to="/courses" className="mt-8 block sm:hidden">
             <Button variant="outline" className="w-full text-base h-11 font-semibold">
               View All

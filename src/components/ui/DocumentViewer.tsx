@@ -259,6 +259,12 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                 (screen.orientation as any).unlock();
             }
         } catch { /* orientation lock not supported – CSS fallback used */ }
+        // Force re-render of current page to avoid black screen on landscape toggle
+        if (pdfDoc && type === 'pdf') {
+            setTimeout(() => {
+                computeFitScale();
+            }, 100);
+        }
     };
 
     if (type === 'ppt' || type === 'doc' || type === 'pptx' || type === 'docx') {
@@ -302,13 +308,12 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                             <span className="text-[10px] text-neutral-500 truncate">{title || 'Document'}</span>
                             <div className="flex items-center gap-1">
                                 <Button
-                                    variant="secondary"
-                                    size="sm"
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={toggleLandscape}
-                                    className="h-7 md:hidden flex flex-row items-center gap-1.5 px-3 bg-white/10 hover:bg-white/20 text-neutral-200 border-none rounded-full mr-2"
+                                    className="h-7 w-7 md:hidden hover:bg-neutral-800 text-neutral-400"
                                 >
                                     <Smartphone className={cn("h-3.5 w-3.5 transition-transform", isLandscape && "rotate-90")} />
-                                    <span className="text-[10px] font-medium leading-none">{isLandscape ? 'Portrait' : 'Landscape'}</span>
                                 </Button>
                                 <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-neutral-800 text-neutral-400">
                                     {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
@@ -339,7 +344,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     const pdfContent = (
         <div
             ref={containerRef}
-            className={cn("flex flex-col bg-black overflow-hidden", isLandscape && "h-full", className)}
+            className={cn("flex flex-col bg-black overflow-hidden relative", isLandscape && "h-full", className)}
             onMouseMove={resetToolbarTimer}
             onTouchStart={resetToolbarTimer}
         >
@@ -367,13 +372,12 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                         <ZoomIn className="h-3.5 w-3.5" />
                     </Button>
                     <Button
-                        variant="secondary"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
                         onClick={toggleLandscape}
-                        className="h-7 md:hidden flex flex-row items-center gap-1.5 px-3 bg-white/10 hover:bg-white/20 text-neutral-200 border-none rounded-full mx-2"
+                        className="h-7 w-7 md:hidden hover:bg-white/10 text-neutral-300"
                     >
                         <Smartphone className={cn("h-3.5 w-3.5 transition-transform", isLandscape && "rotate-90")} />
-                        <span className="text-[10px] font-medium leading-none">{isLandscape ? 'Portrait' : 'Landscape'}</span>
                     </Button>
                     <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
                         {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
@@ -384,10 +388,10 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                 </div>
             </div>
 
-            {/* Viewer Area */}
+            {/* Viewer Area — with padding so toolbars don't cover content */}
             <div
                 ref={viewerAreaRef}
-                className="flex-1 overflow-auto flex justify-center bg-black min-h-[300px] relative"
+                className="flex-1 overflow-auto flex justify-center bg-black min-h-[300px] relative pt-9 pb-9"
                 style={{ touchAction: 'manipulation' }}
             >
                 {loading && (

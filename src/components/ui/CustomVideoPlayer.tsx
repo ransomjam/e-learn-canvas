@@ -136,8 +136,16 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
 
     const skipTime = (seconds: number) => {
         if (videoRef.current) {
-            videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.currentTime + seconds, duration));
-            setCurrentTime(videoRef.current.currentTime);
+            const newTime = Math.max(0, Math.min(videoRef.current.currentTime + seconds, duration));
+            videoRef.current.currentTime = newTime;
+            setCurrentTime(newTime);
+            // Force the video to seek properly on mobile
+            if (videoRef.current.paused) {
+                videoRef.current.play().then(() => {
+                    videoRef.current!.pause();
+                    videoRef.current!.currentTime = newTime;
+                }).catch(() => { });
+            }
             resetControlsTimeout();
         }
     };
@@ -164,6 +172,9 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
     const toggleLandscape = async (e?: React.MouseEvent) => {
         e?.stopPropagation();
         const next = !isLandscape;
+        // Capture current playback state before toggling
+        const wasPlaying = isPlaying;
+        const savedTime = videoRef.current?.currentTime || 0;
         setIsLandscape(next);
         try {
             if (next && screen.orientation && 'lock' in screen.orientation) {
@@ -172,6 +183,15 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 (screen.orientation as any).unlock();
             }
         } catch { /* Fallback to CSS transform below if API fails/unsupported */ }
+        // Restore video position and playback after landscape toggle
+        setTimeout(() => {
+            if (videoRef.current) {
+                videoRef.current.currentTime = savedTime;
+                if (wasPlaying) {
+                    videoRef.current.play().catch(() => { });
+                }
+            }
+        }, 100);
         resetControlsTimeout();
     };
 
@@ -392,27 +412,6 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                     </div>
                 </div>
 
-                {/* Prominent Landscape button — mobile only, shown below controls */}
-                {isMobile && !isLandscape && (
-                    <button
-                        onClick={toggleLandscape}
-                        className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-sm transition-all duration-200 border border-white/10"
-                    >
-                        <Smartphone className="h-4 w-4 text-white" />
-                        <span className="text-xs font-semibold text-white tracking-wide">Landscape View</span>
-                    </button>
-                )}
-
-                {/* Exit landscape bar — mobile only */}
-                {isMobile && isLandscape && (
-                    <button
-                        onClick={toggleLandscape}
-                        className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary/80 hover:bg-primary/90 active:bg-primary backdrop-blur-sm transition-all duration-200"
-                    >
-                        <Smartphone className="h-4 w-4 text-white rotate-90" />
-                        <span className="text-xs font-semibold text-white tracking-wide">Exit Landscape</span>
-                    </button>
-                )}
             </div>
         </div>
     );

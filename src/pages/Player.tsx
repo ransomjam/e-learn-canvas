@@ -6,6 +6,7 @@ import {
   Send, Download, ChevronRight, Lock, ThumbsUp, Paperclip, Upload, Calendar, Star,
   Trash2, Reply, CornerDownRight
 } from 'lucide-react';
+import Logo from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { coursesService, Section, Lesson } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
 import { resolveMediaUrl, toDirectVideoUrl } from '@/lib/media';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -41,6 +43,7 @@ const Player = () => {
   const [hoverRating, setHoverRating] = useState(0);
   const [replyTo, setReplyTo] = useState<{ id: string; userName: string; message: string } | null>(null);
   const [contentKey, setContentKey] = useState(0);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Queries
   const { data: course, isLoading: courseLoading } = useQuery({
@@ -298,6 +301,11 @@ const Player = () => {
       {/* Top bar */}
       <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
+          <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
+            <Logo size="sm" />
+            <span className="font-display font-bold text-primary text-base hidden sm:inline">Cradema</span>
+          </Link>
+          <span className="text-muted-foreground/40 hidden sm:inline">|</span>
           <Link to={`/course/${id}`}>
             <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
               <ChevronLeft className="h-4 w-4" />
@@ -315,10 +323,10 @@ const Player = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 lg:hidden"
+            className="lg:hidden h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/20"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
-            {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            {isSidebarOpen ? <X className="h-5 w-5 text-primary" /> : <Menu className="h-5 w-5 text-primary" />}
           </Button>
         </div>
       </header>
@@ -326,14 +334,18 @@ const Player = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Main content */}
         {/* Main content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-auto">
           {/* Content Area (Video/Document/Quiz) */}
           <div
-            className="relative w-full bg-black flex-shrink-0"
-            style={{
-              height: isVideoLesson ? 'auto' : 'clamp(340px, 62vh, 820px)',
-              minHeight: '50vh'
-            }}
+            className={cn(
+              "relative w-full bg-black flex-shrink-0",
+              isVideoLesson ? "aspect-video" : ""
+            )}
+            style={!isVideoLesson && !isMobile ? {
+              height: 'clamp(340px, 62vh, 820px)',
+            } : !isVideoLesson && isMobile ? {
+              /* On mobile, let document content determine height */
+            } : undefined}
           >
             <div key={contentKey} className={isVideoLesson ? "absolute inset-0" : "h-full w-full overflow-auto bg-background"}>
               {currentLesson ? (
@@ -382,7 +394,7 @@ const Player = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex h-full flex-col items-center justify-center text-muted-foreground gap-4">
+                      <div className="flex h-full flex-col items-center justify-center text-muted-foreground gap-4 min-h-[200px]">
                         <Lock className="h-12 w-12 text-muted-foreground/30" />
                         <p className="text-lg font-medium text-muted-foreground/70">
                           {progress ? "No content uploaded" : "This content is locked"}
@@ -409,7 +421,7 @@ const Player = () => {
                   </div>
                 )
               ) : (
-                <div className="flex h-full items-center justify-center text-muted-foreground">
+                <div className="flex h-full items-center justify-center text-muted-foreground min-h-[200px]">
                   Select a lesson to start
                 </div>
               )}
@@ -417,7 +429,7 @@ const Player = () => {
           </div>
 
           {/* Lesson info + controls + chats */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-shrink-0">
             <div className="max-w-5xl mx-auto p-5 space-y-4">
               {/* Lesson title and metadata */}
               <div>
@@ -828,6 +840,9 @@ const Player = () => {
                       const isCloudinary = res.url?.includes('res.cloudinary.com');
                       const isLink = fileType === 'link' || (!isCloudinary && res.url?.startsWith('http') && !res.url?.includes(window.location.hostname));
 
+                      const itemId = res.id || String(idx);
+                      const isDownloading = downloadingId === itemId;
+
                       const handleDownload = (e: React.MouseEvent) => {
                         // For plain links, let the browser handle navigation
                         if (isLink) return;
@@ -835,6 +850,9 @@ const Player = () => {
 
                         // Determine the filename for download
                         const downloadName = res.originalName || res.title || 'download';
+
+                        // Show loading state
+                        setDownloadingId(itemId);
 
                         // Use the backend proxy for downloads — it handles CORS,
                         // Cloudinary raw files, and sets Content-Disposition correctly.
@@ -851,17 +869,39 @@ const Player = () => {
                           })
                           .then(blob => {
                             const blobUrl = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = blobUrl;
-                            a.download = downloadName;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(blobUrl);
+                            // Check if iOS/iPhone — use window.open fallback for iOS Safari
+                            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                            if (isIOS) {
+                              // On iOS, window.open with blob URL works better
+                              const newWindow = window.open(blobUrl, '_blank');
+                              if (!newWindow) {
+                                // Fallback: use anchor click anyway
+                                const a = document.createElement('a');
+                                a.href = blobUrl;
+                                a.download = downloadName;
+                                a.target = '_blank';
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              }
+                              // Delay revoke so iOS has time to process
+                              setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                            } else {
+                              const a = document.createElement('a');
+                              a.href = blobUrl;
+                              a.download = downloadName;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(blobUrl);
+                            }
                           })
                           .catch(() => {
                             // Fallback: open the original URL in a new tab
                             window.open(res.url, '_blank');
+                          })
+                          .finally(() => {
+                            setDownloadingId(null);
                           });
                       };
 
@@ -892,15 +932,19 @@ const Player = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-foreground truncate">{res.title || 'Resource'}</p>
+                            <p className="text-sm font-medium text-foreground truncate">{res.title || 'Resource'}</p>
                             {res.description && (
-                              <p className="text-[10px] text-muted-foreground truncate">{res.description}</p>
+                              <p className="text-xs text-muted-foreground truncate">{res.description}</p>
                             )}
                             {res.lessonTitle && (
-                              <p className="text-[10px] text-primary/70 truncate">Lesson: {res.lessonTitle}</p>
+                              <p className="text-xs text-primary/70 truncate">Lesson: {res.lessonTitle}</p>
                             )}
                           </div>
-                          <Download className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          {isDownloading ? (
+                            <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
+                          ) : (
+                            <Download className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          )}
                         </a>
                       );
                     })
@@ -928,26 +972,26 @@ const Player = () => {
                     projects.map((project: Project) => (
                       <div
                         key={project.id}
-                        className="rounded-lg border border-border p-4 space-y-3 hover:bg-accent/5 transition-colors"
+                        className="rounded-lg border border-border p-5 space-y-4 hover:bg-accent/5 transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-semibold text-sm text-foreground">{project.title}</h4>
+                          <h4 className="font-bold text-base text-foreground leading-snug">{project.title}</h4>
                           {project.dueDate && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
-                              <Calendar className="h-3 w-3" />
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-shrink-0">
+                              <Calendar className="h-4 w-4" />
                               {new Date(project.dueDate).toLocaleDateString()}
                             </div>
                           )}
                         </div>
 
                         {project.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
+                          <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
                             {project.description}
                           </p>
                         )}
 
-                        <div className="flex items-center justify-between pt-2 border-t border-border">
-                          <span className="text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between pt-3 border-t border-border">
+                          <span className="text-sm text-muted-foreground">
                             {project.submissionCount || 0} submission{project.submissionCount !== 1 ? 's' : ''}
                           </span>
                           <Button
@@ -957,7 +1001,7 @@ const Player = () => {
                               // Navigate to project details
                               window.location.href = `/course/${id}/project/${project.id}`;
                             }}
-                            className="h-7 text-xs"
+                            className="h-8 text-sm px-4"
                           >
                             View Details
                           </Button>

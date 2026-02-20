@@ -75,7 +75,7 @@ const CourseDetail = () => {
   }, [id, isAuthenticated]);
 
   const totalLessons = sections.reduce((acc, section) => acc + section.lessons.length, 0);
-  const isEnrolled = !!enrollment;
+  const isEnrolled = !!enrollment || !!course?.isEnrolled;
 
   const { data: userReview } = useQuery({
     queryKey: ['userReview', id],

@@ -11,9 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { projectsService, ProjectWithSubmission, ProjectSubmission } from '@/services/projects.service';
 import { useAuth } from '@/contexts/AuthContext';
-import { API_BASE_URL } from '@/lib/api';
-
-const API_ROOT = API_BASE_URL.replace('/api/v1', '');
+import { downloadProjectFile } from '@/lib/download';
 
 const ProjectDetail = () => {
   const { courseId, projectId } = useParams<{ courseId: string; projectId: string }>();
@@ -138,14 +136,14 @@ const ProjectDetail = () => {
               {project.description && (
                 <div>
                   <h3 className="font-semibold text-sm mb-2">Description</h3>
-                  <p className="text-sm text-muted-foreground">{project.description}</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{project.description}</p>
                 </div>
               )}
 
               {project.instructions && (
                 <div>
                   <h3 className="font-semibold text-sm mb-2">Instructions</h3>
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words">
                     <div dangerouslySetInnerHTML={{ __html: project.instructions }} />
                   </div>
                 </div>
@@ -154,15 +152,18 @@ const ProjectDetail = () => {
               {(project.attachment_url || project.attachmentUrl) && (
                 <div>
                   <h3 className="font-semibold text-sm mb-2">Project File</h3>
-                  <a
-                    href={`${API_ROOT}${project.attachment_url || project.attachmentUrl}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = project.attachment_url || project.attachmentUrl;
+                      const name = project.attachment_name || project.attachmentName || 'attachment';
+                      downloadProjectFile(url!, name);
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm cursor-pointer"
                   >
                     <Download className="h-4 w-4" />
                     {project.attachment_name || project.attachmentName || 'Download Attachment'}
-                  </a>
+                  </button>
                 </div>
               )}
             </div>
@@ -185,15 +186,18 @@ const ProjectDetail = () => {
                       {(submission.submissionUrl || submission.submission_url) && (submission.fileName || submission.file_name) && (
                         <div>
                           <span className="text-sm font-medium block mb-1">Submitted File</span>
-                          <a 
-                            href={`${API_ROOT}${submission.submissionUrl || submission.submission_url}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = submission.submissionUrl || submission.submission_url;
+                              const name = submission.fileName || submission.file_name || 'submission';
+                              downloadProjectFile(url!, name);
+                            }}
+                            className="inline-flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
                           >
                             <Paperclip className="h-3 w-3" />
                             {submission.fileName || submission.file_name}
-                          </a>
+                          </button>
                         </div>
                       )}
 
@@ -436,15 +440,19 @@ const ProjectDetail = () => {
                           </div>
 
                           {(sub.submissionUrl || sub.submission_url) && (sub.fileName || sub.file_name) && (
-                            <a
-                              href={`${API_ROOT}${sub.submissionUrl || sub.submission_url}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const url = sub.submissionUrl || sub.submission_url;
+                                const name = sub.fileName || sub.file_name || 'submission';
+                                downloadProjectFile(url!, name);
+                              }}
+                              className="inline-flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
                             >
                               <Paperclip className="h-3 w-3" />
+                              <Download className="h-3 w-3" />
                               {sub.fileName || sub.file_name}
-                            </a>
+                            </button>
                           )}
 
                           {(sub.submissionText || sub.submission_text) && (

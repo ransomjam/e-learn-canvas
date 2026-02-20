@@ -14,9 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { instructorService } from '@/services/instructor.service';
 import { projectsService } from '@/services/projects.service';
 import { coursesService, Course } from '@/services/courses.service';
-import { API_BASE_URL } from '@/lib/api';
-
-const API_ROOT = API_BASE_URL.replace('/api/v1', '');
+import { downloadProjectFile } from '@/lib/download';
 
 const InstructorSubmissions = () => {
     const { toast } = useToast();
@@ -218,15 +216,17 @@ const InstructorSubmissions = () => {
                                             {sub.submission_url && sub.file_name && (
                                                 <div className="flex items-center gap-3">
                                                     <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                                    <a
-                                                        href={`${API_ROOT}${sub.submission_url}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-sm text-primary hover:underline flex items-center gap-1"
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            downloadProjectFile(sub.submission_url, sub.file_name);
+                                                        }}
+                                                        className="text-sm text-primary hover:underline flex items-center gap-1 cursor-pointer"
                                                     >
                                                         {sub.file_name}
                                                         <Download className="h-3 w-3" />
-                                                    </a>
+                                                    </button>
                                                     {sub.file_size && (
                                                         <span className="text-xs text-muted-foreground">
                                                             ({(sub.file_size / 1024 / 1024).toFixed(2)} MB)

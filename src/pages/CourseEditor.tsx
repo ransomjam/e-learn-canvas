@@ -24,6 +24,32 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+const SortableLessonItem = ({ id, children }: { id: string; children: (props: any) => React.ReactNode }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+    return <>{children({ setNodeRef, attributes, listeners, style })}</>;
+};
 
 const CourseEditor = () => {
     const { id } = useParams<{ id: string }>();
@@ -229,6 +255,44 @@ const CourseEditor = () => {
             toast({ title: 'Failed to delete lesson', variant: 'destructive' });
         },
     });
+
+    const reorderLessonsMutation = useMutation({
+        mutationFn: ({ sectionId, lessonIds }: { sectionId: string; lessonIds: string[] }) =>
+            instructorService.reorderLessons(sectionId, lessonIds),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', id] });
+            toast({ title: 'Lessons reordered' });
+        }
+    });
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    const handleLessonDragEnd = (event: DragEndEvent, sectionId: string, sectionLessons: Lesson[]) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            const oldIndex = sectionLessons.findIndex((l) => l.id === active.id);
+            const newIndex = sectionLessons.findIndex((l) => l.id === over.id);
+            const newLessons = arrayMove(sectionLessons, oldIndex, newIndex);
+
+            queryClient.setQueryData(['courseLessons', id], (oldData: any) => {
+                if (!oldData) return oldData;
+                return oldData.map((section: any) => {
+                    if (section.id === sectionId) {
+                        return { ...section, lessons: newLessons };
+                    }
+                    return section;
+                });
+            });
+
+            reorderLessonsMutation.mutate({
+                sectionId,
+                lessonIds: newLessons.map((l) => l.id)
+            });
+        }
+    };
 
     const resetLessonForm = () => {
         setLessonForm({
@@ -874,103 +938,113 @@ const CourseEditor = () => {
                                                     {/* Existing Lessons */}
                                                     {section.lessons && section.lessons.length > 0 && (
                                                         <div className="space-y-2 mb-4">
-                                                            {section.lessons.map((lesson: Lesson, lessonIndex: number) => (
-                                                                <div
-                                                                    key={lesson.id}
-                                                                    className="flex items-center justify-between rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors"
-                                                                >
-                                                                    <div className="flex items-center gap-3">
-                                                                        <GripVertical className="h-3 w-3 text-muted-foreground" />
-                                                                        {lesson.type === 'video' ? (
-                                                                            <Play className="h-4 w-4 text-primary" />
-                                                                        ) : lesson.type === 'pdf' ? (
-                                                                            <FileText className="h-4 w-4 text-red-500" />
-                                                                        ) : lesson.type === 'ppt' ? (
-                                                                            <FileText className="h-4 w-4 text-orange-500" />
-                                                                        ) : lesson.type === 'doc' ? (
-                                                                            <FileText className="h-4 w-4 text-blue-500" />
-                                                                        ) : lesson.type === 'document' ? (
-                                                                            <FileText className="h-4 w-4 text-primary" />
-                                                                        ) : lesson.type === 'quiz' ? (
-                                                                            <HelpCircle className="h-4 w-4 text-accent" />
-                                                                        ) : (
-                                                                            <FileText className="h-4 w-4 text-primary" />
-                                                                        )}
-                                                                        <div>
-                                                                            <p className="text-sm font-medium text-foreground">{lesson.title}</p>
-                                                                            <div className="flex items-center gap-2 mt-0.5">
-                                                                                <Badge variant="outline" className="text-[10px] h-4">
-                                                                                    {getLessonTypeLabel(lesson.type)}
-                                                                                </Badge>
-                                                                                {lesson.duration && (
-                                                                                    <span className="text-xs text-muted-foreground">
-                                                                                        {lesson.duration} min
-                                                                                    </span>
-                                                                                )}
-                                                                                {lesson.isFree && (
-                                                                                    <Badge className="text-[10px] h-4 bg-emerald-500/20 text-emerald-400">
-                                                                                        Free
-                                                                                    </Badge>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-7 w-7"
-                                                                            onClick={() => {
-                                                                                setEditingLesson(editingLesson === lesson.id ? null : lesson.id);
-                                                                                if (editingLesson !== lesson.id) {
-                                                                                    let practiceFiles: any[] = [];
-                                                                                    try {
-                                                                                        let raw = lesson.practiceFiles;
-                                                                                        // Check if practiceFiles is effectively empty
-                                                                                        const isEmpty = !raw || (Array.isArray(raw) && raw.length === 0) || raw === '[]';
+                                                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleLessonDragEnd(e, section.id, section.lessons)}>
+                                                                <SortableContext items={section.lessons.map((l: any) => l.id)} strategy={verticalListSortingStrategy}>
+                                                                    {section.lessons.map((lesson: Lesson, lessonIndex: number) => (
+                                                                        <SortableLessonItem key={lesson.id} id={lesson.id}>
+                                                                            {({ setNodeRef, attributes, listeners, style }: any) => (
+                                                                                <div
+                                                                                    ref={setNodeRef} style={style}
+                                                                                    className="flex items-center justify-between rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors bg-background relative z-10"
+                                                                                >
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        <div {...attributes} {...listeners} className="cursor-grab hover:bg-secondary/50 p-1 rounded -ml-1 flex items-center justify-center">
+                                                                                            <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                                                                        </div>
+                                                                                        {lesson.type === 'video' ? (
+                                                                                            <Play className="h-4 w-4 text-primary" />
+                                                                                        ) : lesson.type === 'pdf' ? (
+                                                                                            <FileText className="h-4 w-4 text-red-500" />
+                                                                                        ) : lesson.type === 'ppt' ? (
+                                                                                            <FileText className="h-4 w-4 text-orange-500" />
+                                                                                        ) : lesson.type === 'doc' ? (
+                                                                                            <FileText className="h-4 w-4 text-blue-500" />
+                                                                                        ) : lesson.type === 'document' ? (
+                                                                                            <FileText className="h-4 w-4 text-primary" />
+                                                                                        ) : lesson.type === 'quiz' ? (
+                                                                                            <HelpCircle className="h-4 w-4 text-accent" />
+                                                                                        ) : (
+                                                                                            <FileText className="h-4 w-4 text-primary" />
+                                                                                        )}
+                                                                                        <div>
+                                                                                            <p className="text-sm font-medium text-foreground">{lesson.title}</p>
+                                                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                                                <Badge variant="outline" className="text-[10px] h-4">
+                                                                                                    {getLessonTypeLabel(lesson.type)}
+                                                                                                </Badge>
+                                                                                                {lesson.duration && (
+                                                                                                    <span className="text-xs text-muted-foreground">
+                                                                                                        {lesson.duration} min
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {lesson.isFree && (
+                                                                                                    <Badge className="text-[10px] h-4 bg-emerald-500/20 text-emerald-400">
+                                                                                                        Free
+                                                                                                    </Badge>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-7 w-7"
+                                                                                            onClick={() => {
+                                                                                                setEditingLesson(editingLesson === lesson.id ? null : lesson.id);
+                                                                                                if (editingLesson !== lesson.id) {
+                                                                                                    let practiceFiles: any[] = [];
+                                                                                                    try {
+                                                                                                        let raw = lesson.practiceFiles;
+                                                                                                        // Check if practiceFiles is effectively empty
+                                                                                                        const isEmpty = !raw || (Array.isArray(raw) && raw.length === 0) || raw === '[]';
 
-                                                                                        if (isEmpty && lesson.resources) {
-                                                                                            raw = lesson.resources;
-                                                                                        }
+                                                                                                        if (isEmpty && lesson.resources) {
+                                                                                                            raw = lesson.resources;
+                                                                                                        }
 
-                                                                                        practiceFiles = typeof raw === 'string'
-                                                                                            ? JSON.parse(raw || '[]')
-                                                                                            : (raw || []);
-                                                                                    } catch (e) {
-                                                                                        console.error('Error parsing practice files', e);
-                                                                                        practiceFiles = [];
-                                                                                    }
+                                                                                                        practiceFiles = typeof raw === 'string'
+                                                                                                            ? JSON.parse(raw || '[]')
+                                                                                                            : (raw || []);
+                                                                                                    } catch (e) {
+                                                                                                        console.error('Error parsing practice files', e);
+                                                                                                        practiceFiles = [];
+                                                                                                    }
 
-                                                                                    setLessonForm({
-                                                                                        title: lesson.title,
-                                                                                        type: lesson.type,
-                                                                                        content: lesson.content || '',
-                                                                                        videoUrl: lesson.videoUrl || '',
-                                                                                        duration: lesson.duration || 0,
-                                                                                        isFree: lesson.isFree,
-                                                                                        resources: Array.isArray(practiceFiles) ? practiceFiles : [],
-                                                                                        targetSectionId: '',
-                                                                                    });
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            <Settings2 className="h-3 w-3" />
-                                                                        </Button>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                                                            onClick={() => {
-                                                                                if (window.confirm('Delete this lesson?')) {
-                                                                                    deleteLessonMutation.mutate(lesson.id);
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            <Trash2 className="h-3 w-3" />
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                                                                    setLessonForm({
+                                                                                                        title: lesson.title,
+                                                                                                        type: lesson.type,
+                                                                                                        content: lesson.content || '',
+                                                                                                        videoUrl: lesson.videoUrl || '',
+                                                                                                        duration: lesson.duration || 0,
+                                                                                                        isFree: lesson.isFree,
+                                                                                                        resources: Array.isArray(practiceFiles) ? practiceFiles : [],
+                                                                                                        targetSectionId: '',
+                                                                                                    });
+                                                                                                }
+                                                                                            }}
+                                                                                        >
+                                                                                            <Settings2 className="h-3 w-3" />
+                                                                                        </Button>
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                                                            onClick={() => {
+                                                                                                if (window.confirm('Delete this lesson?')) {
+                                                                                                    deleteLessonMutation.mutate(lesson.id);
+                                                                                                }
+                                                                                            }}
+                                                                                        >
+                                                                                            <Trash2 className="h-3 w-3" />
+                                                                                        </Button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </SortableLessonItem>
+                                                                    ))}
+                                                                </SortableContext>
+                                                            </DndContext>
 
                                                             {/* Lesson Edit Form (inline) */}
                                                             {editingLesson &&

@@ -440,17 +440,17 @@ const Player = () => {
               </div>
 
               {/* Action buttons row - YouTube style */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 border-y border-border">
-                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <div className="flex items-center justify-between gap-1.5 sm:gap-3 py-2 sm:py-3 border-y border-border">
+                <div className="flex items-center gap-1 sm:gap-3">
                   {/* Like button */}
                   <Button
                     variant={likesData?.liked ? "default" : "outline"}
                     size="sm"
                     onClick={() => currentLessonId && toggleLikeMutation.mutate(currentLessonId)}
                     disabled={!currentLessonId || toggleLikeMutation.isPending}
-                    className="gap-2"
+                    className="gap-1 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
                   >
-                    <ThumbsUp className={`h-4 w-4 ${likesData?.liked ? 'fill-current' : ''}`} />
+                    <ThumbsUp className={`h-3 w-3 sm:h-4 sm:w-4 ${likesData?.liked ? 'fill-current' : ''}`} />
                     <span>{likesData?.likesCount || 0}</span>
                   </Button>
 
@@ -461,9 +461,9 @@ const Player = () => {
                       size="sm"
                       onClick={() => setShowRating(!showRating)}
                       disabled={!progress}
-                      className="gap-2"
+                      className="gap-1 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
                     >
-                      <Star className={`h-4 w-4 ${userReview?.rating ? 'fill-current text-yellow-400' : ''}`} />
+                      <Star className={`h-3 w-3 sm:h-4 sm:w-4 ${userReview?.rating ? 'fill-current text-yellow-400' : ''}`} />
                       <span>{userReview?.rating || course?.ratingAvg?.toFixed(1) || '0.0'}</span>
                     </Button>
 
@@ -513,33 +513,33 @@ const Player = () => {
                       variant="outline"
                       onClick={() => currentLessonId && completeLessonMutation.mutate(currentLessonId)}
                       disabled={completeLessonMutation.isPending}
-                      className="gap-2"
+                      className="gap-1 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
                     >
                       {completeLessonMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                       ) : (
-                        <CheckCircle className="h-4 w-4" />
+                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                       )}
-                      <span className="hidden xs:inline">Mark as</span> Complete
+                      <span className="hidden sm:inline">Mark as</span> Complete
                     </Button>
                   )}
                   {currentLesson?.isCompleted && (
-                    <span className="flex items-center gap-2 text-sm text-accent font-medium px-3 py-1.5 bg-accent/10 rounded-full">
-                      <CheckCircle className="h-4 w-4" /> Completed
+                    <span className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-accent font-medium px-2 sm:px-3 py-1 sm:py-1.5 bg-accent/10 rounded-full">
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Completed</span><span className="sm:hidden">Done</span>
                     </span>
                   )}
                 </div>
 
                 {/* Navigation buttons */}
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => goToLesson('prev')}
                     disabled={currentIndex <= 0}
-                    className="flex-1 sm:flex-none"
+                    className="h-7 sm:h-8 px-2 sm:px-3"
                   >
-                    <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                    <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
                     <span className="hidden sm:inline">Previous</span>
                   </Button>
                   <Button
@@ -547,10 +547,10 @@ const Player = () => {
                     size="sm"
                     onClick={() => goToLesson('next')}
                     disabled={currentIndex >= allLessons.length - 1}
-                    className="flex-1 sm:flex-none"
+                    className="h-7 sm:h-8 px-2 sm:px-3"
                   >
                     <span className="hidden sm:inline">Next</span>
-                    <ChevronRight className="h-4 w-4 sm:ml-1" />
+                    <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 sm:ml-1" />
                   </Button>
                 </div>
               </div>

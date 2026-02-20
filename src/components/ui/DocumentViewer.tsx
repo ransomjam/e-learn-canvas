@@ -302,25 +302,26 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                         />
                         {/* Minimal bottom bar */}
                         <div className={cn(
-                            "flex items-center justify-between px-2 py-1 bg-black/80 backdrop-blur-sm transition-opacity duration-300",
+                            "flex items-center justify-between px-2 py-1.5 bg-black/80 backdrop-blur-sm transition-opacity duration-300",
                             showToolbar ? "opacity-100" : "opacity-0"
                         )}>
-                            <span className="text-[10px] text-neutral-500 truncate">{title || 'Document'}</span>
+                            <span className="text-xs text-neutral-400 truncate pl-2">{title || 'Document'}</span>
                             <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-8 w-8 hover:bg-neutral-800 text-neutral-400">
+                                    {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                                </Button>
+                                <Button variant="ghost" size="sm" className="text-neutral-400 hover:bg-neutral-800 h-8 text-xs gap-1 mr-2" onClick={triggerDownload}>
+                                    <Download className="h-4 w-4" />
+                                    Download
+                                </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={toggleLandscape}
-                                    className="h-7 w-7 md:hidden hover:bg-neutral-800 text-neutral-400"
+                                    className="md:hidden text-neutral-300 hover:text-white hover:bg-neutral-800 h-9 w-auto px-2 gap-1 rounded-md bg-neutral-900 border border-neutral-800"
                                 >
-                                    <Smartphone className={cn("h-3.5 w-3.5 transition-transform", isLandscape && "rotate-90")} />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-neutral-800 text-neutral-400">
-                                    {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
-                                </Button>
-                                <Button variant="ghost" size="sm" className="text-neutral-400 hover:bg-neutral-800 h-7 text-[10px] gap-1" onClick={triggerDownload}>
-                                    <Download className="h-3 w-3" />
-                                    Download
+                                    <RotateCw className="h-4 w-4 stroke-[2.5px]" />
+                                    <Smartphone className={cn("h-5 w-5 stroke-[2px] transition-transform duration-300", isLandscape && "rotate-90")} />
                                 </Button>
                             </div>
                         </div>
@@ -371,14 +372,6 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     <Button variant="ghost" size="icon" onClick={() => zoom(1.25)} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
                         <ZoomIn className="h-3.5 w-3.5" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={toggleLandscape}
-                        className="h-7 w-7 md:hidden hover:bg-white/10 text-neutral-300"
-                    >
-                        <Smartphone className={cn("h-3.5 w-3.5 transition-transform", isLandscape && "rotate-90")} />
-                    </Button>
                     <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
                         {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
                     </Button>
@@ -414,37 +407,53 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                 </div>
             </div>
 
-            {/* Minimal Footer / Pagination — auto-hides */}
-            {numPages > 1 && (
-                <div className={cn(
-                    "absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center gap-3 py-1.5 bg-black/60 backdrop-blur-sm transition-opacity duration-300",
-                    showToolbar ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}>
+            {/* Minimal Footer / Pagination and Landscape — auto-hides */}
+            <div className={cn(
+                "absolute bottom-0 left-0 right-0 z-20 flex items-center px-2 py-1.5 bg-black/60 backdrop-blur-sm transition-opacity duration-300",
+                showToolbar ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}>
+                <div className="flex-1" />
+
+                {numPages > 1 ? (
+                    <div className="flex items-center justify-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => changePage(-1)}
+                            disabled={pageNum <= 1}
+                            className="hover:bg-white/10 text-neutral-300 h-8 text-xs"
+                        >
+                            <ChevronLeft className="h-4 w-4 mr-0.5" />
+                            Prev
+                        </Button>
+                        <span className="text-xs font-semibold text-neutral-400 min-w-[3rem] text-center">
+                            {pageNum} / {numPages}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => changePage(1)}
+                            disabled={pageNum >= numPages}
+                            className="hover:bg-white/10 text-neutral-300 h-8 text-xs"
+                        >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-0.5" />
+                        </Button>
+                    </div>
+                ) : <div className="flex-[2]" />}
+
+                <div className="flex-1 flex justify-end items-center px-2">
                     <Button
                         variant="ghost"
-                        size="sm"
-                        onClick={() => changePage(-1)}
-                        disabled={pageNum <= 1}
-                        className="hover:bg-white/10 text-neutral-300 h-7 text-xs"
+                        size="icon"
+                        onClick={toggleLandscape}
+                        className="md:hidden text-white hover:bg-white/20 h-10 w-auto px-2 gap-1 rounded-md"
                     >
-                        <ChevronLeft className="h-3.5 w-3.5 mr-0.5" />
-                        Prev
-                    </Button>
-                    <span className="text-xs text-neutral-400">
-                        {pageNum} / {numPages}
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => changePage(1)}
-                        disabled={pageNum >= numPages}
-                        className="hover:bg-white/10 text-neutral-300 h-7 text-xs"
-                    >
-                        Next
-                        <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                        <RotateCw className="h-4 w-4 text-white stroke-[2.5px]" />
+                        <Smartphone className={cn("h-6 w-6 text-white stroke-[2px] transition-transform duration-300", isLandscape && "rotate-90")} />
                     </Button>
                 </div>
-            )}
+            </div>
         </div>
     );
 

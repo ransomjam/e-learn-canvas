@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Smartphone, Settings, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Smartphone, Settings, SkipBack, SkipForward, RotateCw } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -336,16 +336,16 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                     </div>
 
                     {/* Right controls */}
-                    <div className="flex items-center gap-0.5 sm:gap-1">
+                    <div className="flex items-center gap-0.5 sm:gap-2">
                         {/* Mute toggle for mobile */}
                         <Button variant="ghost" size="icon" onClick={toggleMute} className="sm:hidden text-white hover:bg-white/20 h-8 w-8">
-                            {isMuted || volume === 0 ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                            {isMuted || volume === 0 ? <VolumeX className="h-4 w-4 text-white stroke-[2.5px]" /> : <Volume2 className="h-4 w-4 text-white stroke-[2.5px]" />}
                         </Button>
 
                         {/* Playback speed */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9 text-[10px] sm:text-xs font-bold tabular-nums">
+                                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9 text-xs font-extrabold tabular-nums">
                                     {playbackRate}x
                                 </Button>
                             </DropdownMenuTrigger>
@@ -370,7 +370,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="hidden sm:flex text-white hover:bg-white/20 h-9 w-9">
-                                    <Settings className="h-4 w-4" />
+                                    <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-white stroke-[2.5px]" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-32 bg-black/90 text-white border-white/20">
@@ -390,16 +390,6 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        {/* Landscape toggle — mobile only, prominent */}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={toggleLandscape}
-                            className="sm:hidden text-white hover:bg-white/20 h-8 w-8"
-                        >
-                            <Smartphone className={cn("h-3.5 w-3.5 transition-transform duration-300", isLandscape && "rotate-90")} />
-                        </Button>
-
                         {/* Fullscreen */}
                         <Button
                             variant="ghost"
@@ -407,7 +397,18 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                             onClick={toggleFullscreen}
                             className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9"
                         >
-                            {isFullscreen ? <Minimize className="h-4 w-4 sm:h-5 sm:w-5" /> : <Maximize className="h-4 w-4 sm:h-5 sm:w-5" />}
+                            {isFullscreen ? <Minimize className="h-4 w-4 sm:h-5 sm:w-5 text-white stroke-[2.5px]" /> : <Maximize className="h-4 w-4 sm:h-5 sm:w-5 text-white stroke-[2.5px]" />}
+                        </Button>
+
+                        {/* Landscape toggle — mobile only, prominent and far right */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={toggleLandscape}
+                            className="sm:hidden text-white hover:bg-white/20 h-10 w-auto px-2 gap-1 rounded-md"
+                        >
+                            <RotateCw className="h-4 w-4 text-white stroke-[2.5px]" />
+                            <Smartphone className={cn("h-6 w-6 text-white stroke-[2px] transition-transform duration-300", isLandscape && "rotate-90")} />
                         </Button>
                     </div>
                 </div>

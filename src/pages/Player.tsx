@@ -39,6 +39,9 @@ const Player = () => {
   const [activeTab, setActiveTab] = useState('content');
   const [chatMessage, setChatMessage] = useState('');
   const [projectSubmissionText, setProjectSubmissionText] = useState('');
+  const [projectSubmissionFile, setProjectSubmissionFile] = useState<File | null>(null);
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const projectFileInputRef = useRef<HTMLInputElement>(null);
   const [showRating, setShowRating] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [replyTo, setReplyTo] = useState<{ id: string; userName: string; message: string } | null>(null);
@@ -140,6 +143,22 @@ const Player = () => {
     onError: () => {
       toast({ title: 'Failed to like lesson', variant: 'destructive' });
     }
+  });
+
+  const submitProjectMutation = useMutation({
+    mutationFn: ({ projectId, text, file }: { projectId: string; text?: string; file?: File }) =>
+      projectsService.submitProject(projectId, { submissionText: text }, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courseProjects', id] });
+      toast({ title: 'Project submitted successfully!' });
+      setProjectSubmissionText('');
+      setProjectSubmissionFile(null);
+      setExpandedProjectId(null);
+      if (projectFileInputRef.current) projectFileInputRef.current.value = '';
+    },
+    onError: () => {
+      toast({ title: 'Failed to submit project', variant: 'destructive' });
+    },
   });
 
   const ratingMutation = useMutation({
@@ -969,45 +988,145 @@ const Player = () => {
                       </p>
                     </div>
                   ) : (
-                    projects.map((project: Project) => (
-                      <div
-                        key={project.id}
-                        className="rounded-lg border border-border p-5 space-y-4 hover:bg-accent/5 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-bold text-base text-foreground leading-snug">{project.title}</h4>
-                          {project.dueDate && (
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-shrink-0">
-                              <Calendar className="h-4 w-4" />
-                              {new Date(project.dueDate).toLocaleDateString()}
+                    projects.map((project: Project) => {
+                      const isExpanded = expandedProjectId === project.id;
+                      return (
+                        <div
+                          key={project.id}
+                          className="rounded-lg border border-border p-5 space-y-4 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-bold text-base text-foreground leading-snug">{project.title}</h4>
+                            {(project.dueDate || project.due_date) && (
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-shrink-0">
+                                <Calendar className="h-4 w-4" />
+                                {new Date(project.dueDate || project.due_date!).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+
+                          {project.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                              {project.description}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between pt-3 border-t border-border">
+                            <span className="text-sm text-muted-foreground">
+                              {project.submissionCount || project.submission_count || 0} submission{(project.submissionCount || project.submission_count || 0) !== 1 ? 's' : ''}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {user?.role !== 'instructor' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    if (isExpanded) {
+                                      setExpandedProjectId(null);
+                                      setProjectSubmissionText('');
+                                      setProjectSubmissionFile(null);
+                                      if (projectFileInputRef.current) projectFileInputRef.current.value = '';
+                                    } else {
+                                      setExpandedProjectId(project.id);
+                                    }
+                                  }}
+                                  className="h-8 text-sm px-4"
+                                >
+                                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                                  {isExpanded ? 'Cancel' : 'Submit Project'}
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  navigate(`/course/${id}/project/${project.id}`);
+                                }}
+                                className="h-8 text-sm px-4"
+                              >
+                                View Details
+                              </Button>
                             </div>
+                          </div>
+
+                          {/* Inline submit form */}
+                          {isExpanded && user?.role !== 'instructor' && (
+                            <form
+                              className="space-y-3 pt-3 border-t border-border"
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                if (!projectSubmissionText.trim() && !projectSubmissionFile) {
+                                  toast({ title: 'Please upload a file or provide a description', variant: 'destructive' });
+                                  return;
+                                }
+                                submitProjectMutation.mutate({
+                                  projectId: project.id,
+                                  text: projectSubmissionText || undefined,
+                                  file: projectSubmissionFile || undefined,
+                                });
+                              }}
+                            >
+                              <div>
+                                <label className="text-sm font-medium mb-1.5 block">Upload File</label>
+                                <div className="border-2 border-dashed border-border rounded-lg p-3 text-center hover:bg-muted/20 transition-colors">
+                                  <input
+                                    ref={projectFileInputRef}
+                                    type="file"
+                                    onChange={(e) => setProjectSubmissionFile(e.target.files?.[0] || null)}
+                                    className="hidden"
+                                    id={`project-file-${project.id}`}
+                                  />
+                                  <label htmlFor={`project-file-${project.id}`} className="cursor-pointer">
+                                    {projectSubmissionFile ? (
+                                      <div className="flex items-center justify-center gap-2 text-sm text-primary">
+                                        <Paperclip className="h-4 w-4" />
+                                        {projectSubmissionFile.name}
+                                        <span className="text-muted-foreground">
+                                          ({(projectSubmissionFile.size / 1024 / 1024).toFixed(2)} MB)
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-1">
+                                        <Upload className="h-6 w-6 mx-auto text-muted-foreground" />
+                                        <p className="text-xs text-muted-foreground">Click to select a file</p>
+                                      </div>
+                                    )}
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-sm font-medium mb-1.5 block">Description / Notes (Optional)</label>
+                                <Textarea
+                                  value={projectSubmissionText}
+                                  onChange={(e) => setProjectSubmissionText(e.target.value)}
+                                  placeholder="Describe your project submission..."
+                                  rows={3}
+                                />
+                              </div>
+
+                              <Button
+                                type="submit"
+                                disabled={submitProjectMutation.isPending}
+                                className="w-full"
+                                size="sm"
+                              >
+                                {submitProjectMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Submitting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="mr-2 h-4 w-4" />
+                                    Submit Project
+                                  </>
+                                )}
+                              </Button>
+                            </form>
                           )}
                         </div>
-
-                        {project.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                            {project.description}
-                          </p>
-                        )}
-
-                        <div className="flex items-center justify-between pt-3 border-t border-border">
-                          <span className="text-sm text-muted-foreground">
-                            {project.submissionCount || 0} submission{project.submissionCount !== 1 ? 's' : ''}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              // Navigate to project details
-                              window.location.href = `/course/${id}/project/${project.id}`;
-                            }}
-                            className="h-8 text-sm px-4"
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </ScrollArea>

@@ -112,7 +112,7 @@ const getEnrollmentCodes = asyncHandler(async (req, res) => {
         params.push(courseId);
     }
 
-    if (isUsed !== undefined) {
+    if (isUsed !== undefined && isUsed !== '') {
         whereClause += ` AND ec.is_used = $${paramIndex++}`;
         params.push(isUsed === 'true');
     }

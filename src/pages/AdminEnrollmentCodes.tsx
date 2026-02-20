@@ -28,7 +28,7 @@ const AdminEnrollmentCodes = () => {
     const [copiedClaimLink, setCopiedClaimLink] = useState(false);
 
     // Fetch enrollment codes
-    const { data: codesData, isLoading: codesLoading } = useQuery({
+    const { data: codesData, isLoading: codesLoading, error: codesError } = useQuery({
         queryKey: ['enrollmentCodes', page, searchQuery, filterUsed, filterCourseId],
         queryFn: () => adminService.getEnrollmentCodes({
             page,
@@ -194,6 +194,21 @@ const AdminEnrollmentCodes = () => {
                     {codesLoading ? (
                         <div className="flex items-center justify-center py-20">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                    ) : codesError ? (
+                        <div className="py-16 text-center">
+                            <XCircle className="mx-auto h-12 w-12 text-red-400/50" />
+                            <p className="mt-4 text-red-400 font-medium">Failed to load enrollment codes</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {(codesError as any)?.response?.data?.message || (codesError as Error)?.message || 'An unexpected error occurred.'}
+                            </p>
+                            <Button
+                                variant="outline"
+                                className="mt-4"
+                                onClick={() => queryClient.invalidateQueries({ queryKey: ['enrollmentCodes'] })}
+                            >
+                                Retry
+                            </Button>
                         </div>
                     ) : codesData?.codes && codesData.codes.length > 0 ? (
                         <>

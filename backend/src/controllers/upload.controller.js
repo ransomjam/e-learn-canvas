@@ -129,4 +129,90 @@ const uploadFile = asyncHandler(async (req, res) => {
     });
 });
 
-module.exports = { upload, projectUpload, uploadFile, uploadToCloudinary, detectFileType, cloudinaryEnabled };
+// ── Proxy download: stream a remote file to the client with correct filename ─
+const downloadFile = asyncHandler(async (req, res) => {
+    const { url, filename } = req.query;
+
+    if (!url) {
+        throw new ApiError(400, 'Missing "url" query parameter');
+    }
+
+    const downloadName = filename || 'download';
+
+    // --- Local uploads (served from /uploads/) ---
+    if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+        const safePath = path.normalize(url.replace(/^\//, ''));
+        const filePath = path.join(__dirname, '../../', safePath);
+
+        // Prevent directory traversal
+        const uploadsDir = path.resolve(__dirname, '../../uploads');
+        const resolved = path.resolve(filePath);
+        if (!resolved.startsWith(uploadsDir)) {
+            throw new ApiError(403, 'Access denied');
+        }
+
+        if (!fs.existsSync(resolved)) {
+            throw new ApiError(404, 'File not found');
+        }
+
+        // Set headers for download
+        const ext = path.extname(downloadName) || path.extname(resolved);
+        const finalName = downloadName.endsWith(ext) ? downloadName : downloadName + ext;
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalName)}"`);
+        return fs.createReadStream(resolved).pipe(res);
+    }
+
+    // --- Remote URL (Cloudinary, etc.) ---
+    // Use dynamic import for node-fetch or native https
+    const https = require('https');
+    const http = require('http');
+    const protocol = url.startsWith('https') ? https : http;
+
+    protocol.get(url, (proxyRes) => {
+        if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+            // Follow redirect once
+            const redirectProtocol = proxyRes.headers.location.startsWith('https') ? https : http;
+            redirectProtocol.get(proxyRes.headers.location, (redirectRes) => {
+                streamResponse(redirectRes, res, downloadName, url);
+            }).on('error', (err) => {
+                console.error('Download redirect error:', err.message);
+                res.status(502).json({ success: false, message: 'Failed to download file' });
+            });
+            return;
+        }
+        streamResponse(proxyRes, res, downloadName, url);
+    }).on('error', (err) => {
+        console.error('Download proxy error:', err.message);
+        res.status(502).json({ success: false, message: 'Failed to download file' });
+    });
+});
+
+function streamResponse(proxyRes, res, downloadName, originalUrl) {
+    if (proxyRes.statusCode !== 200) {
+        res.status(proxyRes.statusCode || 502).json({ success: false, message: 'File not available' });
+        return;
+    }
+
+    // Determine extension from the original URL if the download name doesn't have one
+    let ext = path.extname(downloadName);
+    if (!ext) {
+        try {
+            const urlPath = new URL(originalUrl).pathname;
+            ext = path.extname(urlPath) || '';
+        } catch { /* ignore */ }
+    }
+    const finalName = ext && !downloadName.endsWith(ext) ? downloadName + ext : downloadName;
+
+    // Forward content headers
+    if (proxyRes.headers['content-type']) {
+        res.setHeader('Content-Type', proxyRes.headers['content-type']);
+    }
+    if (proxyRes.headers['content-length']) {
+        res.setHeader('Content-Length', proxyRes.headers['content-length']);
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalName)}"`);
+
+    proxyRes.pipe(res);
+}
+
+module.exports = { upload, projectUpload, uploadFile, downloadFile, uploadToCloudinary, detectFileType, cloudinaryEnabled };

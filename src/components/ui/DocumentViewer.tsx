@@ -15,6 +15,30 @@ interface DocumentViewerProps {
 }
 
 const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) => {
+    // Download helper — routes through backend proxy for reliable cross-origin downloads
+    const triggerDownload = () => {
+        const downloadName = title || 'download';
+        const proxyUrl = `/api/v1/upload/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(downloadName)}`;
+        const token = localStorage.getItem('accessToken');
+        fetch(proxyUrl, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+            .then(r => {
+                if (!r.ok) throw new Error('Download failed');
+                return r.blob();
+            })
+            .then(blob => {
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = downloadName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            })
+            .catch(() => window.open(url, '_blank'));
+    };
     // PDF State
     const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
     const [pageNum, setPageNum] = useState(1);
@@ -257,8 +281,8 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                             <p>Microsoft Office files cannot be previewed on localhost due to browser security restrictions.</p>
                             <p className="font-medium text-white">Tip: Upload PDF files for instant preview.</p>
                         </div>
-                        <Button asChild>
-                            <a href={url} download>Download File</a>
+                        <Button onClick={triggerDownload}>
+                            Download File
                         </Button>
                     </div>
                 ) : (
@@ -289,11 +313,9 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                                 <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-neutral-800 text-neutral-400">
                                     {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
                                 </Button>
-                                <Button variant="ghost" size="sm" asChild className="text-neutral-400 hover:bg-neutral-800 h-7 text-[10px] gap-1">
-                                    <a href={url} download target="_blank" rel="noopener noreferrer">
-                                        <Download className="h-3 w-3" />
-                                        Download
-                                    </a>
+                                <Button variant="ghost" size="sm" className="text-neutral-400 hover:bg-neutral-800 h-7 text-[10px] gap-1" onClick={triggerDownload}>
+                                    <Download className="h-3 w-3" />
+                                    Download
                                 </Button>
                             </div>
                         </div>
@@ -356,10 +378,8 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
                         {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
                     </Button>
-                    <Button variant="ghost" size="icon" asChild className="h-7 w-7 hover:bg-white/10 text-neutral-300">
-                        <a href={url} download target="_blank" rel="noopener noreferrer">
-                            <Download className="h-3.5 w-3.5" />
-                        </a>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/10 text-neutral-300" onClick={triggerDownload}>
+                        <Download className="h-3.5 w-3.5" />
                     </Button>
                 </div>
             </div>
@@ -379,8 +399,8 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                 {error && (
                     <div className="flex flex-col items-center justify-center text-center p-8 text-neutral-400">
                         <p className="mb-4">{error}</p>
-                        <Button variant="outline" asChild>
-                            <a href={url} download>Download instead</a>
+                        <Button variant="outline" onClick={triggerDownload}>
+                            Download instead
                         </Button>
                     </div>
                 )}

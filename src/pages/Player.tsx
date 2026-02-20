@@ -836,35 +836,33 @@ const Player = () => {
                         // Determine the filename for download
                         const downloadName = res.originalName || res.title || 'download';
 
-                        if (isCloudinary) {
-                          // For Cloudinary URLs, add fl_attachment to force download with original name
-                          let downloadUrl = res.url;
-                          try {
-                            // Pattern: .../upload/v123/... → .../upload/fl_attachment:filename/v123/...
-                            const uploadIdx = downloadUrl.indexOf('/upload/');
-                            if (uploadIdx !== -1) {
-                              const afterUpload = downloadUrl.substring(uploadIdx + 8); // after '/upload/'
-                              const safeName = downloadName.replace(/[^a-zA-Z0-9._-]/g, '_');
-                              downloadUrl = downloadUrl.substring(0, uploadIdx + 8) + `fl_attachment:${safeName}/` + afterUpload;
-                            }
-                          } catch { /* fallback to original URL */ }
-                          window.open(downloadUrl, '_blank');
-                        } else {
-                          // For same-origin files, use fetch + blob for reliable download
-                          fetch(res.url)
-                            .then(r => r.blob())
-                            .then(blob => {
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = downloadName;
-                              document.body.appendChild(a);
-                              a.click();
-                              document.body.removeChild(a);
-                              URL.revokeObjectURL(url);
-                            })
-                            .catch(() => window.open(res.url, '_blank'));
-                        }
+                        // Use the backend proxy for downloads — it handles CORS,
+                        // Cloudinary raw files, and sets Content-Disposition correctly.
+                        const proxyUrl = `/api/v1/upload/download?url=${encodeURIComponent(res.url)}&filename=${encodeURIComponent(downloadName)}`;
+
+                        // Use fetch with auth token to go through the proxy
+                        const token = localStorage.getItem('accessToken');
+                        fetch(proxyUrl, {
+                          headers: token ? { Authorization: `Bearer ${token}` } : {},
+                        })
+                          .then(r => {
+                            if (!r.ok) throw new Error('Download failed');
+                            return r.blob();
+                          })
+                          .then(blob => {
+                            const blobUrl = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = blobUrl;
+                            a.download = downloadName;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(blobUrl);
+                          })
+                          .catch(() => {
+                            // Fallback: open the original URL in a new tab
+                            window.open(res.url, '_blank');
+                          });
                       };
 
                       return (

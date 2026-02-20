@@ -190,7 +190,7 @@ const EnrollmentClaim = () => {
                                                             className="flex items-center justify-between rounded-lg bg-secondary/40 px-4 py-2.5"
                                                         >
                                                             <div className="flex items-center gap-3">
-                                                                <code className="text-sm font-mono font-medium text-foreground tracking-wider">
+                                                                <code className="text-sm font-mono font-medium text-foreground tracking-wider blur-sm select-none pointer-events-none">
                                                                     {code.code}
                                                                 </code>
                                                                 {code.expiresAt && (

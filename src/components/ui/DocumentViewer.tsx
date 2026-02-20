@@ -25,20 +25,39 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     const [error, setError] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isLandscape, setIsLandscape] = useState(false);
+    const [showToolbar, setShowToolbar] = useState(true);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const viewerAreaRef = useRef<HTMLDivElement>(null);
     const renderTaskRef = useRef<any>(null);
+    const toolbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Pinch-to-zoom refs
     const lastTouchDistRef = useRef<number | null>(null);
     const pinchBaseScaleRef = useRef<number>(1.0);
 
+    // Auto-hide toolbar after inactivity
+    const resetToolbarTimer = useCallback(() => {
+        setShowToolbar(true);
+        if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
+        toolbarTimerRef.current = setTimeout(() => setShowToolbar(false), 4000);
+    }, []);
+
+    useEffect(() => {
+        resetToolbarTimer();
+        return () => {
+            if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
+        };
+    }, [resetToolbarTimer]);
+
     // Initial load for PDF
     useEffect(() => {
         if (type === 'pdf') {
             setLoading(true);
+            setError(null);
+            setPdfDoc(null);
+            setPageNum(1);
             const loadingTask = pdfjsLib.getDocument(url);
 
             loadingTask.promise
@@ -61,7 +80,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
         try {
             const page = await pdfDoc.getPage(pageNum);
             const defaultViewport = page.getViewport({ scale: 1.0 });
-            const containerWidth = viewerAreaRef.current.clientWidth - 32; // minus padding
+            const containerWidth = viewerAreaRef.current.clientWidth - 8; // minimal padding
             const fitScale = containerWidth / defaultViewport.width;
             setAutoScale(fitScale);
             setScale(fitScale);
@@ -78,7 +97,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
         return () => window.removeEventListener('resize', handleResize);
     }, [pdfDoc, computeFitScale]);
 
-    // Render PDF page
+    // Render PDF page with high-DPI support
     useEffect(() => {
         if (!pdfDoc || !canvasRef.current || type !== 'pdf') return;
 
@@ -90,12 +109,19 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                 }
 
                 const page = await pdfDoc.getPage(pageNum);
-                const viewport = page.getViewport({ scale });
+                const dpr = window.devicePixelRatio || 1;
+                const viewport = page.getViewport({ scale: scale * dpr });
+                const displayViewport = page.getViewport({ scale });
                 const canvas = canvasRef.current!;
                 const context = canvas.getContext('2d')!;
 
-                canvas.height = viewport.height;
+                // Render at high resolution
                 canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                // Display at logical size (CSS)
+                canvas.style.width = `${displayViewport.width}px`;
+                canvas.style.height = `${displayViewport.height}px`;
 
                 const renderContext = {
                     canvasContext: context,
@@ -123,10 +149,12 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
 
     const zoom = (factor: number) => {
         setScale((prev) => Math.max(0.25, Math.min(4.0, prev * factor)));
+        resetToolbarTimer();
     };
 
     const resetZoom = () => {
         if (autoScale) setScale(autoScale);
+        resetToolbarTimer();
     };
 
     const toggleFullscreen = () => {
@@ -141,6 +169,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
             document.exitFullscreen();
             setIsFullscreen(false);
         }
+        resetToolbarTimer();
     };
 
     useEffect(() => {
@@ -195,27 +224,38 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
         };
     }, [type, scale]);
 
-    // Lock orientation when landscape mode is toggled
-    const toggleLandscape = () => {
-        setIsLandscape(prev => !prev);
+    // Landscape toggle with Screen Orientation API fallback
+    const toggleLandscape = async () => {
+        const next = !isLandscape;
+        setIsLandscape(next);
+        try {
+            if (next && screen.orientation && (screen.orientation as any).lock) {
+                await (screen.orientation as any).lock('landscape');
+            } else if (!next && screen.orientation && (screen.orientation as any).unlock) {
+                (screen.orientation as any).unlock();
+            }
+        } catch { /* orientation lock not supported – CSS fallback used */ }
     };
 
     if (type === 'ppt' || type === 'doc' || type === 'pptx' || type === 'docx') {
         // Use Google Docs Viewer for Office files (works with publicly accessible URLs)
-        // For localhost/dev, show a download fallback since external viewers can't reach local URLs.
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
         const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
 
         const content = (
-            <div className={cn("flex flex-col h-full bg-neutral-100 dark:bg-neutral-900 rounded-lg overflow-hidden", className)}>
+            <div
+                ref={containerRef}
+                className={cn("flex flex-col h-full bg-black overflow-hidden", className)}
+                onMouseMove={resetToolbarTimer}
+                onTouchStart={resetToolbarTimer}
+            >
                 {isLocalhost ? (
-                    <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center h-full">
+                    <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center h-full bg-neutral-900">
                         <Download className="h-12 w-12 text-primary mb-4" />
-                        <h3 className="text-lg font-semibold">Local Preview Unavailable</h3>
-                        <div className="text-sm text-muted-foreground mb-6 max-w-sm space-y-2">
+                        <h3 className="text-lg font-semibold text-white">Local Preview Unavailable</h3>
+                        <div className="text-sm text-neutral-400 mb-6 max-w-sm space-y-2">
                             <p>Microsoft Office files cannot be previewed on localhost due to browser security restrictions.</p>
-                            <p className="font-medium text-foreground">Tip: Upload PDF files for instant preview.</p>
+                            <p className="font-medium text-white">Tip: Upload PDF files for instant preview.</p>
                         </div>
                         <Button asChild>
                             <a href={url} download>Download File</a>
@@ -225,20 +265,27 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     <div className="flex flex-col h-full w-full">
                         <iframe
                             src={googleViewerUrl}
-                            className="w-full flex-1 min-h-[400px] sm:min-h-[500px] border-none"
+                            className="w-full flex-1 border-none"
+                            style={{ minHeight: '100%' }}
                             title={title || "Document Viewer"}
                             allowFullScreen
                         />
-                        {/* Fallback download button for mobile */}
-                        <div className="flex items-center justify-between px-3 py-2 bg-neutral-800 border-t border-neutral-700">
-                            <span className="text-xs text-neutral-400 truncate">{title || 'Document'}</span>
-                            <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" onClick={toggleLandscape} className="h-8 w-8 hover:bg-neutral-700 text-neutral-300 md:hidden" title="Toggle landscape">
-                                    <Smartphone className={cn("h-4 w-4 transition-transform", isLandscape && "rotate-90")} />
+                        {/* Minimal bottom bar */}
+                        <div className={cn(
+                            "flex items-center justify-between px-2 py-1 bg-black/80 backdrop-blur-sm transition-opacity duration-300",
+                            showToolbar ? "opacity-100" : "opacity-0"
+                        )}>
+                            <span className="text-[10px] text-neutral-500 truncate">{title || 'Document'}</span>
+                            <div className="flex items-center gap-0.5">
+                                <Button variant="ghost" size="icon" onClick={toggleLandscape} className="h-7 w-7 hover:bg-neutral-800 text-neutral-400 md:hidden" title="Toggle landscape">
+                                    <Smartphone className={cn("h-3.5 w-3.5 transition-transform", isLandscape && "rotate-90")} />
                                 </Button>
-                                <Button variant="ghost" size="sm" asChild className="text-neutral-300 hover:bg-neutral-700 h-8 text-xs gap-1.5">
+                                <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-neutral-800 text-neutral-400">
+                                    {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+                                </Button>
+                                <Button variant="ghost" size="sm" asChild className="text-neutral-400 hover:bg-neutral-800 h-7 text-[10px] gap-1">
                                     <a href={url} download target="_blank" rel="noopener noreferrer">
-                                        <Download className="h-3.5 w-3.5" />
+                                        <Download className="h-3 w-3" />
                                         Download
                                     </a>
                                 </Button>
@@ -264,50 +311,55 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     const pdfContent = (
         <div
             ref={containerRef}
-            className={cn("flex flex-col bg-neutral-900 rounded-lg overflow-hidden shadow-lg", isLandscape && "h-full", className)}
+            className={cn("flex flex-col bg-black overflow-hidden", isLandscape && "h-full", className)}
+            onMouseMove={resetToolbarTimer}
+            onTouchStart={resetToolbarTimer}
         >
-            {/* Toolbar */}
-            <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-neutral-800 border-b border-neutral-700 text-neutral-200">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                        {type}
-                    </span>
-                    {title && (
-                        <span className="text-sm font-medium truncate max-w-[120px] sm:max-w-[200px]" title={title}>
-                            {title}
+            {/* Minimal Toolbar — auto-hides */}
+            <div className={cn(
+                "absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-2 py-1 bg-black/60 backdrop-blur-sm transition-opacity duration-300",
+                showToolbar ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}>
+                <div className="flex items-center gap-1">
+                    {numPages > 1 && (
+                        <span className="text-[10px] text-neutral-400">
+                            {pageNum}/{numPages}
                         </span>
                     )}
                 </div>
 
-                <div className="flex items-center gap-0.5 sm:gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => zoom(0.8)} className="h-8 w-8 hover:bg-neutral-700 text-neutral-300">
-                        <ZoomOut className="h-4 w-4" />
+                <div className="flex items-center gap-0">
+                    <Button variant="ghost" size="icon" onClick={() => zoom(0.8)} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
+                        <ZoomOut className="h-3.5 w-3.5" />
                     </Button>
-                    <button onClick={resetZoom} className="text-xs w-12 text-center hover:text-white transition-colors" title="Reset zoom">
+                    <button onClick={resetZoom} className="text-[10px] w-10 text-center text-neutral-400 hover:text-white transition-colors" title="Reset zoom">
                         {Math.round(scale * 100)}%
                     </button>
-                    <Button variant="ghost" size="icon" onClick={() => zoom(1.25)} className="h-8 w-8 hover:bg-neutral-700 text-neutral-300">
-                        <ZoomIn className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" onClick={() => zoom(1.25)} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
+                        <ZoomIn className="h-3.5 w-3.5" />
                     </Button>
-                    <div className="w-px h-4 bg-neutral-700 mx-1 sm:mx-2" />
-                    <Button variant="ghost" size="icon" onClick={toggleLandscape} className="h-8 w-8 hover:bg-neutral-700 text-neutral-300 md:hidden" title="Toggle landscape view">
-                        <Smartphone className={cn("h-4 w-4 transition-transform", isLandscape && "rotate-90")} />
+                    <Button variant="ghost" size="icon" onClick={toggleLandscape} className="h-7 w-7 hover:bg-white/10 text-neutral-300 md:hidden" title="Toggle landscape view">
+                        <Smartphone className={cn("h-3.5 w-3.5 transition-transform", isLandscape && "rotate-90")} />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-8 w-8 hover:bg-neutral-700 text-neutral-300">
-                        {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                    <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-7 w-7 hover:bg-white/10 text-neutral-300">
+                        {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
                     </Button>
-                    <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:bg-neutral-700 text-neutral-300">
+                    <Button variant="ghost" size="icon" asChild className="h-7 w-7 hover:bg-white/10 text-neutral-300">
                         <a href={url} download target="_blank" rel="noopener noreferrer">
-                            <Download className="h-4 w-4" />
+                            <Download className="h-3.5 w-3.5" />
                         </a>
                     </Button>
                 </div>
             </div>
 
             {/* Viewer Area */}
-            <div ref={viewerAreaRef} className="flex-1 overflow-auto p-2 sm:p-4 flex justify-center bg-neutral-900 min-h-[300px] sm:min-h-[500px] relative" style={{ touchAction: 'manipulation' }}>
+            <div
+                ref={viewerAreaRef}
+                className="flex-1 overflow-auto flex justify-center bg-black min-h-[300px] relative"
+                style={{ touchAction: 'manipulation' }}
+            >
                 {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-neutral-900/80 z-10">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                 )}
@@ -321,36 +373,39 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     </div>
                 )}
 
-                <div className="relative shadow-2xl">
-                    <canvas ref={canvasRef} className="max-w-full block" style={{ width: '100%', height: 'auto' }} />
+                <div className="relative">
+                    <canvas ref={canvasRef} className="block max-w-full" />
                 </div>
             </div>
 
-            {/* Footer / Pagination */}
+            {/* Minimal Footer / Pagination — auto-hides */}
             {numPages > 1 && (
-                <div className="flex items-center justify-center gap-4 py-3 bg-neutral-800 border-t border-neutral-700 text-neutral-200">
+                <div className={cn(
+                    "absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center gap-3 py-1.5 bg-black/60 backdrop-blur-sm transition-opacity duration-300",
+                    showToolbar ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}>
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => changePage(-1)}
                         disabled={pageNum <= 1}
-                        className="hover:bg-neutral-700 text-neutral-300"
+                        className="hover:bg-white/10 text-neutral-300 h-7 text-xs"
                     >
-                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        <ChevronLeft className="h-3.5 w-3.5 mr-0.5" />
                         Prev
                     </Button>
-                    <span className="text-sm font-medium">
-                        Page {pageNum} of {numPages}
+                    <span className="text-xs text-neutral-400">
+                        {pageNum} / {numPages}
                     </span>
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => changePage(1)}
                         disabled={pageNum >= numPages}
-                        className="hover:bg-neutral-700 text-neutral-300"
+                        className="hover:bg-white/10 text-neutral-300 h-7 text-xs"
                     >
                         Next
-                        <ChevronRight className="h-4 w-4 ml-1" />
+                        <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                     </Button>
                 </div>
             )}

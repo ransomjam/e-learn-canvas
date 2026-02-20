@@ -352,7 +352,7 @@ const CourseEditor = () => {
                 resources: [...(prev.resources || []), newResource]
             }));
 
-            toast({ title: 'Practice file uploaded!' });
+            toast({ title: 'Resource uploaded!' });
         } catch {
             toast({ title: 'Upload failed', variant: 'destructive' });
         } finally {
@@ -1084,12 +1084,12 @@ const CourseEditor = () => {
                                                                             </div>
                                                                         </div>
 
-                                                                        {/* Practice Files */}
+                                                                        {/* Resources */}
                                                                         <div className="space-y-3 pt-4 border-t border-border">
                                                                             <div className="flex items-center justify-between">
-                                                                                <Label className="text-xs font-semibold">Practice Files</Label>
+                                                                                <Label className="text-xs font-semibold">Resources</Label>
                                                                                 <span className="text-[10px] text-muted-foreground bg-secondary rounded-full px-2 py-0.5">
-                                                                                    {lessonForm.resources.length} file{lessonForm.resources.length === 1 ? '' : 's'}
+                                                                                    {lessonForm.resources.length} resource{lessonForm.resources.length === 1 ? '' : 's'}
                                                                                 </span>
                                                                             </div>
                                                                             <Button
@@ -1113,7 +1113,7 @@ const CourseEditor = () => {
                                                                                 disabled={isUploading}
                                                                             >
                                                                                 {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                                                                                Add File
+                                                                                Add Resource
                                                                             </Button>
                                                                             {lessonForm.resources && lessonForm.resources.length > 0 ? (
                                                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
@@ -1136,7 +1136,7 @@ const CourseEditor = () => {
                                                                                 </div>
                                                                             ) : (
                                                                                 <p className="text-xs text-muted-foreground">
-                                                                                    No practice files added for this lesson yet.
+                                                                                    No resources added for this lesson yet.
                                                                                 </p>
                                                                             )}
                                                                         </div>

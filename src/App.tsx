@@ -28,6 +28,7 @@ const AdminInstructors = lazy(() => import("./pages/AdminInstructors"));
 const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
 const Wishlist = lazy(() => import("./pages/Wishlist"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const EnrollmentClaim = lazy(() => import("./pages/EnrollmentClaim"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -43,169 +44,179 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1009067757110
 
 const App = () => (
   <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/courses" element={<Courses />} />
-            <Route path="/course/:id" element={<CourseDetail />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/payment/callback" element={<PaymentCallback />} />
-            <Route path="/dashboard" element={<Navigate to="/my-courses" replace />} />
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/courses" element={<Courses />} />
+                <Route path="/course/:id" element={<CourseDetail />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/payment/callback" element={<PaymentCallback />} />
+                <Route path="/dashboard" element={<Navigate to="/my-courses" replace />} />
 
-            {/* Protected Routes */}
-            <Route
-              path="/player/:id"
-              element={
-                <ProtectedRoute>
-                  <Player />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/my-courses"
-              element={
-                <ProtectedRoute>
-                  <MyCourses />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/wishlist"
-              element={
-                <ProtectedRoute>
-                  <Wishlist />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/course/:id/learn"
-              element={
-                <ProtectedRoute>
-                  <Player />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/course/:courseId/project/:projectId"
-              element={
-                <ProtectedRoute>
-                  <ProjectDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/course/:courseId/project/:projectId"
-              element={
-                <ProtectedRoute>
-                  <ProjectDetail />
-                </ProtectedRoute>
-              }
-            />
+                {/* Protected Routes */}
+                <Route
+                  path="/player/:id"
+                  element={
+                    <ProtectedRoute>
+                      <Player />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-courses"
+                  element={
+                    <ProtectedRoute>
+                      <MyCourses />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/wishlist"
+                  element={
+                    <ProtectedRoute>
+                      <Wishlist />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/course/:id/learn"
+                  element={
+                    <ProtectedRoute>
+                      <Player />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/course/:courseId/project/:projectId"
+                  element={
+                    <ProtectedRoute>
+                      <ProjectDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/course/:courseId/project/:projectId"
+                  element={
+                    <ProtectedRoute>
+                      <ProjectDetail />
+                    </ProtectedRoute>
+                  }
+                />
 
-            {/* Instructor Routes */}
-            <Route
-              path="/instructor/courses"
-              element={
-                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
-                  <InstructorCourses />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instructor/submissions"
-              element={
-                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
-                  <InstructorSubmissions />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instructor"
-              element={
-                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
-                  <InstructorDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instructor/courses/new"
-              element={
-                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
-                  <CourseEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instructor/courses/:id/edit"
-              element={
-                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
-                  <CourseEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instructor/courses/:courseId/lessons/new"
-              element={
-                <ProtectedRoute requiredRoles={['instructor', 'admin']}>
-                  <AddLesson />
-                </ProtectedRoute>
-              }
-            />
+                {/* Enrollment Claim Page */}
+                <Route
+                  path="/enrollment"
+                  element={
+                    <ProtectedRoute>
+                      <EnrollmentClaim />
+                    </ProtectedRoute>
+                  }
+                />
 
-            <Route
-              path="/instructor/admin-courses"
-              element={
-                <ProtectedRoute requiredRoles={['admin']}>
-                  <AdminCourses />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instructor/instructors"
-              element={
-                <ProtectedRoute requiredRoles={['admin']}>
-                  <AdminInstructors />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instructor/enrollment-codes"
-              element={
-                <ProtectedRoute requiredRoles={['admin']}>
-                  <AdminEnrollmentCodes />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instructor/students"
-              element={
-                <ProtectedRoute requiredRoles={['admin']}>
-                  <AdminStudents />
-                </ProtectedRoute>
-              }
-            />
+                {/* Instructor Routes */}
+                <Route
+                  path="/instructor/courses"
+                  element={
+                    <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                      <InstructorCourses />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructor/submissions"
+                  element={
+                    <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                      <InstructorSubmissions />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructor"
+                  element={
+                    <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                      <InstructorDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructor/courses/new"
+                  element={
+                    <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                      <CourseEditor />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructor/courses/:id/edit"
+                  element={
+                    <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                      <CourseEditor />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructor/courses/:courseId/lessons/new"
+                  element={
+                    <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                      <AddLesson />
+                    </ProtectedRoute>
+                  }
+                />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          </Suspense>
-        </TooltipProvider>
-      </AuthProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
+                <Route
+                  path="/instructor/admin-courses"
+                  element={
+                    <ProtectedRoute requiredRoles={['admin']}>
+                      <AdminCourses />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructor/instructors"
+                  element={
+                    <ProtectedRoute requiredRoles={['admin']}>
+                      <AdminInstructors />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructor/enrollment-codes"
+                  element={
+                    <ProtectedRoute requiredRoles={['admin']}>
+                      <AdminEnrollmentCodes />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructor/students"
+                  element={
+                    <ProtectedRoute requiredRoles={['admin']}>
+                      <AdminStudents />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   </GoogleOAuthProvider>
 );
 

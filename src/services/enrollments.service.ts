@@ -99,4 +99,25 @@ export const enrollmentsService = {
         const response = await api.post('/enrollments/redeem-code', { code });
         return response.data.data;
     },
+
+    // Get available codes for the claim page
+    async getAvailableCodes(): Promise<Array<{
+        courseId: string;
+        courseTitle: string;
+        thumbnailUrl?: string;
+        shortDescription?: string;
+        level?: string;
+        alreadyEnrolled: boolean;
+        availableCount: number;
+        codes: Array<{ id: string; code: string; expiresAt?: string; createdAt: string }>;
+    }>> {
+        const response = await api.get('/enrollments/available-codes');
+        return response.data.data;
+    },
+
+    // Claim a code by ID
+    async claimCode(codeId: string): Promise<{ enrollmentId: string; courseId: string; courseTitle: string }> {
+        const response = await api.post('/enrollments/claim-code', { codeId });
+        return response.data.data;
+    },
 };

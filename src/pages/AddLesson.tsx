@@ -385,13 +385,13 @@ const AddLesson = () => {
                     <div className="space-y-3 pt-4 border-t border-border">
                         <div className="flex items-center justify-between">
                             <div>
-                                <Label className="text-base font-semibold">Practice Files</Label>
+                                <Label className="text-base font-semibold">Resources</Label>
                                 <p className="text-xs text-muted-foreground mt-0.5">
                                     Upload supplementary resources (PDFs, code files, etc.) for students to download.
                                 </p>
                             </div>
                             <span className="text-xs text-muted-foreground bg-secondary rounded-full px-2.5 py-0.5">
-                                {lessonForm.resources.length} file{lessonForm.resources.length !== 1 ? 's' : ''}
+                                {lessonForm.resources.length} resource{lessonForm.resources.length !== 1 ? 's' : ''}
                             </span>
                         </div>
 
@@ -420,7 +420,7 @@ const AddLesson = () => {
                             ) : (
                                 <Plus className="h-4 w-4" />
                             )}
-                            Add Practice File
+                            Add Resource
                         </Button>
 
                         {/* Uploaded Resources List */}

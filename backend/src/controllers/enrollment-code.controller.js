@@ -392,10 +392,161 @@ const getUsersWithEnrollments = asyncHandler(async (req, res) => {
     });
 });
 
+// =====================
+// PUBLIC: Get available enrollment codes
+// =====================
+
+/**
+ * @desc    Get available (unused, unexpired) enrollment codes
+ * @route   GET /api/v1/enrollments/available-codes
+ * @access  Private
+ */
+const getAvailableCodes = asyncHandler(async (req, res) => {
+    const result = await query(
+        `SELECT ec.id, ec.code, ec.course_id, ec.expires_at, ec.created_at,
+                c.title as course_title, c.thumbnail_url, c.short_description, c.level
+         FROM enrollment_codes ec
+         JOIN courses c ON ec.course_id = c.id
+         WHERE ec.is_used = false
+           AND c.status = 'published'
+           AND (ec.expires_at IS NULL OR ec.expires_at > CURRENT_TIMESTAMP)
+         ORDER BY c.title, ec.created_at DESC`
+    );
+
+    // Group by course
+    const courseMap = new Map();
+    for (const row of result.rows) {
+        if (!courseMap.has(row.course_id)) {
+            courseMap.set(row.course_id, {
+                courseId: row.course_id,
+                courseTitle: row.course_title,
+                thumbnailUrl: row.thumbnail_url,
+                shortDescription: row.short_description,
+                level: row.level,
+                codes: []
+            });
+        }
+        courseMap.get(row.course_id).codes.push({
+            id: row.id,
+            code: row.code,
+            expiresAt: row.expires_at,
+            createdAt: row.created_at
+        });
+    }
+
+    // Check which courses the user is already enrolled in
+    const enrolledResult = await query(
+        `SELECT course_id FROM enrollments WHERE user_id = $1 AND status IN ('active', 'completed')`,
+        [req.user.id]
+    );
+    const enrolledCourseIds = new Set(enrolledResult.rows.map(r => r.course_id));
+
+    const courses = Array.from(courseMap.values()).map(course => ({
+        ...course,
+        alreadyEnrolled: enrolledCourseIds.has(course.courseId),
+        availableCount: course.codes.length
+    }));
+
+    res.json({
+        success: true,
+        data: courses
+    });
+});
+
+/**
+ * @desc    Claim an enrollment code by ID (auto-enroll)
+ * @route   POST /api/v1/enrollments/claim-code
+ * @access  Private
+ */
+const claimCode = asyncHandler(async (req, res) => {
+    const { codeId } = req.body;
+
+    if (!codeId) {
+        throw new ApiError(400, 'Code ID is required');
+    }
+
+    // Find the code
+    const codeResult = await query(
+        `SELECT ec.*, c.title as course_title, c.status as course_status
+         FROM enrollment_codes ec
+         JOIN courses c ON ec.course_id = c.id
+         WHERE ec.id = $1`,
+        [codeId]
+    );
+
+    if (codeResult.rows.length === 0) {
+        throw new ApiError(404, 'Enrollment code not found');
+    }
+
+    const enrollmentCode = codeResult.rows[0];
+
+    if (enrollmentCode.is_used) {
+        throw new ApiError(400, 'This enrollment code has already been used');
+    }
+
+    if (enrollmentCode.expires_at && new Date(enrollmentCode.expires_at) < new Date()) {
+        throw new ApiError(400, 'This enrollment code has expired');
+    }
+
+    if (enrollmentCode.course_status !== 'published') {
+        throw new ApiError(400, 'This course is not available for enrollment');
+    }
+
+    // Check if already enrolled
+    const existingEnrollment = await query(
+        "SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND status IN ('active', 'completed')",
+        [req.user.id, enrollmentCode.course_id]
+    );
+
+    if (existingEnrollment.rows.length > 0) {
+        throw new ApiError(400, 'You are already enrolled in this course');
+    }
+
+    // Use transaction to claim code and create enrollment
+    const result = await transaction(async (client) => {
+        // Mark code as used
+        await client.query(
+            `UPDATE enrollment_codes 
+             SET is_used = true, used_by = $1, used_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [req.user.id, enrollmentCode.id]
+        );
+
+        // Create enrollment
+        const enrollmentResult = await client.query(
+            `INSERT INTO enrollments (user_id, course_id, status)
+             VALUES ($1, $2, 'active')
+             ON CONFLICT (user_id, course_id) DO UPDATE SET status = 'active'
+             RETURNING id`,
+            [req.user.id, enrollmentCode.course_id]
+        );
+
+        // Update course enrollment count
+        await client.query(
+            'UPDATE courses SET enrollment_count = enrollment_count + 1 WHERE id = $1',
+            [enrollmentCode.course_id]
+        );
+
+        return enrollmentResult.rows[0];
+    });
+
+    res.json({
+        success: true,
+        message: 'Enrollment code claimed successfully! You are now enrolled.',
+        data: {
+            enrollmentId: result.id,
+            courseId: enrollmentCode.course_id,
+            courseTitle: enrollmentCode.course_title
+        }
+    });
+});
+
 module.exports = {
     generateEnrollmentCodes,
     getEnrollmentCodes,
     deleteEnrollmentCode,
     redeemEnrollmentCode,
+    getAvailableCodes,
+    claimCode,
     getUsersWithEnrollments
 };

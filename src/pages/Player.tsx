@@ -39,6 +39,7 @@ const Player = () => {
   const [showRating, setShowRating] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [replyTo, setReplyTo] = useState<{ id: string; userName: string; message: string } | null>(null);
+  const [contentKey, setContentKey] = useState(0);
 
   // Queries
   const { data: course, isLoading: courseLoading } = useQuery({
@@ -172,6 +173,13 @@ const Player = () => {
     }
   }, [sections, currentLessonId]);
 
+  // Force content area re-render when lesson changes
+  useEffect(() => {
+    if (currentLessonId) {
+      setContentKey(prev => prev + 1);
+    }
+  }, [currentLessonId]);
+
   // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -289,7 +297,7 @@ const Player = () => {
               minHeight: '50vh'
             }}
           >
-            <div className={isVideoLesson ? "absolute inset-0" : "h-full w-full overflow-auto bg-background"}>
+            <div key={contentKey} className={isVideoLesson ? "absolute inset-0" : "h-full w-full overflow-auto bg-background"}>
               {currentLesson ? (
                 currentLesson.type === 'video' ? (
                   currentLesson.videoUrl ? (() => {
@@ -303,10 +311,12 @@ const Player = () => {
                       />
                     ) : (
                       <video
-                        key={resolvedVideoUrl}
+                        key={`${currentLessonId}-${resolvedVideoUrl}`}
                         src={resolvedVideoUrl}
-                        className="h-full w-full"
+                        className="h-full w-full object-contain"
                         controls
+                        autoPlay={false}
+                        preload="auto"
                         poster={resolveMediaUrl(course.thumbnailUrl)}
                       />
                     );
@@ -319,9 +329,10 @@ const Player = () => {
                     </div>
                   )
                 ) : currentLesson.type === 'document' || currentLesson.type === 'pdf' || currentLesson.type === 'ppt' || currentLesson.type === 'doc' ? (
-                  <div className="h-full w-full p-4 bg-neutral-100 dark:bg-neutral-900">
+                  <div className="h-full w-full">
                     {currentLesson.videoUrl ? (
                       <DocumentViewer
+                        key={`doc-${currentLessonId}`}
                         url={resolveMediaUrl(currentLesson.videoUrl)}
                         type={
                           currentLesson.type === 'pdf' ? 'pdf' :
@@ -333,7 +344,7 @@ const Player = () => {
                                       'doc'
                         }
                         title={currentLesson.title}
-                        className="h-full shadow-lg"
+                        className="h-full"
                       />
                     ) : currentLesson.content ? (
                       <div className="h-full w-full p-8 overflow-auto bg-card rounded-lg shadow-sm">
@@ -420,13 +431,13 @@ const Player = () => {
                       <Star className={`h-4 w-4 ${userReview?.rating ? 'fill-current text-yellow-400' : ''}`} />
                       <span>{userReview?.rating || course?.ratingAvg?.toFixed(1) || '0.0'}</span>
                     </Button>
-                    
+
                     {/* Rating dropdown */}
                     {showRating && (
                       <>
-                        <div 
-                          className="fixed inset-0 z-40" 
-                          onClick={() => setShowRating(false)} 
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowRating(false)}
                         />
                         <div className="absolute left-0 top-full mt-2 z-50 bg-card border border-border rounded-lg shadow-xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
                           <p className="text-xs text-muted-foreground mb-2 text-center">Rate this course</p>
@@ -441,12 +452,11 @@ const Player = () => {
                                 onClick={() => ratingMutation.mutate(star)}
                                 disabled={ratingMutation.isPending}
                               >
-                                <Star 
-                                  className={`h-6 w-6 transition-colors ${
-                                    star <= (hoverRating || userReview?.rating || 0)
+                                <Star
+                                  className={`h-6 w-6 transition-colors ${star <= (hoverRating || userReview?.rating || 0)
                                       ? 'fill-yellow-400 text-yellow-400'
                                       : 'text-muted-foreground'
-                                  }`}
+                                    }`}
                                 />
                               </button>
                             ))}
@@ -685,8 +695,8 @@ const Player = () => {
         <div
           className={`flex flex-col min-h-0 border-l border-border bg-card shadow-2xl overflow-hidden
             ${isMobile ? (
-              isSidebarOpen 
-                ? 'fixed left-0 right-0 top-14 bottom-0 z-20 w-full' 
+              isSidebarOpen
+                ? 'fixed left-0 right-0 top-14 bottom-0 z-20 w-full'
                 : 'hidden'
             ) : (
               'lg:shadow-none static w-96'
@@ -703,14 +713,14 @@ const Player = () => {
             <div className="border-b border-border px-2 py-1.5">
               <TabsList className="grid w-full grid-cols-3 h-9 gap-1">
                 <TabsTrigger value="content" className="text-xs sm:text-sm px-2 sm:px-4">Lessons</TabsTrigger>
-                <TabsTrigger value="resources" className="text-xs sm:text-sm px-2 sm:px-4">Files</TabsTrigger>
+                <TabsTrigger value="resources" className="text-xs sm:text-sm px-2 sm:px-4">Resources</TabsTrigger>
                 <TabsTrigger value="projects" className="text-xs sm:text-sm px-2 sm:px-4">Projects</TabsTrigger>
               </TabsList>
             </div>
 
             {/* Lessons tab */}
-            <TabsContent 
-              value="content" 
+            <TabsContent
+              value="content"
               className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
               style={{ display: activeTab === 'content' ? 'flex' : 'none', flexDirection: 'column' }}
             >
@@ -772,8 +782,8 @@ const Player = () => {
             </TabsContent>
 
             {/* Files tab */}
-            <TabsContent 
-              value="resources" 
+            <TabsContent
+              value="resources"
               className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
               style={{ display: activeTab === 'resources' ? 'flex' : 'none', flexDirection: 'column' }}
             >
@@ -818,8 +828,8 @@ const Player = () => {
             </TabsContent>
 
             {/* Projects tab */}
-            <TabsContent 
-              value="projects" 
+            <TabsContent
+              value="projects"
               className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
               style={{ display: activeTab === 'projects' ? 'flex' : 'none', flexDirection: 'column' }}
             >
@@ -847,13 +857,13 @@ const Player = () => {
                             </div>
                           )}
                         </div>
-                        
+
                         {project.description && (
                           <p className="text-xs text-muted-foreground line-clamp-2">
                             {project.description}
                           </p>
                         )}
-                        
+
                         <div className="flex items-center justify-between pt-2 border-t border-border">
                           <span className="text-xs text-muted-foreground">
                             {project.submissionCount || 0} submission{project.submissionCount !== 1 ? 's' : ''}

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { upload, uploadFile, downloadFile } = require('../controllers/upload.controller');
+const { upload, uploadFile, downloadFile, handleMulterError } = require('../controllers/upload.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 
-router.post('/', authenticate, upload.single('file'), uploadFile);
+router.post('/', authenticate, handleMulterError(upload.single('file')), uploadFile);
 
 /**
  * @route   GET /api/v1/upload/download

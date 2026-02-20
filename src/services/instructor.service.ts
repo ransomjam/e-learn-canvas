@@ -160,4 +160,8 @@ export const instructorService = {
     async deleteLesson(lessonId: string): Promise<void> {
         await api.delete(`/lessons/${lessonId}`);
     },
+
+    async reorderLessons(sectionId: string, lessonIds: string[]): Promise<void> {
+        await api.put(`/lessons/sections/${sectionId}/reorder`, { lessonIds });
+    },
 };

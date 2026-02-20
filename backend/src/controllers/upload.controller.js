@@ -43,16 +43,29 @@ const memoryStorage = multer.memoryStorage();
 // Pick storage engine based on whether Cloudinary is configured
 const upload = multer({
     storage: cloudinaryEnabled ? memoryStorage : localStorage,
-    limits: { fileSize: 200 * 1024 * 1024 }, // 200MB
+    limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
     fileFilter: (req, file, cb) => cb(null, true),
 });
 
 // Re-export a second multer instance for project uploads (same config)
 const projectUpload = multer({
     storage: cloudinaryEnabled ? memoryStorage : localStorage,
-    limits: { fileSize: 200 * 1024 * 1024 },
+    limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
     fileFilter: (req, file, cb) => cb(null, true),
 });
+
+// ── Multer error handler wrapper ─────────────────────────────────────────────
+// Turns multer-level errors (e.g. file too large) into clean JSON 400 responses
+// instead of letting them propagate as unhandled 500s.
+const handleMulterError = (multerMiddleware) => (req, res, next) => {
+    multerMiddleware(req, res, (err) => {
+        if (!err) return next();
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ success: false, message: 'File too large. Maximum allowed size is 500 MB.' });
+        }
+        return res.status(400).json({ success: false, message: err.message || 'File upload error' });
+    });
+};
 
 // ── Upload a file to Cloudinary (returns { url, publicId }) ──────────────────
 const uploadToCloudinary = (fileBuffer, originalname) => {
@@ -72,12 +85,10 @@ const uploadToCloudinary = (fileBuffer, originalname) => {
 
         // For videos, force transcoding to H.264/MP4 for universal mobile compatibility.
         // Many mobile browsers cannot play AVI, MOV, MKV, or HEVC-encoded files.
+        // Note: streaming_profile (adaptive bitrate) is a paid Cloudinary feature — do NOT use it here.
         if (resourceType === 'video') {
             uploadOptions.format = 'mp4';
-            uploadOptions.eager = [
-                { streaming_profile: 'full_hd', format: 'mp4' }
-            ];
-            uploadOptions.eager_async = true;
+            // No eager transforms needed — Cloudinary converts on-the-fly via the format option above.
         }
 
         const stream = cloudinary.uploader.upload_stream(
@@ -215,4 +226,4 @@ function streamResponse(proxyRes, res, downloadName, originalUrl) {
     proxyRes.pipe(res);
 }
 
-module.exports = { upload, projectUpload, uploadFile, downloadFile, uploadToCloudinary, detectFileType, cloudinaryEnabled };
+module.exports = { upload, projectUpload, uploadFile, downloadFile, uploadToCloudinary, detectFileType, cloudinaryEnabled, handleMulterError };

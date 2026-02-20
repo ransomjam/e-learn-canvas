@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Smartphone, Settings } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Smartphone, Settings, SkipBack, SkipForward } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface CustomVideoPlayerProps {
     src: string;
@@ -30,6 +31,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
     const [isLandscape, setIsLandscape] = useState(false);
     const [showControls, setShowControls] = useState(true);
     const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isMobile = useIsMobile();
 
     // Auto-hide controls
     const resetControlsTimeout = useCallback(() => {
@@ -113,6 +115,14 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
         resetControlsTimeout();
     };
 
+    const skipTime = (seconds: number) => {
+        if (videoRef.current) {
+            videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.currentTime + seconds, duration));
+            setCurrentTime(videoRef.current.currentTime);
+            resetControlsTimeout();
+        }
+    };
+
     const toggleFullscreen = async () => {
         if (!containerRef.current) return;
         if (!document.fullscreenElement) {
@@ -194,34 +204,25 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 </div>
             )}
 
-            {/* Top Bar for landscape prominently */}
+            {/* Top Bar — title only */}
             <div className={cn(
-                "absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 flex justify-between items-start",
+                "absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 flex justify-between items-start",
                 showControls ? "opacity-100" : "opacity-0 pointer-events-none"
             )}>
-                <span className="text-white/80 font-medium text-sm drop-shadow-md truncate pr-4">
+                <span className="text-white/80 font-medium text-xs sm:text-sm drop-shadow-md truncate pr-4">
                     {title || 'Video Lesson'}
                 </span>
-
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={toggleLandscape}
-                    className="md:hidden flex items-center gap-1.5 h-8 bg-black/50 hover:bg-black/70 text-white border-none rounded-full"
-                >
-                    <Smartphone className={cn("h-4 w-4 transition-transform duration-300", isLandscape && "rotate-90")} />
-                    <span className="text-xs font-semibold">{isLandscape ? 'Portrait' : 'Landscape view'}</span>
-                </Button>
             </div>
 
             {/* Bottom Controls */}
             <div className={cn(
-                "absolute bottom-0 left-0 right-0 px-4 pb-4 pt-12 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-300",
-                showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-300",
+                showControls ? "opacity-100" : "opacity-0 pointer-events-none",
+                isMobile ? "px-2.5 pb-2 pt-10" : "px-4 pb-4 pt-12"
             )}>
                 {/* Progress bar */}
-                <div className="flex items-center gap-3 mb-3">
-                    <span className="text-white text-xs font-medium tabular-nums shadow-sm">{formatTime(currentTime)}</span>
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                    <span className="text-white text-[10px] sm:text-xs font-medium tabular-nums shadow-sm min-w-[32px] text-center">{formatTime(currentTime)}</span>
                     <Slider
                         value={[currentTime]}
                         max={duration || 100}
@@ -229,16 +230,28 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                         className="flex-1 cursor-pointer"
                         onValueChange={handleSeek}
                     />
-                    <span className="text-white/80 text-xs font-medium tabular-nums shadow-sm">{formatTime(duration)}</span>
+                    <span className="text-white/80 text-[10px] sm:text-xs font-medium tabular-nums shadow-sm min-w-[32px] text-center">{formatTime(duration)}</span>
                 </div>
 
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={handlePlayPause} className="text-white hover:bg-white/20 h-9 w-9">
-                            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                {/* Controls row */}
+                <div className="flex items-center justify-between gap-1">
+                    {/* Left controls */}
+                    <div className="flex items-center gap-0.5 sm:gap-1">
+                        {/* Play/Pause */}
+                        <Button variant="ghost" size="icon" onClick={handlePlayPause} className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9">
+                            {isPlaying ? <Pause className="h-4 w-4 sm:h-5 sm:w-5" /> : <Play className="h-4 w-4 sm:h-5 sm:w-5" />}
                         </Button>
 
-                        <div className="hidden sm:flex items-center gap-2 group/volume w-8 hover:w-32 transition-all duration-300 overflow-hidden">
+                        {/* Skip back/forward — always visible on mobile for quick navigation */}
+                        <Button variant="ghost" size="icon" onClick={() => skipTime(-10)} className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9">
+                            <SkipBack className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => skipTime(10)} className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9">
+                            <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+
+                        {/* Volume — desktop only (expandable) */}
+                        <div className="hidden sm:flex items-center gap-1 group/volume w-8 hover:w-32 transition-all duration-300 overflow-hidden">
                             <Button variant="ghost" size="icon" onClick={toggleMute} className="text-white hover:bg-white/20 h-9 w-9 shrink-0">
                                 {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                             </Button>
@@ -252,10 +265,41 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    {/* Right controls */}
+                    <div className="flex items-center gap-0.5 sm:gap-1">
+                        {/* Mute toggle for mobile */}
+                        <Button variant="ghost" size="icon" onClick={toggleMute} className="sm:hidden text-white hover:bg-white/20 h-8 w-8">
+                            {isMuted || volume === 0 ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                        </Button>
+
+                        {/* Playback speed */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-9 w-9">
+                                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9 text-[10px] sm:text-xs font-bold tabular-nums">
+                                    {playbackRate}x
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-32 bg-black/90 text-white border-white/20">
+                                <div className="px-2 py-1.5 text-xs font-semibold text-white/50">Playback Speed</div>
+                                {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                                    <DropdownMenuItem
+                                        key={rate}
+                                        onClick={() => handlePlaybackRateChange(rate)}
+                                        className={cn(
+                                            "focus:bg-white/20 cursor-pointer text-sm",
+                                            playbackRate === rate && "bg-primary/40 focus:bg-primary/50"
+                                        )}
+                                    >
+                                        {rate}x {rate === 1 && '(Normal)'}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* Settings (desktop) */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="hidden sm:flex text-white hover:bg-white/20 h-9 w-9">
                                     <Settings className="h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -276,16 +320,49 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                             </DropdownMenuContent>
                         </DropdownMenu>
 
+                        {/* Landscape toggle — mobile only, prominent */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={toggleLandscape}
+                            className="sm:hidden text-white hover:bg-white/20 h-8 w-8"
+                        >
+                            <Smartphone className={cn("h-3.5 w-3.5 transition-transform duration-300", isLandscape && "rotate-90")} />
+                        </Button>
+
+                        {/* Fullscreen */}
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={toggleFullscreen}
-                            className="text-white hover:bg-white/20 h-9 w-9"
+                            className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9"
                         >
-                            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                            {isFullscreen ? <Minimize className="h-4 w-4 sm:h-5 sm:w-5" /> : <Maximize className="h-4 w-4 sm:h-5 sm:w-5" />}
                         </Button>
                     </div>
                 </div>
+
+                {/* Prominent Landscape button — mobile only, shown below controls */}
+                {isMobile && !isLandscape && (
+                    <button
+                        onClick={toggleLandscape}
+                        className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-sm transition-all duration-200 border border-white/10"
+                    >
+                        <Smartphone className="h-4 w-4 text-white" />
+                        <span className="text-xs font-semibold text-white tracking-wide">Landscape View</span>
+                    </button>
+                )}
+
+                {/* Exit landscape bar — mobile only */}
+                {isMobile && isLandscape && (
+                    <button
+                        onClick={toggleLandscape}
+                        className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary/80 hover:bg-primary/90 active:bg-primary backdrop-blur-sm transition-all duration-200"
+                    >
+                        <Smartphone className="h-4 w-4 text-white rotate-90" />
+                        <span className="text-xs font-semibold text-white tracking-wide">Exit Landscape</span>
+                    </button>
+                )}
             </div>
         </div>
     );

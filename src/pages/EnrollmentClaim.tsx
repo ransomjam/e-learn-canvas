@@ -201,9 +201,20 @@ const EnrollmentClaim = () => {
                                                             </div>
 
                                                             {isClaimed ? (
-                                                                <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium">
-                                                                    <CheckCircle className="h-4 w-4" />
-                                                                    Claimed
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium">
+                                                                        <CheckCircle className="h-4 w-4" />
+                                                                        Claimed
+                                                                    </div>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="h-8 gap-1.5 text-xs"
+                                                                        onClick={() => navigate(`/course/${course.courseId}/learn`)}
+                                                                    >
+                                                                        <ArrowRight className="h-3.5 w-3.5" />
+                                                                        Go to Course
+                                                                    </Button>
                                                                 </div>
                                                             ) : (
                                                                 <Button
@@ -238,7 +249,7 @@ const EnrollmentClaim = () => {
                                                     variant="outline"
                                                     size="sm"
                                                     className="gap-2 text-xs"
-                                                    onClick={() => navigate(`/course/${course.courseId}`)}
+                                                    onClick={() => navigate(`/course/${course.courseId}/learn`)}
                                                 >
                                                     <ArrowRight className="h-3.5 w-3.5" />
                                                     Go to Course

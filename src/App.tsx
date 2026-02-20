@@ -30,6 +30,8 @@ const Wishlist = lazy(() => import("./pages/Wishlist"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
 const EnrollmentClaim = lazy(() => import("./pages/EnrollmentClaim"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +58,8 @@ const App = () => (
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/course/:id" element={<CourseDetail />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/payment/callback" element={<PaymentCallback />} />
                 <Route path="/dashboard" element={<Navigate to="/my-courses" replace />} />
 

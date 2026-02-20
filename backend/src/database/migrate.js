@@ -371,6 +371,17 @@ const migrations = [
     `
   },
 
+  // Add original_name column to course_resources
+  {
+    name: '032_add_original_name_to_course_resources',
+    up: `
+      ALTER TABLE course_resources ADD COLUMN IF NOT EXISTS original_name VARCHAR(500);
+    `,
+    down: `
+      ALTER TABLE course_resources DROP COLUMN IF EXISTS original_name;
+    `
+  },
+
   // Migrations tracking table
   {
     name: '000_create_migrations',

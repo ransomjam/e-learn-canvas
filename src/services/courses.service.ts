@@ -150,7 +150,7 @@ export const coursesService = {
         return response.data.data;
     },
 
-    async addResource(courseId: string, data: { title: string, url: string, type?: string, description?: string }): Promise<any> {
+    async addResource(courseId: string, data: { title: string, url: string, type?: string, description?: string, originalName?: string }): Promise<any> {
         const response = await api.post(`/courses/${courseId}/resources`, data);
         return response.data.data;
     },

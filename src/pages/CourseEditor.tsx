@@ -344,7 +344,8 @@ const CourseEditor = () => {
             const newResource = {
                 title: file.name,
                 url: result.url,
-                type: type
+                type: type,
+                originalName: result.originalName || file.name,
             };
 
             setLessonForm((prev) => ({
@@ -1263,6 +1264,7 @@ const ResourcesManager = ({ courseId }: { courseId: string }) => {
         url: '',
         type: 'link',
         description: '',
+        originalName: '',
     });
 
     const { data: resources = [], isLoading } = useQuery({
@@ -1272,11 +1274,11 @@ const ResourcesManager = ({ courseId }: { courseId: string }) => {
     });
 
     const addResourceMutation = useMutation({
-        mutationFn: (data: { title: string; url: string; type?: string; description?: string }) =>
+        mutationFn: (data: { title: string; url: string; type?: string; description?: string; originalName?: string }) =>
             coursesService.addResource(courseId, data),
         onSuccess: () => {
             toast({ title: 'Resource added!' });
-            setResourceForm({ title: '', url: '', type: 'link', description: '' });
+            setResourceForm({ title: '', url: '', type: 'link', description: '', originalName: '' });
             queryClient.invalidateQueries({ queryKey: ['courseResources', courseId] });
         },
         onError: () => {
@@ -1312,6 +1314,7 @@ const ResourcesManager = ({ courseId }: { courseId: string }) => {
                 url: result.url,
                 title: prev.title || result.originalName || file.name,
                 type: resourceType !== 'file' ? resourceType : prev.type,
+                originalName: result.originalName || file.name,
             }));
             toast({ title: 'File uploaded!' });
         } catch {

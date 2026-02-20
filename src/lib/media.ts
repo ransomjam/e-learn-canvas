@@ -76,6 +76,17 @@ export const resolveMediaUrl = (url?: string | null) => {
 export const toDirectVideoUrl = (url: string): string => {
   if (!url) return url;
 
+  // --- Cloudinary: ensure MP4 delivery for mobile compatibility ---
+  // Cloudinary can transcode on the fly by changing the file extension.
+  // e.g. .../videos/foo.avi  ->  .../videos/foo.mp4
+  // e.g. .../videos/foo.mkv  ->  .../videos/foo.mp4
+  if (/res\.cloudinary\.com/i.test(url) && /\/video\/upload\//i.test(url)) {
+    // Only transform if not already .mp4
+    if (!url.toLowerCase().split('?')[0].endsWith('.mp4')) {
+      url = url.replace(/\.[^/.?]+(\?|$)/, '.mp4$1');
+    }
+  }
+
   // --- Google Drive ---
   // Pattern: https://drive.google.com/file/d/FILE_ID/view?...
   //       -> https://drive.google.com/uc?export=download&id=FILE_ID

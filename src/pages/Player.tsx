@@ -825,15 +825,56 @@ const Player = () => {
                   ) : (
                     allResources.map((res: any, idx: number) => {
                       const fileType = (res.type || '').toLowerCase();
-                      const isExternal = res.url?.startsWith('http') && !res.url?.includes(window.location.hostname);
+                      const isCloudinary = res.url?.includes('res.cloudinary.com');
+                      const isLink = fileType === 'link' || (!isCloudinary && res.url?.startsWith('http') && !res.url?.includes(window.location.hostname));
+
+                      const handleDownload = (e: React.MouseEvent) => {
+                        // For plain links, let the browser handle navigation
+                        if (isLink) return;
+                        e.preventDefault();
+
+                        // Determine the filename for download
+                        const downloadName = res.originalName || res.title || 'download';
+
+                        if (isCloudinary) {
+                          // For Cloudinary URLs, add fl_attachment to force download with original name
+                          let downloadUrl = res.url;
+                          try {
+                            // Pattern: .../upload/v123/... → .../upload/fl_attachment:filename/v123/...
+                            const uploadIdx = downloadUrl.indexOf('/upload/');
+                            if (uploadIdx !== -1) {
+                              const afterUpload = downloadUrl.substring(uploadIdx + 8); // after '/upload/'
+                              const safeName = downloadName.replace(/[^a-zA-Z0-9._-]/g, '_');
+                              downloadUrl = downloadUrl.substring(0, uploadIdx + 8) + `fl_attachment:${safeName}/` + afterUpload;
+                            }
+                          } catch { /* fallback to original URL */ }
+                          window.open(downloadUrl, '_blank');
+                        } else {
+                          // For same-origin files, use fetch + blob for reliable download
+                          fetch(res.url)
+                            .then(r => r.blob())
+                            .then(blob => {
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = downloadName;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            })
+                            .catch(() => window.open(res.url, '_blank'));
+                        }
+                      };
+
                       return (
                         <a
                           key={res.id || idx}
                           href={res.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          download={!isExternal ? (res.title || true) : undefined}
-                          className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-secondary group"
+                          onClick={handleDownload}
+                          className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-secondary group cursor-pointer"
                         >
                           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
                             {fileType === 'pdf' ? (

@@ -26,7 +26,7 @@ const app = express();
 
 // Trust proxy in production (Render, Heroku, etc.) - required for express-rate-limit
 if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
+    app.set('trust proxy', 1);
 }
 
 // Security middleware - configure CSP for dashboard
@@ -105,12 +105,68 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files with CORS
+// Serve static files with CORS + proper Range-request support for video
 const path = require('path');
+const fs = require('fs');
 const uploadsDir = path.join(__dirname, '../uploads');
+
+// Video streaming handler with Range request support (required by mobile browsers)
 app.use('/uploads', cors(), (req, res, next) => {
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    next();
+
+    // For video files, handle Range requests explicitly for mobile compatibility
+    const filePath = path.join(uploadsDir, req.path);
+    const ext = path.extname(filePath).toLowerCase();
+    const videoExts = ['.mp4', '.webm', '.ogg', '.ogv', '.mov', '.avi', '.mkv'];
+
+    if (!videoExts.includes(ext)) {
+        return next(); // Not a video — let express.static handle it
+    }
+
+    if (!fs.existsSync(filePath)) {
+        return next(); // File not found — fall through to 404 handler
+    }
+
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+
+    // MIME type map
+    const mimeMap = {
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.ogg': 'video/ogg',
+        '.ogv': 'video/ogg',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
+    };
+    const contentType = mimeMap[ext] || 'application/octet-stream';
+
+    const range = req.headers.range;
+    if (range) {
+        // Parse Range header: "bytes=start-end"
+        const parts = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunkSize = end - start + 1;
+
+        res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunkSize,
+            'Content-Type': contentType,
+        });
+        fs.createReadStream(filePath, { start, end }).pipe(res);
+    } else {
+        // No Range header — return full file with Accept-Ranges so mobile
+        // browsers know they can request byte ranges on subsequent requests.
+        res.writeHead(200, {
+            'Content-Length': fileSize,
+            'Content-Type': contentType,
+            'Accept-Ranges': 'bytes',
+        });
+        fs.createReadStream(filePath).pipe(res);
+    }
 }, express.static(uploadsDir), (req, res) => {
     // If the static middleware didn't find the file, return a proper 404
     // instead of falling through to the SPA catch-all (which would return HTML)
@@ -122,7 +178,6 @@ app.use('/uploads', cors(), (req, res, next) => {
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Ensure uploads directory exists on startup (Render disk mount may not auto-create it)
-const fs = require('fs');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
     console.log('📁 Created uploads directory:', uploadsDir);

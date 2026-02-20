@@ -512,6 +512,10 @@ const allMigrations = [
         SET moderation_status = 'approved' 
         WHERE status = 'published' AND moderation_status != 'approved';
     `},
+    {
+        name: '033_add_original_name_to_course_resources', up: `
+        ALTER TABLE course_resources ADD COLUMN IF NOT EXISTS original_name VARCHAR(500);
+    `},
 ];
 
 // ─── runner ─────────────────────────────────────────────────────────────────

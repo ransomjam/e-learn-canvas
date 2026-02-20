@@ -23,13 +23,13 @@ const getResources = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Course not found');
     }
 
-    // Check access
+    // Check access — allow admin, instructor, or any enrolled user
     if (req.user.role !== 'admin' && req.user.id !== courseResult.rows[0].instructor_id) {
         const enrollment = await query(
-            'SELECT status FROM enrollments WHERE user_id = $1 AND course_id = $2',
+            'SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2',
             [req.user.id, id]
         );
-        if (enrollment.rows.length === 0 || !['active', 'completed'].includes(enrollment.rows[0].status)) {
+        if (enrollment.rows.length === 0) {
             throw new ApiError(403, 'You must be enrolled to access resources');
         }
     }
@@ -39,9 +39,22 @@ const getResources = asyncHandler(async (req, res) => {
         [id]
     );
 
+    // Map rows to camelCase for frontend consistency
+    const resources = result.rows.map(r => ({
+        id: r.id,
+        courseId: r.course_id,
+        title: r.title,
+        description: r.description,
+        url: r.url,
+        type: r.type,
+        originalName: r.original_name || null,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    }));
+
     res.json({
         success: true,
-        data: result.rows
+        data: resources
     });
 });
 
@@ -52,7 +65,7 @@ const getResources = asyncHandler(async (req, res) => {
  */
 const addResource = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { title, url, type = 'link', description } = req.body;
+    const { title, url, type = 'link', description, originalName } = req.body;
 
     // Check course ownership
     const courseResult = await query(
@@ -69,16 +82,27 @@ const addResource = asyncHandler(async (req, res) => {
     }
 
     const result = await query(
-        `INSERT INTO course_resources (course_id, title, url, type, description)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO course_resources (course_id, title, url, type, description, original_name)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
-        [id, title, url, type, description]
+        [id, title, url, type, description, originalName || null]
     );
 
+    const r = result.rows[0];
     res.status(201).json({
         success: true,
         message: 'Resource added successfully',
-        data: result.rows[0]
+        data: {
+            id: r.id,
+            courseId: r.course_id,
+            title: r.title,
+            description: r.description,
+            url: r.url,
+            type: r.type,
+            originalName: r.original_name || null,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+        }
     });
 });
 

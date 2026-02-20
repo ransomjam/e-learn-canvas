@@ -63,20 +63,37 @@ const uploadToCloudinary = (fileBuffer, originalname) => {
     console.log(`☁️  Uploading to Cloudinary: ${originalname} (${resourceType}, ${(fileBuffer.length / 1024).toFixed(1)} KB)`);
 
     return new Promise((resolve, reject) => {
+        const uploadOptions = {
+            resource_type: resourceType,
+            folder,
+            // Keep original extension for raw files so download links work
+            ...(resourceType === 'raw' ? { use_filename: true, unique_filename: true } : {}),
+        };
+
+        // For videos, force transcoding to H.264/MP4 for universal mobile compatibility.
+        // Many mobile browsers cannot play AVI, MOV, MKV, or HEVC-encoded files.
+        if (resourceType === 'video') {
+            uploadOptions.format = 'mp4';
+            uploadOptions.eager = [
+                { streaming_profile: 'full_hd', format: 'mp4' }
+            ];
+            uploadOptions.eager_async = true;
+        }
+
         const stream = cloudinary.uploader.upload_stream(
-            {
-                resource_type: resourceType,
-                folder,
-                // Keep original extension for raw files so download links work
-                ...(resourceType === 'raw' ? { use_filename: true, unique_filename: true } : {}),
-            },
+            uploadOptions,
             (error, result) => {
                 if (error) {
                     console.error('❌ Cloudinary upload failed:', error.message || error);
                     return reject(new Error(`Cloudinary upload failed: ${error.message || 'Unknown error'}`));
                 }
-                console.log(`✅ Cloudinary upload success: ${result.secure_url}`);
-                resolve({ url: result.secure_url, publicId: result.public_id });
+                let deliveryUrl = result.secure_url;
+                // Ensure the video URL ends with .mp4 for mobile compatibility
+                if (resourceType === 'video' && !deliveryUrl.endsWith('.mp4')) {
+                    deliveryUrl = deliveryUrl.replace(/\.[^/.]+$/, '.mp4');
+                }
+                console.log(`✅ Cloudinary upload success: ${deliveryUrl}`);
+                resolve({ url: deliveryUrl, publicId: result.public_id });
             }
         );
         stream.end(fileBuffer);

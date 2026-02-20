@@ -18,6 +18,22 @@ const formatTime = (timeInSeconds: number) => {
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
 };
 
+/**
+ * Determine the MIME type from a video URL extension.
+ * Providing the correct type on <source> helps mobile browsers decide
+ * quickly whether they can decode the file, avoiding unnecessary downloads.
+ */
+const getMimeType = (url: string): string => {
+    const lower = url.toLowerCase().split('?')[0]; // strip query params
+    if (lower.endsWith('.webm')) return 'video/webm';
+    if (lower.endsWith('.ogg') || lower.endsWith('.ogv')) return 'video/ogg';
+    if (lower.endsWith('.mov')) return 'video/quicktime';
+    if (lower.endsWith('.avi')) return 'video/x-msvideo';
+    if (lower.endsWith('.mkv')) return 'video/x-matroska';
+    // Default to mp4 — it's the most universally supported format
+    return 'video/mp4';
+};
+
 export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -182,7 +198,6 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
         >
             <video
                 ref={videoRef}
-                src={src}
                 poster={poster}
                 crossOrigin={isExternal ? 'anonymous' : undefined}
                 className={cn(
@@ -195,9 +210,17 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 onEnded={() => setIsPlaying(false)}
                 onError={() => setVideoError(true)}
                 playsInline
-                preload="auto"
+                // @ts-ignore — webkit attribute required for older iOS Safari inline playback
+                webkit-playsinline="true"
+                // @ts-ignore — x5 attributes for Android WebView / QQ / WeChat browsers
+                x5-video-player-type="h5"
+                x5-playsinline="true"
+                preload="metadata"
                 controls={false}
-            />
+            >
+                <source src={src} type={getMimeType(src)} />
+                Your browser does not support this video format.
+            </video>
 
             {/* Error fallback for external videos that cannot be played inline */}
             {videoError && (

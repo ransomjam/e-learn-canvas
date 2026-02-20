@@ -238,7 +238,7 @@ const EnrollmentClaim = () => {
                                                     variant="outline"
                                                     size="sm"
                                                     className="gap-2 text-xs"
-                                                    onClick={() => navigate(`/courses/${course.courseId}`)}
+                                                    onClick={() => navigate(`/course/${course.courseId}`)}
                                                 >
                                                     <ArrowRight className="h-3.5 w-3.5" />
                                                     Go to Course
@@ -252,7 +252,7 @@ const EnrollmentClaim = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

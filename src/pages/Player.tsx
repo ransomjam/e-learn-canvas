@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Play, ChevronLeft, CheckCircle, Menu, X, FileText, Clock, Loader2,
   Send, Download, ChevronRight, Lock, ThumbsUp, Paperclip, Upload, Calendar, Star,
-  Trash2, Reply, CornerDownRight
+  Trash2, Reply, CornerDownRight,
+  ClipboardCheck // icon for quiz thumbnails
 } from 'lucide-react';
 import Logo from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
@@ -223,6 +224,22 @@ const Player = () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // when a new lesson loads (especially a quiz), reset scroll position to top
+  useEffect(() => {
+    if (currentLesson) {
+      // delay just a tick to allow DOM updates
+      setTimeout(() => {
+        // scroll main window as well as any overflow container
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        // if there is a scrollable content div for the lesson, reset it too
+        const container = document.querySelector('.h-full.w-full.overflow-auto');
+        if (container instanceof HTMLElement) {
+          container.scrollTop = 0;
+        }
+      }, 0);
+    }
+  }, [currentLessonId]);
 
   const currentLesson = sections.flatMap(s => s.lessons).find(l => l.id === currentLessonId);
 
@@ -878,16 +895,23 @@ const Player = () => {
                                   : 'text-foreground/85 hover:bg-accent/40'
                                   }`}
                               >
-                                <div className="flex-shrink-0 w-20 h-12 bg-muted rounded-md overflow-hidden relative flex items-center justify-center border border-border/50">
-                                  <img
-                                    src={
-                                      lesson.type === 'video' && lesson.videoUrl && lesson.videoUrl.includes('res.cloudinary.com')
-                                        ? resolveMediaUrl(lesson.videoUrl).replace(/\.[^/.]+$/, ".jpg")
-                                        : resolveMediaUrl(course.thumbnailUrl)
-                                    }
-                                    alt=""
-                                    className={`absolute inset-0 w-full h-full object-cover transition-opacity ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}
-                                  />
+                                <div className={"flex-shrink-0 w-20 h-12 rounded-md overflow-hidden relative flex items-center justify-center border border-border/50 " + (lesson.type === 'quiz' ? 'bg-blue-50' : 'bg-muted')}>
+                                  {lesson.type !== 'quiz' && (
+                                    <img
+                                      src={
+                                        lesson.type === 'video' && lesson.videoUrl && lesson.videoUrl.includes('res.cloudinary.com')
+                                          ? resolveMediaUrl(lesson.videoUrl).replace(/\.[^/.]+$/, ".jpg")
+                                          : resolveMediaUrl(course.thumbnailUrl)
+                                      }
+                                      alt=""
+                                      className={`absolute inset-0 w-full h-full object-cover transition-opacity ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}
+                                    />
+                                  )}
+
+                                  {lesson.type === 'quiz' && (
+                                    <ClipboardCheck className="h-6 w-6 text-blue-500" />
+                                  )}
+
                                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                                     {lesson.isCompleted ? (
                                       <div className="bg-background/90 rounded-full p-0.5">

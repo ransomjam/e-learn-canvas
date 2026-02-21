@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,16 @@ interface QuizPlayerProps {
 const QuizPlayer = ({ lessonId, quizData, onComplete }: QuizPlayerProps) => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
+    const rootRef = useRef<HTMLDivElement>(null);
 
     const [answers, setAnswers] = useState<number[]>(new Array(quizData?.length || 0).fill(-1));
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [scoreInfo, setScoreInfo] = useState<any>(null);
+
+    // Scroll to top when quiz data changes or on retry
+    useEffect(() => {
+        rootRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }, [quizData, isSubmitted]);
 
     // Fetch previous results/leaderboard if available
     const { data: resultsInfo } = useQuery({
@@ -78,10 +84,17 @@ const QuizPlayer = ({ lessonId, quizData, onComplete }: QuizPlayerProps) => {
     }
 
     return (
-        <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+        <div ref={rootRef} className="max-w-3xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
             {isSubmitted && scoreInfo ? (
                 <div className="bg-card border border-border rounded-xl p-6 text-center shadow-lg">
                     <h2 className="text-2xl font-bold mb-2">Quiz Results</h2>
+                    <div className={`mx-auto w-20 h-20 flex items-center justify-center rounded-full mb-4 ${scoreInfo.passed ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                        {scoreInfo.passed ? (
+                            <CheckCircle className="h-12 w-12 text-emerald-500" />
+                        ) : (
+                            <XCircle className="h-12 w-12 text-red-500" />
+                        )}
+                    </div>
                     <div className={`text-5xl font-black mb-4 ${scoreInfo.passed ? 'text-emerald-500' : 'text-red-500'}`}>
                         {Math.round(scoreInfo.score)}%
                     </div>

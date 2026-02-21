@@ -1419,7 +1419,11 @@ async function viewProjectSubmissions(projectId, courseId) {
                     <td>
                         ${sub.submission_url ? `<a href="${sub.submission_url}" target="_blank" style="color: var(--primary);">View Link</a>` : ''}
                         ${sub.submission_text ? `<small style="display: block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${sub.submission_text}</small>` : ''}
-                        ${sub.file_name ? `<small style="color: var(--text-muted);">📎 ${sub.file_name}</small>` : ''}
+                        ${sub.file_name ? (
+                            sub.submission_url
+                                ? `<a href="${sub.submission_url}" target="_blank" download style="color: var(--primary);">📎 ${sub.file_name}</a>`
+                                : `<small style="color: var(--text-muted);">📎 ${sub.file_name}</small>`
+                        ) : ''}
                     </td>
                     <td><span class="status-badge status-${sub.status === 'graded' ? 'success' : sub.status === 'submitted' ? 'warning' : 'danger'}">${sub.status}</span></td>
                     <td>${sub.grade != null ? sub.grade + '/100' : '-'}</td>

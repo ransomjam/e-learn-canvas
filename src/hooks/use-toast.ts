@@ -3,7 +3,13 @@ import * as React from "react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000;
+// how long to wait before actually removing a dismissed toast from the DOM
+// keep very short so messages feel snappy
+const TOAST_REMOVE_DELAY = 500;
+
+// default amount of time a toast remains visible if the caller doesn't
+// specify one. 2 seconds keeps things swift and non‑disruptive.
+const DEFAULT_DURATION = 2000;
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -134,7 +140,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">;
 
-function toast({ ...props }: Toast) {
+function toast({ duration, ...props }: Toast) {
   const id = genId();
 
   const update = (props: ToasterToast) =>
@@ -148,6 +154,8 @@ function toast({ ...props }: Toast) {
     type: "ADD_TOAST",
     toast: {
       ...props,
+      // apply default duration if caller left it out
+      duration: duration ?? DEFAULT_DURATION,
       id,
       open: true,
       onOpenChange: (open) => {

@@ -194,6 +194,19 @@ const InstructorSubmissions = () => {
                                                     {new Date(sub.submitted_at).toLocaleDateString()}
                                                 </span>
                                             </div>
+                                            {/* show file icon if a submission file exists */}
+                                            {sub.submission_url && sub.file_name && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        downloadProjectFile(sub.submission_url, sub.file_name);
+                                                    }}
+                                                    className="text-muted-foreground hover:text-primary"
+                                                    title="Download submission"
+                                                >
+                                                    <Paperclip className="h-4 w-4" />
+                                                </button>
+                                            )}
                                             {sub.status === 'graded' ? (
                                                 <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                                                     <CheckCircle className="h-3 w-3 mr-1" />

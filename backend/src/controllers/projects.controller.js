@@ -298,9 +298,11 @@ const getInstructorAllSubmissions = asyncHandler(async (req, res) => {
 
     const total = parseInt(countResult.rows[0].total);
 
-    // Get submissions with full details
+    // Get submissions with full details (include file metadata for download)
     const result = await query(
-        `SELECT ps.*, 
+        `SELECT ps.id, ps.project_id, ps.user_id, ps.status, ps.grade,
+                ps.instructor_feedback, ps.submitted_at, ps.graded_at,
+                ps.submission_url, ps.file_name, ps.file_size, ps.submission_text,
                 u.first_name, u.last_name, u.email,
                 p.title as project_title, p.course_id,
                 c.title as course_title

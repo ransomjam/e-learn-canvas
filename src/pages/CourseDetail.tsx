@@ -39,7 +39,7 @@ const CourseDetail = () => {
   const [showReviewDialog, setShowReviewDialog] = useState(false);
 
   // Fetch course
-  const { data: course, isLoading: courseLoading } = useQuery({
+  const { data: course, isLoading: courseLoading, isError: courseError } = useQuery({
     queryKey: ['course', id],
     queryFn: () => coursesService.getCourseById(id!),
     enabled: !!id,
@@ -250,6 +250,20 @@ const CourseDetail = () => {
             <Skeleton className="h-8 w-3/4 sm:h-10" />
             <Skeleton className="mt-3 h-5 w-1/2 sm:mt-4" />
             <Skeleton className="mt-6 h-48 w-full sm:mt-8 sm:h-64" />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (courseError) {
+    return (
+      <Layout>
+        <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 py-12 sm:py-20 gap-4">
+          <p className="text-muted-foreground">Failed to load course. Please check your connection.</p>
+          <div className="flex gap-3">
+            <Button onClick={() => window.location.reload()}>Reload</Button>
+            <Link to="/courses"><Button variant="outline">Browse Courses</Button></Link>
           </div>
         </div>
       </Layout>

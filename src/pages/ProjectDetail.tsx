@@ -25,7 +25,7 @@ const ProjectDetail = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsService.getProject(projectId!),
     enabled: !!projectId,
@@ -76,6 +76,18 @@ const ProjectDetail = () => {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-muted-foreground">Failed to load project. Please check your connection.</p>
+        <div className="flex gap-3">
+          <Button onClick={() => window.location.reload()}>Reload</Button>
+          <Link to={`/player/${courseId}`}><Button variant="outline">Back to Course</Button></Link>
+        </div>
       </div>
     );
   }

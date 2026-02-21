@@ -19,7 +19,7 @@ const MyCourses = () => {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
 
-    const { data: enrollments = [], isLoading } = useQuery({
+    const { data: enrollments = [], isLoading, isError } = useQuery({
         queryKey: ['myEnrollments'],
         queryFn: () => enrollmentsService.getMyEnrollments(),
     });
@@ -126,6 +126,11 @@ const MyCourses = () => {
                     {isLoading ? (
                         <div className="flex items-center justify-center py-20">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                    ) : isError ? (
+                        <div className="flex flex-col items-center justify-center py-20 gap-4">
+                            <p className="text-muted-foreground">Failed to load your courses. Please check your connection.</p>
+                            <Button onClick={() => window.location.reload()}>Reload</Button>
                         </div>
                     ) : filtered.length > 0 ? (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

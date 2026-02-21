@@ -160,13 +160,13 @@ export const coursesService = {
     },
 
     // Chat methods
-    async getChatMessages(courseId: string): Promise<any[]> {
-        const response = await api.get(`/courses/${courseId}/chat`);
+    async getChatMessages(courseId: string, lessonId?: string): Promise<any[]> {
+        const response = await api.get(`/courses/${courseId}/chat`, { params: { lessonId } });
         return response.data.data;
     },
 
-    async postChatMessage(courseId: string, message: string, replyTo?: string): Promise<any> {
-        const response = await api.post(`/courses/${courseId}/chat`, { message, replyTo });
+    async postChatMessage(courseId: string, message: string, replyTo?: string, lessonId?: string): Promise<any> {
+        const response = await api.post(`/courses/${courseId}/chat`, { message, replyTo, lessonId });
         return response.data.data;
     },
 

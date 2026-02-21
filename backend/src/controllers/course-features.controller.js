@@ -150,7 +150,7 @@ const deleteResource = asyncHandler(async (req, res) => {
  */
 const getChatMessages = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { limit = 50, before } = req.query;
+    const { limit = 50, before, lessonId } = req.query;
 
     // Check access
     const courseResult = await query(
@@ -173,7 +173,7 @@ const getChatMessages = asyncHandler(async (req, res) => {
     }
 
     let queryStr = `
-        SELECT m.id, m.message, m.created_at, m.reply_to,
+        SELECT m.id, m.message, m.created_at, m.reply_to, m.lesson_id,
                u.id as user_id, u.first_name, u.last_name, u.avatar_url, u.role
         FROM chat_messages m
         JOIN users u ON m.user_id = u.id
@@ -181,6 +181,13 @@ const getChatMessages = asyncHandler(async (req, res) => {
     `;
     const params = [id];
     let paramIndex = 2;
+
+    if (lessonId) {
+        queryStr += ` AND m.lesson_id = $${paramIndex++}`;
+        params.push(lessonId);
+    } else {
+        queryStr += ` AND m.lesson_id IS NULL`;
+    }
 
     if (before) {
         queryStr += ` AND m.created_at < $${paramIndex++}`;
@@ -244,7 +251,7 @@ const getChatMessages = asyncHandler(async (req, res) => {
  */
 const postChatMessage = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { message, replyTo } = req.body;
+    const { message, replyTo, lessonId } = req.body;
 
     if (!message || !message.trim()) {
         throw new ApiError(400, 'Message cannot be empty');
@@ -282,10 +289,10 @@ const postChatMessage = asyncHandler(async (req, res) => {
     }
 
     const result = await query(
-        `INSERT INTO chat_messages (course_id, user_id, message, reply_to)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, message, created_at, reply_to`,
-        [id, req.user.id, message.trim(), replyTo || null]
+        `INSERT INTO chat_messages (course_id, user_id, message, reply_to, lesson_id)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, message, created_at, reply_to, lesson_id`,
+        [id, req.user.id, message.trim(), replyTo || null, lessonId || null]
     );
 
     // Fetch user details to return complete message object

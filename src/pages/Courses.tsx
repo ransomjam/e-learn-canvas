@@ -30,7 +30,7 @@ const Courses = () => {
   // Sync search query from URL params (e.g. when navigating from navbar search)
   useEffect(() => {
     const urlSearch = searchParams.get('search') || '';
-    if (urlSearch && urlSearch !== searchQuery) {
+    if (urlSearch !== searchQuery) {
       setSearchQuery(urlSearch);
       setPage(1);
     }

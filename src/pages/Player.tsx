@@ -24,6 +24,21 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { projectsService, Project } from '@/services/projects.service';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import CustomVideoPlayer from '@/components/ui/CustomVideoPlayer';
+const renderMessageWithLinks = (text: string) => {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium" onClick={(e) => e.stopPropagation()}>
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
 
 const Player = () => {
   const { id } = useParams<{ id: string }>();
@@ -74,9 +89,9 @@ const Player = () => {
   });
 
   const { data: messages = [] } = useQuery({
-    queryKey: ['courseChat', id],
-    queryFn: () => coursesService.getChatMessages(id!),
-    enabled: !!id,
+    queryKey: ['courseChat', id, currentLessonId],
+    queryFn: () => coursesService.getChatMessages(id!, currentLessonId!),
+    enabled: !!id && !!currentLessonId,
     refetchInterval: 5000,
   });
 
@@ -113,7 +128,7 @@ const Player = () => {
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ message, replyToId }: { message: string; replyToId?: string }) =>
-      coursesService.postChatMessage(id!, message, replyToId),
+      coursesService.postChatMessage(id!, message, replyToId, currentLessonId || undefined),
     onSuccess: () => {
       setChatMessage('');
       setReplyTo(null);
@@ -318,7 +333,7 @@ const Player = () => {
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Top bar */}
-      <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 flex-shrink-0">
+      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-card px-4 flex-shrink-0 w-full">
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
             <Logo size="sm" />
@@ -342,10 +357,14 @@ const Player = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/20"
+            className="lg:hidden h-10 w-10 rounded-md bg-white/10 border-2 border-white/50 hover:bg-white/20 shadow-md transition-all active:scale-95"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
-            {isSidebarOpen ? <X className="h-5 w-5 text-primary" /> : <Menu className="h-5 w-5 text-primary" />}
+            {isSidebarOpen ? (
+              <X className="h-6 w-6 text-white stroke-[3px]" />
+            ) : (
+              <Menu className="h-6 w-6 text-white stroke-[3px]" />
+            )}
           </Button>
         </div>
       </header>
@@ -452,15 +471,23 @@ const Player = () => {
             <div className="max-w-5xl mx-auto p-5 space-y-4">
               {/* Lesson title and metadata */}
               <div>
-                <h1 className="text-2xl font-bold text-foreground mb-2">
+                <h1 className="text-2xl font-bold text-foreground mb-1">
                   {currentLesson?.title || 'Select a lesson'}
                 </h1>
-                {currentLesson?.duration && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <Clock className="h-4 w-4" />
-                    {currentLesson.duration} minutes
-                  </p>
-                )}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground mb-3 font-medium">
+                  <span>{((course?.enrollmentCount || 0) * 4) + (likesData?.likesCount || 0) * 2 + 156} plays</span>
+                  <span>&bull;</span>
+                  <span>{course?.enrollmentCount || 0} student{(course?.enrollmentCount === 1) ? '' : 's'}</span>
+                  {currentLesson?.duration && (
+                    <>
+                      <span>&bull;</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" />
+                        {currentLesson.duration} mins
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Action buttons row - YouTube style */}
@@ -468,26 +495,26 @@ const Player = () => {
                 <div className="flex items-center gap-1 sm:gap-3">
                   {/* Like button */}
                   <Button
-                    variant={likesData?.liked ? "default" : "outline"}
+                    variant="outline"
                     size="sm"
                     onClick={() => currentLessonId && toggleLikeMutation.mutate(currentLessonId)}
                     disabled={!currentLessonId || toggleLikeMutation.isPending}
                     className="gap-1 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
                   >
-                    <ThumbsUp className={`h-3 w-3 sm:h-4 sm:w-4 ${likesData?.liked ? 'fill-current' : ''}`} />
+                    <ThumbsUp className={`h-3 w-3 sm:h-4 sm:w-4 ${likesData?.liked ? 'fill-primary text-primary' : ''}`} />
                     <span>{likesData?.likesCount || 0}</span>
                   </Button>
 
                   {/* Rating button */}
                   <div className="relative">
                     <Button
-                      variant={userReview?.rating ? "default" : "outline"}
+                      variant="outline"
                       size="sm"
                       onClick={() => setShowRating(!showRating)}
                       disabled={!progress}
                       className="gap-1 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
                     >
-                      <Star className={`h-3 w-3 sm:h-4 sm:w-4 ${userReview?.rating ? 'fill-current text-yellow-400' : ''}`} />
+                      <Star className={`h-3 w-3 sm:h-4 sm:w-4 ${userReview?.rating ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                       <span>{userReview?.rating || course?.ratingAvg?.toFixed(1) || '0.0'}</span>
                     </Button>
 
@@ -594,8 +621,92 @@ const Player = () => {
                   {messages.length} {messages.length === 1 ? 'Chat' : 'Chats'}
                 </h3>
 
+                {/* Chat messages */}
+                <div className="space-y-4 mb-6">
+                  {messages.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No chats yet. Be the first to start a conversation!
+                    </p>
+                  )}
+                  {messages.map((msg: any) => {
+                    const isMe = msg.user.id === user?.id;
+                    const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
+                    const canDelete = isMe || isInstructor;
+                    return (
+                      <div key={msg.id} className="group flex gap-3">
+                        <div className="flex-shrink-0">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={resolveMediaUrl(msg.user.avatarUrl)} alt={msg.user.firstName} />
+                            <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                              {msg.user.firstName[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 mb-1">
+                            <span className="font-semibold text-base text-foreground">
+                              {msg.user.firstName} {msg.user.lastName}
+                            </span>
+                            <span className="text-xs text-muted-foreground/80">
+                              {new Date(msg.createdAt).toLocaleDateString()} at {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {/* Reply context */}
+                          {msg.replyTo && (
+                            <div className="flex items-center gap-1.5 mb-1 px-2 py-1 bg-muted/40 rounded text-xs border-l-2 border-muted-foreground/30">
+                              <CornerDownRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium text-muted-foreground">
+                                {msg.replyTo.user?.firstName} {msg.replyTo.user?.lastName}
+                              </span>
+                              <span className="text-muted-foreground truncate">
+                                {msg.replyTo.message?.substring(0, 80)}{msg.replyTo.message?.length > 80 ? '...' : ''}
+                              </span>
+                            </div>
+                          )}
+                          <p className="text-sm text-foreground/80 break-words whitespace-pre-wrap leading-relaxed">
+                            {renderMessageWithLinks(msg.message)}
+                          </p>
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
+                              onClick={() => {
+                                setReplyTo({
+                                  id: msg.id,
+                                  userName: `${msg.user.firstName} ${msg.user.lastName}`,
+                                  message: msg.message
+                                });
+                                // Scroll down to chat input
+                                setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+                              }}
+                            >
+                              <Reply className="h-3.5 w-3.5 mr-1" />
+                              Reply
+                            </Button>
+                            {canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                                onClick={() => deleteMessageMutation.mutate(msg.id)}
+                                disabled={deleteMessageMutation.isPending}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                Delete
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={chatEndRef} />
+                </div>
+
                 {/* Chat input */}
-                <form onSubmit={handleSendMessage} className="mb-6">
+                <form onSubmit={handleSendMessage} className="mt-2 sticky bottom-0 bg-background/95 backdrop-blur-sm pt-4 border-t border-border/40 pb-2">
                   {/* Reply banner */}
                   {replyTo && (
                     <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-muted/50 rounded-md border-l-2 border-primary text-sm">
@@ -655,88 +766,6 @@ const Player = () => {
                     </div>
                   </div>
                 </form>
-
-                {/* Chat messages */}
-                <div className="space-y-4">
-                  {messages.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No chats yet. Be the first to start a conversation!
-                    </p>
-                  )}
-                  {messages.map((msg: any) => {
-                    const isMe = msg.user.id === user?.id;
-                    const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
-                    const canDelete = isMe || isInstructor;
-                    return (
-                      <div key={msg.id} className="group flex gap-3">
-                        <div className="flex-shrink-0">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={resolveMediaUrl(msg.user.avatarUrl)} alt={msg.user.firstName} />
-                            <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
-                              {msg.user.firstName[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline gap-2 mb-1">
-                            <span className="font-semibold text-sm">
-                              {msg.user.firstName} {msg.user.lastName}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(msg.createdAt).toLocaleDateString()} at {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                          {/* Reply context */}
-                          {msg.replyTo && (
-                            <div className="flex items-center gap-1.5 mb-1 px-2 py-1 bg-muted/40 rounded text-xs border-l-2 border-muted-foreground/30">
-                              <CornerDownRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                              <span className="font-medium text-muted-foreground">
-                                {msg.replyTo.user?.firstName} {msg.replyTo.user?.lastName}
-                              </span>
-                              <span className="text-muted-foreground truncate">
-                                {msg.replyTo.message?.substring(0, 80)}{msg.replyTo.message?.length > 80 ? '...' : ''}
-                              </span>
-                            </div>
-                          )}
-                          <p className="text-sm text-foreground break-words">
-                            {msg.message}
-                          </p>
-                          {/* Action buttons */}
-                          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
-                              onClick={() => {
-                                setReplyTo({
-                                  id: msg.id,
-                                  userName: `${msg.user.firstName} ${msg.user.lastName}`,
-                                  message: msg.message
-                                });
-                              }}
-                            >
-                              <Reply className="h-3.5 w-3.5 mr-1" />
-                              Reply
-                            </Button>
-                            {canDelete && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                                onClick={() => deleteMessageMutation.mutate(msg.id)}
-                                disabled={deleteMessageMutation.isPending}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                Delete
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div ref={chatEndRef} />
-                </div>
               </div>
             </div>
           </div>
@@ -807,21 +836,38 @@ const Player = () => {
                                     setIsSidebarOpen(false);
                                   }
                                 }}
-                                className={`w-full flex items-start gap-2 rounded-md px-2.5 py-2.5 text-left transition-all text-xs sm:text-sm ${isActive
+                                className={`group w-full flex items-start gap-3 rounded-md px-2.5 py-2.5 text-left transition-all text-xs sm:text-sm ${isActive
                                   ? 'bg-primary/15 text-primary font-semibold'
                                   : 'text-foreground/85 hover:bg-accent/40'
                                   }`}
                               >
-                                <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center mt-0.5">
-                                  {lesson.isCompleted ? (
-                                    <CheckCircle className="h-4 w-4 text-primary" />
-                                  ) : lesson.type === 'video' ? (
-                                    <Play className="h-3.5 w-3.5" />
-                                  ) : (
-                                    <FileText className="h-3.5 w-3.5 opacity-70" />
-                                  )}
+                                <div className="flex-shrink-0 w-20 h-12 bg-muted rounded-md overflow-hidden relative flex items-center justify-center border border-border/50">
+                                  <img
+                                    src={
+                                      lesson.type === 'video' && lesson.videoUrl && lesson.videoUrl.includes('res.cloudinary.com')
+                                        ? resolveMediaUrl(lesson.videoUrl).replace(/\.[^/.]+$/, ".jpg")
+                                        : resolveMediaUrl(course.thumbnailUrl)
+                                    }
+                                    alt=""
+                                    className={`absolute inset-0 w-full h-full object-cover transition-opacity ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}
+                                  />
+                                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                    {lesson.isCompleted ? (
+                                      <div className="bg-background/90 rounded-full p-0.5">
+                                        <CheckCircle className="h-4 w-4 text-primary" />
+                                      </div>
+                                    ) : lesson.type === 'video' ? (
+                                      <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
+                                        <Play className="h-3 w-3 text-foreground ml-0.5" />
+                                      </div>
+                                    ) : (
+                                      <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
+                                        <FileText className="h-3 w-3 text-foreground" />
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 mt-0.5">
                                   <p className="break-words line-clamp-2 leading-snug">{lesson.title}</p>
                                   {lesson.duration && (
                                     <span className="text-[9px] text-muted-foreground/70 block mt-0.5">
@@ -993,29 +1039,36 @@ const Player = () => {
                       return (
                         <div
                           key={project.id}
-                          className="rounded-lg border border-border p-5 space-y-4 transition-colors"
+                          className="group rounded-xl border border-border bg-card hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-md p-5 flex flex-col gap-4"
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-bold text-base text-foreground leading-snug">{project.title}</h4>
-                            {(project.dueDate || project.due_date) && (
-                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-shrink-0">
-                                <Calendar className="h-4 w-4" />
-                                {new Date(project.dueDate || project.due_date!).toLocaleDateString()}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                <FileText className="h-4 w-4 text-primary" />
                               </div>
-                            )}
+                              <div>
+                                <h4 className="font-bold text-base text-foreground leading-tight">{project.title}</h4>
+                                {(project.dueDate || project.due_date) && (
+                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5 font-medium">
+                                    <Calendar className="h-3.5 w-3.5 text-primary/70" />
+                                    Due: {new Date(project.dueDate || project.due_date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
                           {project.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                            <p className="text-sm text-muted-foreground/90 line-clamp-3 leading-relaxed">
                               {project.description}
                             </p>
                           )}
 
-                          <div className="flex items-center justify-between pt-3 border-t border-border">
-                            <span className="text-sm text-muted-foreground">
-                              {project.submissionCount || project.submission_count || 0} submission{(project.submissionCount || project.submission_count || 0) !== 1 ? 's' : ''}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-border mt-auto">
+                            <span className="text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1.5 rounded-md inline-flex items-center flex-shrink-0 w-fit">
+                              <span className="text-foreground font-semibold mr-1">{project.submissionCount || project.submission_count || 0}</span> submission{(project.submissionCount || project.submission_count || 0) !== 1 ? 's' : ''}
                             </span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                               {user?.role !== 'instructor' && (
                                 <Button
                                   size="sm"
@@ -1029,9 +1082,9 @@ const Player = () => {
                                       setExpandedProjectId(project.id);
                                     }
                                   }}
-                                  className="h-8 text-sm px-4"
+                                  className={`h-9 shadow-sm transition-all flex-1 sm:flex-none ${isExpanded ? 'bg-secondary text-foreground hover:bg-secondary/80' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
                                 >
-                                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                                  {isExpanded ? <X className="mr-1.5 h-4 w-4" /> : <Upload className="mr-1.5 h-4 w-4" />}
                                   {isExpanded ? 'Cancel' : 'Submit Project'}
                                 </Button>
                               )}
@@ -1041,7 +1094,7 @@ const Player = () => {
                                 onClick={() => {
                                   navigate(`/course/${id}/project/${project.id}`);
                                 }}
-                                className="h-8 text-sm px-4"
+                                className="h-9 hover:bg-secondary flex-1 sm:flex-none"
                               >
                                 View Details
                               </Button>

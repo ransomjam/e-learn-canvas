@@ -540,22 +540,47 @@ const CourseDetail = () => {
                               key={lesson.id}
                               className="flex flex-col gap-2 rounded-lg p-3 hover:bg-secondary/50 sm:flex-row sm:items-center sm:justify-between"
                             >
-                              <div className="flex min-w-0 items-center gap-3">
-                                {!isEnrolled && !lesson.isFree ? (
-                                  <Lock className="h-4 w-4 text-muted-foreground" />
-                                ) : lesson.type === 'video' ? (
-                                  <Play className="h-4 w-4 text-primary" />
-                                ) : lesson.type === 'quiz' ? (
-                                  <HelpCircle className="h-4 w-4 text-accent" />
-                                ) : (
-                                  <FileText className="h-4 w-4 text-primary" />
-                                )}
-                                <span className="text-sm text-foreground md:text-base">
-                                  {lesson.title}
-                                </span>
-                                {lesson.isFree && !isEnrolled && (
-                                  <Badge variant="outline" className="text-xs">Preview</Badge>
-                                )}
+                              <div className="flex min-w-0 items-center gap-4">
+                                <div className="flex-shrink-0 w-20 h-12 bg-muted rounded-md overflow-hidden relative flex items-center justify-center border border-border/50">
+                                  <img
+                                    src={
+                                      lesson.type === 'video' && lesson.videoUrl && lesson.videoUrl.includes('res.cloudinary.com')
+                                        ? resolveMediaUrl(lesson.videoUrl).replace(/\.[^/.]+$/, ".jpg")
+                                        : resolveMediaUrl(course.thumbnailUrl)
+                                    }
+                                    alt=""
+                                    className="absolute inset-0 w-full h-full object-cover opacity-80"
+                                  />
+                                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                    {!isEnrolled && !lesson.isFree ? (
+                                      <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
+                                        <Lock className="h-3 w-3 text-muted-foreground" />
+                                      </div>
+                                    ) : lesson.type === 'video' ? (
+                                      <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
+                                        <Play className="h-3 w-3 text-primary ml-0.5" />
+                                      </div>
+                                    ) : lesson.type === 'quiz' ? (
+                                      <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
+                                        <HelpCircle className="h-3 w-3 text-accent" />
+                                      </div>
+                                    ) : (
+                                      <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
+                                        <FileText className="h-3 w-3 text-primary" />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-foreground md:text-base line-clamp-2">
+                                      {lesson.title}
+                                    </span>
+                                    {lesson.isFree && !isEnrolled && (
+                                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">Preview</Badge>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                               <span className="text-sm text-muted-foreground">
                                 {lesson.duration ? `${lesson.duration} min` : lesson.type}

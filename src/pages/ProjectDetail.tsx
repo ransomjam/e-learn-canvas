@@ -123,11 +123,10 @@ const ProjectDetail = () => {
                   )}
                 </div>
                 {submission && (
-                  <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                    submission.status === 'graded' 
-                      ? 'bg-green-500/10 text-green-600' 
+                  <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${submission.status === 'graded'
+                      ? 'bg-green-500/10 text-green-600'
                       : 'bg-blue-500/10 text-blue-600'
-                  }`}>
+                    }`}>
                     {submission.status === 'graded' ? 'Graded' : 'Submitted'}
                   </div>
                 )}
@@ -340,70 +339,62 @@ const ProjectDetail = () => {
                   Student Submissions ({publicSubmissions.length})
                 </h2>
                 <div className="space-y-3">
-                  {publicSubmissions.map((sub: any) => (
-                    <div
-                      key={sub.id}
-                      className={`rounded-lg border p-4 space-y-2 ${
-                        sub.user_id === user?.id
-                          ? 'border-primary/30 bg-primary/5'
-                          : 'border-border'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                            {sub.first_name?.[0]}{sub.last_name?.[0]}
+                  {[...publicSubmissions]
+                    .sort((a, b) => {
+                      const gradeA = a.grade != null ? Number(a.grade) : -1;
+                      const gradeB = b.grade != null ? Number(b.grade) : -1;
+                      return gradeB - gradeA;
+                    })
+                    .map((sub: any) => (
+                      <div
+                        key={sub.id}
+                        className={`rounded-lg border p-4 space-y-2 ${sub.user_id === user?.id
+                            ? 'border-primary/30 bg-primary/5'
+                            : 'border-border'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                              {sub.first_name?.[0]}{sub.last_name?.[0]}
+                            </div>
+                            <div>
+                              <span className="text-sm font-medium text-foreground">
+                                {sub.first_name} {sub.last_name}
+                                {sub.user_id === user?.id && (
+                                  <span className="ml-1.5 text-xs text-primary">(You)</span>
+                                )}
+                              </span>
+                              <p className="text-xs text-muted-foreground">
+                                Submitted {new Date(sub.submitted_at).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
                           <div>
-                            <span className="text-sm font-medium text-foreground">
-                              {sub.first_name} {sub.last_name}
-                              {sub.user_id === user?.id && (
-                                <span className="ml-1.5 text-xs text-primary">(You)</span>
-                              )}
-                            </span>
-                            <p className="text-xs text-muted-foreground">
-                              Submitted {new Date(sub.submitted_at).toLocaleDateString()}
-                            </p>
+                            {sub.status === 'graded' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-500">
+                                <CheckCircle className="h-3 w-3" />
+                                {sub.grade}%
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/10 px-2.5 py-1 text-xs font-medium text-yellow-500">
+                                <Clock className="h-3 w-3" />
+                                Pending
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <div>
-                          {sub.status === 'graded' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-500">
-                              <CheckCircle className="h-3 w-3" />
-                              {sub.grade}%
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/10 px-2.5 py-1 text-xs font-medium text-yellow-500">
-                              <Clock className="h-3 w-3" />
-                              Pending
-                            </span>
-                          )}
-                        </div>
+
+                        {sub.status === 'graded' && sub.instructor_feedback && (
+                          <div className="ml-10 mt-2 rounded-lg bg-muted/30 p-3 border-l-2 border-primary/40">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Instructor Feedback</p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap">
+                              {sub.instructor_feedback}
+                            </p>
+                          </div>
+                        )}
                       </div>
-
-                      {sub.submission_text && (
-                        <p className="text-sm text-muted-foreground line-clamp-2 pl-10">
-                          {sub.submission_text}
-                        </p>
-                      )}
-
-                      {sub.file_name && (
-                        <div className="flex items-center gap-1.5 pl-10 text-xs text-muted-foreground">
-                          <Paperclip className="h-3 w-3" />
-                          {sub.file_name}
-                        </div>
-                      )}
-
-                      {sub.status === 'graded' && sub.instructor_feedback && (
-                        <div className="ml-10 mt-2 rounded-lg bg-muted/30 p-3 border-l-2 border-primary/40">
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Instructor Feedback</p>
-                          <p className="text-sm text-foreground whitespace-pre-wrap">
-                            {sub.instructor_feedback}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </div>
             )}
@@ -487,7 +478,7 @@ const ProjectDetail = () => {
           <div className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-4 space-y-3">
               <h3 className="font-semibold text-sm">Project Details</h3>
-              
+
               {project.maxFileSize && (
                 <div className="text-sm">
                   <span className="text-muted-foreground">Max file size:</span>

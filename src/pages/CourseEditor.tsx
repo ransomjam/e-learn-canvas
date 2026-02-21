@@ -1261,31 +1261,18 @@ const CourseEditor = () => {
                                             )}
                                         </div>
                                     ))}
-
-
-                                    {/* Add New Lesson Button */}
-                                    <div className="mb-6 rounded-lg border border-dashed border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-foreground">Add New Lesson</h4>
-                                            <p className="text-xs text-muted-foreground">Create a new lesson and assign it to a section.</p>
-                                        </div>
-                                        <Button onClick={() => navigate(`/instructor/courses/${id}/lessons/new`)}>
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Add Lesson
-                                        </Button>
-                                    </div>
-
                                     {/* Add New Section */}
-                                    <div className="rounded-lg border-2 border-dashed border-border bg-secondary/10 p-4">
-                                        <h4 className="text-sm font-semibold text-foreground mb-3">
-                                            Add New Section
-                                        </h4>
-                                        <div className="flex gap-2">
+                                    <div className="mb-6 rounded-xl border border-primary/50 bg-primary/5 p-6 shadow-sm">
+                                        <div className="mb-4">
+                                            <h4 className="text-base font-semibold text-foreground">Add New Section</h4>
+                                            <p className="text-sm text-muted-foreground mt-1">Start by creating a section to organize your lessons (e.g., "Introduction", "Module 1"). You must have at least one section before you can add lessons.</p>
+                                        </div>
+                                        <div className="flex gap-3">
                                             <Input
                                                 value={newSectionTitle}
                                                 onChange={(e) => setNewSectionTitle(e.target.value)}
-                                                placeholder="Section title (e.g., Introduction)"
-                                                className="flex-1"
+                                                placeholder="Enter section title..."
+                                                className="flex-1 bg-background"
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' && newSectionTitle.trim()) {
                                                         createSectionMutation.mutate({ title: newSectionTitle });
@@ -1308,6 +1295,18 @@ const CourseEditor = () => {
                                                 Add Section
                                             </Button>
                                         </div>
+                                    </div>
+
+                                    {/* Add New Lesson Button */}
+                                    <div className="rounded-lg border-2 border-dashed border-border bg-secondary/10 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-foreground">Add New Lesson</h4>
+                                            <p className="text-xs text-muted-foreground mt-1">Create a new lesson and assign it to one of your created sections.</p>
+                                        </div>
+                                        <Button variant="outline" onClick={() => navigate(`/instructor/courses/${id}/lessons/new`)}>
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Add Lesson
+                                        </Button>
                                     </div>
                                 </div>
                             </div>

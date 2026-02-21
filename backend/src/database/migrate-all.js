@@ -516,6 +516,11 @@ const allMigrations = [
         name: '033_add_original_name_to_course_resources', up: `
         ALTER TABLE course_resources ADD COLUMN IF NOT EXISTS original_name VARCHAR(500);
     `},
+    {
+        name: '034_add_lesson_id_to_chat_messages', up: `
+        ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE;
+        CREATE INDEX IF NOT EXISTS idx_chat_messages_lesson_id ON chat_messages(lesson_id);
+    `},
 ];
 
 // ─── runner ─────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Menu, X, User, LogOut, GraduationCap, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,13 +28,25 @@ const Navbar = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Sync search value with URL so it doesn't clear unexpectedly
+  useEffect(() => {
+    if (location.pathname === '/courses') {
+      const params = new URLSearchParams(location.search);
+      setSearchValue(params.get('search') || '');
+    } else {
+      setSearchValue('');
+    }
+  }, [location.pathname, location.search]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchValue.trim()) {
-      navigate(`/courses?search=${encodeURIComponent(searchValue.trim())}`);
-      setSearchValue('');
-      setIsMenuOpen(false);
+    const query = searchValue.trim();
+    if (query) {
+      navigate(`/courses?search=${encodeURIComponent(query)}`);
+    } else {
+      navigate('/courses');
     }
+    setIsMenuOpen(false);
   };
 
   return (
@@ -52,13 +64,19 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-8 md:flex">
             {/* Search Bar */}
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <form onSubmit={handleSearch} className="relative group flex items-center">
+              <button
+                type="submit"
+                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
               <Input
                 placeholder="Search courses..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="w-40 bg-secondary pl-10 transition-all duration-300 focus:w-44 sm:w-56 sm:focus:w-64 lg:w-64 lg:focus:w-72"
+                className="w-40 bg-secondary pl-10 transition-all duration-300 focus:w-44 sm:w-56 sm:focus:w-64 lg:w-64 lg:focus:w-72 relative z-0"
               />
             </form>
 
@@ -89,38 +107,43 @@ const Navbar = () => {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <div className="flex items-center justify-start gap-2 p-2">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                <DropdownMenuContent align="end" className="w-64 p-2 shadow-xl border-border/50">
+                  <div className="flex items-center gap-3 px-2 py-3 bg-secondary/40 rounded-lg mb-2">
+                    <Avatar className="h-10 w-10 border border-primary/10 shadow-sm">
+                      <AvatarImage src={resolveMediaUrl(user.avatarUrl)} alt={user.firstName} />
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
+                        {user.firstName[0]}{user.lastName[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col min-w-0">
+                      <p className="text-sm font-semibold truncate leading-tight text-foreground">{user.firstName} {user.lastName}</p>
+                      <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{user.email}</p>
                     </div>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/my-courses">My Courses</Link>
+                  <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
+                    <Link to="/my-courses" className="flex items-center w-full">
+                      <BookOpen className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="font-medium text-sm">My Courses</span>
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile">
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
+                  <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
+                    <Link to="/profile" className="flex items-center w-full">
+                      <User className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="font-medium text-sm">Profile</span>
                     </Link>
                   </DropdownMenuItem>
                   {(user.role === 'instructor' || user.role === 'admin') && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link to="/instructor">
-                          <GraduationCap className="mr-2 h-4 w-4" />
-                          Instructor Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
+                    <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
+                      <Link to="/instructor" className="flex items-center w-full">
+                        <GraduationCap className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="font-medium text-sm">Instructor Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
                   )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                  <DropdownMenuSeparator className="my-1.5 opacity-50" />
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer py-2.5 rounded-md text-red-500 focus:bg-red-500/10 focus:text-red-500 transition-colors group">
+                    <LogOut className="mr-3 h-4 w-4 group-hover:text-red-600 transition-colors" />
+                    <span className="font-medium text-sm">Log out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -152,45 +175,43 @@ const Navbar = () => {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="flex items-center gap-3 p-3">
-                    <Avatar className="h-10 w-10">
+                <DropdownMenuContent align="end" className="w-64 p-2 shadow-xl border-border/50">
+                  <div className="flex items-center gap-3 px-2 py-3 bg-secondary/40 rounded-lg mb-2">
+                    <Avatar className="h-10 w-10 border border-primary/10 shadow-sm">
                       <AvatarImage src={resolveMediaUrl(user.avatarUrl)} alt={user.firstName} />
-                      <AvatarFallback>{user.firstName[0]}{user.lastName[0]}</AvatarFallback>
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
+                        {user.firstName[0]}{user.lastName[0]}
+                      </AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col space-y-0.5 min-w-0">
-                      <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    <div className="flex flex-col min-w-0">
+                      <p className="text-sm font-semibold truncate leading-tight text-foreground">{user.firstName} {user.lastName}</p>
+                      <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{user.email}</p>
                     </div>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/my-courses">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      My Courses
+                  <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
+                    <Link to="/my-courses" className="flex items-center w-full">
+                      <BookOpen className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="font-medium text-sm">My Courses</span>
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile">
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
+                  <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
+                    <Link to="/profile" className="flex items-center w-full">
+                      <User className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="font-medium text-sm">Profile</span>
                     </Link>
                   </DropdownMenuItem>
                   {(user.role === 'instructor' || user.role === 'admin') && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link to="/instructor">
-                          <GraduationCap className="mr-2 h-4 w-4" />
-                          Instructor Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
+                    <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
+                      <Link to="/instructor" className="flex items-center w-full">
+                        <GraduationCap className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="font-medium text-sm">Instructor Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
                   )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                  <DropdownMenuSeparator className="my-1.5 opacity-50" />
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer py-2.5 rounded-md text-red-500 focus:bg-red-500/10 focus:text-red-500 transition-colors group">
+                    <LogOut className="mr-3 h-4 w-4 group-hover:text-red-600 transition-colors" />
+                    <span className="font-medium text-sm">Log out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -212,13 +233,13 @@ const Navbar = () => {
       {isMenuOpen && !isAuthenticated && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 top-16 bg-black/40 backdrop-blur-sm md:hidden"
             style={{ zIndex: 9998 }}
             onClick={() => setIsMenuOpen(false)}
           />
           {/* Menu Panel */}
-          <div 
+          <div
             className="fixed top-16 right-0 bottom-0 w-72 max-w-[85vw] bg-background border-l border-border shadow-2xl md:hidden animate-in slide-in-from-right duration-200"
             style={{ zIndex: 9999 }}
             onClick={(e) => e.stopPropagation()}
@@ -230,11 +251,10 @@ const Navbar = () => {
                   <Link
                     key={link.path}
                     to={link.path}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isActive(link.path) 
-                        ? 'text-primary bg-primary/10' 
-                        : 'text-foreground hover:bg-accent/50'
-                    }`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive(link.path)
+                      ? 'text-primary bg-primary/10'
+                      : 'text-foreground hover:bg-accent/50'
+                      }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {link.label}

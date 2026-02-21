@@ -42,37 +42,57 @@ const MyCourses = () => {
         <Layout>
             <div className="py-8 lg:py-12">
                 <div className="container mx-auto px-4">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <p className="text-sm font-medium text-primary">My Learning</p>
-                        <h1 className="font-display text-3xl font-bold text-foreground">My Courses</h1>
-                        <p className="mt-1 text-muted-foreground">
-                            Track your learning progress and continue where you left off.
-                        </p>
-                    </div>
+                    {/* Header & Stats Section */}
+                    <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b border-border/50 pb-6">
+                        {/* Header */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                    <GraduationCap className="h-4 w-4 text-primary" />
+                                </div>
+                                <span className="text-sm font-semibold tracking-wider text-primary uppercase">My Learning</span>
+                            </div>
+                            <h1 className="font-display text-3xl font-bold text-foreground">My Courses</h1>
+                            <p className="mt-2 text-sm text-muted-foreground max-w-xl">
+                                Track your learning progress and continue where you left off.
+                            </p>
+                        </div>
 
-                    {/* Stats */}
-                    <div className="mb-8 grid grid-cols-3 gap-3">
-                        <div className="rounded-xl border border-border bg-card p-4 text-center">
-                            <BookOpen className="mx-auto h-5 w-5 text-primary" />
-                            <p className="mt-2 font-display text-2xl font-bold text-foreground">
-                                {enrollments.length}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Enrolled</p>
-                        </div>
-                        <div className="rounded-xl border border-border bg-card p-4 text-center">
-                            <TrendingUp className="mx-auto h-5 w-5 text-blue-500" />
-                            <p className="mt-2 font-display text-2xl font-bold text-foreground">
-                                {inProgressCount}
-                            </p>
-                            <p className="text-xs text-muted-foreground">In Progress</p>
-                        </div>
-                        <div className="rounded-xl border border-border bg-card p-4 text-center">
-                            <Award className="mx-auto h-5 w-5 text-emerald-500" />
-                            <p className="mt-2 font-display text-2xl font-bold text-foreground">
-                                {completedCount}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Completed</p>
+                        {/* Stats */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 px-4 py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                                    <BookOpen className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Enrolled</p>
+                                    <p className="font-display text-lg font-bold leading-none text-foreground mt-0.5">
+                                        {enrollments.length}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 px-4 py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
+                                    <TrendingUp className="h-4 w-4 text-blue-500" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">In Progress</p>
+                                    <p className="font-display text-lg font-bold leading-none text-foreground mt-0.5">
+                                        {inProgressCount}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 px-4 py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10">
+                                    <Award className="h-4 w-4 text-emerald-500" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Completed</p>
+                                    <p className="font-display text-lg font-bold leading-none text-foreground mt-0.5">
+                                        {completedCount}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

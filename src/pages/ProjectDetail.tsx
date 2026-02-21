@@ -25,6 +25,9 @@ const ProjectDetail = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [downloadingAttachment, setDownloadingAttachment] = useState(false);
+  const [downloadingSubmissionId, setDownloadingSubmissionId] = useState<string | null>(null);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsService.getProject(projectId!),
@@ -136,8 +139,8 @@ const ProjectDetail = () => {
                 </div>
                 {submission && (
                   <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${submission.status === 'graded'
-                      ? 'bg-green-500/10 text-green-600'
-                      : 'bg-blue-500/10 text-blue-600'
+                    ? 'bg-green-500/10 text-green-600'
+                    : 'bg-blue-500/10 text-blue-600'
                     }`}>
                     {submission.status === 'graded' ? 'Graded' : 'Submitted'}
                   </div>
@@ -168,11 +171,21 @@ const ProjectDetail = () => {
                     onClick={() => {
                       const url = project.attachment_url || project.attachmentUrl;
                       const name = project.attachment_name || project.attachmentName || 'attachment';
-                      downloadProjectFile(url!, name);
+                      downloadProjectFile(
+                        url!,
+                        name,
+                        () => setDownloadingAttachment(true),
+                        () => setDownloadingAttachment(false)
+                      );
                     }}
-                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm cursor-pointer"
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm cursor-pointer disabled:opacity-50"
+                    disabled={downloadingAttachment}
                   >
-                    <Download className="h-4 w-4" />
+                    {downloadingAttachment ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
                     {project.attachment_name || project.attachmentName || 'Download Attachment'}
                   </button>
                 </div>
@@ -202,11 +215,21 @@ const ProjectDetail = () => {
                             onClick={() => {
                               const url = submission.submissionUrl || submission.submission_url;
                               const name = submission.fileName || submission.file_name || 'submission';
-                              downloadProjectFile(url!, name);
+                              downloadProjectFile(
+                                url!,
+                                name,
+                                () => setDownloadingSubmissionId(submission.id || 'my-submission'),
+                                () => setDownloadingSubmissionId(null)
+                              );
                             }}
-                            className="inline-flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
+                            className="inline-flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer disabled:opacity-50"
+                            disabled={downloadingSubmissionId === (submission.id || 'my-submission')}
                           >
-                            <Paperclip className="h-3 w-3" />
+                            {downloadingSubmissionId === (submission.id || 'my-submission') ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Paperclip className="h-3 w-3" />
+                            )}
                             {submission.fileName || submission.file_name}
                           </button>
                         </div>
@@ -361,8 +384,8 @@ const ProjectDetail = () => {
                       <div
                         key={sub.id}
                         className={`rounded-lg border p-4 space-y-2 ${sub.user_id === user?.id
-                            ? 'border-primary/30 bg-primary/5'
-                            : 'border-border'
+                          ? 'border-primary/30 bg-primary/5'
+                          : 'border-border'
                           }`}
                       >
                         <div className="flex items-center justify-between">
@@ -448,12 +471,24 @@ const ProjectDetail = () => {
                               onClick={() => {
                                 const url = sub.submissionUrl || sub.submission_url;
                                 const name = sub.fileName || sub.file_name || 'submission';
-                                downloadProjectFile(url!, name);
+                                downloadProjectFile(
+                                  url!,
+                                  name,
+                                  () => setDownloadingSubmissionId(sub.id),
+                                  () => setDownloadingSubmissionId(null)
+                                );
                               }}
-                              className="inline-flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer disabled:opacity-50"
+                              disabled={downloadingSubmissionId === sub.id}
                             >
-                              <Paperclip className="h-3 w-3" />
-                              <Download className="h-3 w-3" />
+                              {downloadingSubmissionId === sub.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <Paperclip className="h-3 w-3" />
+                                  <Download className="h-3 w-3" />
+                                </>
+                              )}
                               {sub.fileName || sub.file_name}
                             </button>
                           )}

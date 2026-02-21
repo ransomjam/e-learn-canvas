@@ -27,6 +27,7 @@ const InstructorSubmissions = () => {
     const [gradeValue, setGradeValue] = useState('');
     const [feedbackValue, setFeedbackValue] = useState('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [downloadingSubmissionId, setDownloadingSubmissionId] = useState<string | null>(null);
 
     // Fetch instructor's courses for filter dropdown
     const { data: courses = [] } = useQuery({
@@ -199,12 +200,22 @@ const InstructorSubmissions = () => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        downloadProjectFile(sub.submission_url, sub.file_name);
+                                                        downloadProjectFile(
+                                                            sub.submission_url,
+                                                            sub.file_name,
+                                                            () => setDownloadingSubmissionId(sub.id),
+                                                            () => setDownloadingSubmissionId(null)
+                                                        );
                                                     }}
-                                                    className="text-muted-foreground hover:text-primary"
+                                                    className="text-muted-foreground hover:text-primary disabled:opacity-50"
                                                     title="Download submission"
+                                                    disabled={downloadingSubmissionId === sub.id}
                                                 >
-                                                    <Paperclip className="h-4 w-4" />
+                                                    {downloadingSubmissionId === sub.id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Paperclip className="h-4 w-4" />
+                                                    )}
                                                 </button>
                                             )}
                                             {sub.status === 'graded' ? (
@@ -233,12 +244,22 @@ const InstructorSubmissions = () => {
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            downloadProjectFile(sub.submission_url, sub.file_name);
+                                                            downloadProjectFile(
+                                                                sub.submission_url,
+                                                                sub.file_name,
+                                                                () => setDownloadingSubmissionId(sub.id + '_expanded'),
+                                                                () => setDownloadingSubmissionId(null)
+                                                            );
                                                         }}
-                                                        className="text-sm text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                                        className="text-sm text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                                        disabled={downloadingSubmissionId === (sub.id + '_expanded')}
                                                     >
                                                         {sub.file_name}
-                                                        <Download className="h-3 w-3" />
+                                                        {downloadingSubmissionId === (sub.id + '_expanded') ? (
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                        ) : (
+                                                            <Download className="h-3 w-3" />
+                                                        )}
                                                     </button>
                                                     {sub.file_size && (
                                                         <span className="text-xs text-muted-foreground">

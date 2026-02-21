@@ -66,13 +66,13 @@ const Player = () => {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Queries
-  const { data: course, isLoading: courseLoading, isError: courseError } = useQuery({
+  const { data: course, isLoading: courseLoading } = useQuery({
     queryKey: ['course', id],
     queryFn: () => coursesService.getCourseById(id!),
     enabled: !!id,
   });
 
-  const { data: sections = [], isLoading: lessonsLoading, isError: lessonsError } = useQuery({
+  const { data: sections = [], isLoading: lessonsLoading } = useQuery({
     queryKey: ['courseLessons', id],
     queryFn: () => coursesService.getCourseLessons(id!),
     enabled: !!id,
@@ -225,22 +225,6 @@ const Player = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // when a new lesson loads (especially a quiz), reset scroll position to top
-  useEffect(() => {
-    if (currentLesson) {
-      // delay just a tick to allow DOM updates
-      setTimeout(() => {
-        // scroll main window as well as any overflow container
-        window.scrollTo({ top: 0, behavior: 'auto' });
-        // if there is a scrollable content div for the lesson, reset it too
-        const container = document.querySelector('.h-full.w-full.overflow-auto');
-        if (container instanceof HTMLElement) {
-          container.scrollTop = 0;
-        }
-      }, 0);
-    }
-  }, [currentLessonId]);
-
   const currentLesson = sections.flatMap(s => s.lessons).find(l => l.id === currentLessonId);
 
   const allResources = useMemo(() => {
@@ -309,10 +293,10 @@ const Player = () => {
   const processedLessonsLookup = new Map<string, boolean>();
 
   if (user?.role !== 'instructor' && user?.role !== 'admin') {
-    const completedLessonIds: string[] = progress?.completedLessonIds || [];
+    const completedLessonsList = progress?.completedLessons || [];
     allLessons.forEach(l => {
       processedLessonsLookup.set(l.id, isSubsequentLocked);
-      const isCompleted = completedLessonIds.includes(l.id);
+      const isCompleted = completedLessonsList.includes(l.id);
       if (l.type === 'quiz' && l.isMandatory && !isCompleted) {
         isSubsequentLocked = true;
       }
@@ -356,18 +340,6 @@ const Player = () => {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (courseError || lessonsError) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center bg-background gap-4 px-4 text-center">
-        <p className="text-muted-foreground">Failed to load the course. Please check your connection and try again.</p>
-        <div className="flex gap-3">
-          <Button onClick={() => window.location.reload()}>Reload</Button>
-          <Link to="/courses"><Button variant="outline">Browse Courses</Button></Link>
-        </div>
       </div>
     );
   }

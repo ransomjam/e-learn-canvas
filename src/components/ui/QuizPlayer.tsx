@@ -22,7 +22,20 @@ const QuizPlayer = ({ lessonId, quizData, onComplete }: QuizPlayerProps) => {
 
     // Scroll to top when quiz data changes or on retry
     useEffect(() => {
-        rootRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+        if (rootRef.current) {
+            // Reset scroll on the quiz container itself
+            const quizScrollArea = rootRef.current.closest('.overflow-auto');
+            if (quizScrollArea) {
+                quizScrollArea.scrollTop = 0;
+            }
+            // Reset scroll on the main player content area so it starts at the top
+            const mainScrollArea = document.querySelector('.flex.flex-1.flex-col.overflow-auto');
+            if (mainScrollArea) {
+                mainScrollArea.scrollTop = 0;
+            }
+            // Also reset window scroll just in case
+            window.scrollTo({ top: 0 });
+        }
     }, [quizData, isSubmitted]);
 
     // Fetch previous results/leaderboard if available

@@ -382,6 +382,24 @@ const allMigrations = [
         CREATE INDEX IF NOT EXISTS idx_enrollment_codes_is_used ON enrollment_codes(is_used);
     `},
 
+    // ── quizzes: add is_mandatory, quiz_data columns + quiz_attempts table
+    {
+        name: '019_add_quiz_columns', up: `
+        ALTER TABLE lessons ADD COLUMN IF NOT EXISTS is_mandatory BOOLEAN DEFAULT false;
+        ALTER TABLE lessons ADD COLUMN IF NOT EXISTS quiz_data JSONB DEFAULT '[]';
+        CREATE TABLE IF NOT EXISTS quiz_attempts (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+            score DECIMAL(5, 2) NOT NULL,
+            total_questions INTEGER NOT NULL,
+            answers JSONB DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON quiz_attempts(user_id);
+        CREATE INDEX IF NOT EXISTS idx_quiz_attempts_lesson ON quiz_attempts(lesson_id);
+    `},
+
     // ── lesson type expansion ────────────────────────────────────────────
     {
         name: '021_expand_lesson_types', up: `

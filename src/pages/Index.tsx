@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { coursesService } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
 import { useAuth } from '@/contexts/AuthContext';
+import heroBg from '@/assets/hero-bg.jpg';
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
@@ -36,10 +37,10 @@ const Index = () => {
     <Layout>
       {/* Hero Section */}
       <section className="relative overflow-hidden py-16 sm:py-20 lg:py-28">
-        {/* Background Effects */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-primary/20 blur-[100px]" />
-          <div className="absolute -right-40 top-20 h-80 w-80 rounded-full bg-accent/20 blur-[100px]" />
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img src={heroBg} alt="" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-background/70 dark:bg-background/60" />
         </div>
 
         <div className="container relative mx-auto px-4">

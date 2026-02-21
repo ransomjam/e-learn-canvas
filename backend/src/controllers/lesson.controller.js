@@ -178,9 +178,12 @@ const deleteSection = asyncHandler(async (req, res) => {
 const getCourseLessons = asyncHandler(async (req, res) => {
     const { courseId } = req.params;
 
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+    const whereField = isUUID ? 'id' : 'slug';
+
     // Check if course exists and user access
     const courseResult = await query(
-        'SELECT id, instructor_id, status FROM courses WHERE id = $1',
+        `SELECT id, instructor_id, status FROM courses WHERE ${whereField} = $1`,
         [courseId]
     );
 
@@ -189,6 +192,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
     }
 
     const course = courseResult.rows[0];
+    const actualCourseId = course.id;
 
     // Check access
     let hasFullAccess = false;
@@ -199,7 +203,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
             // Check enrollment
             const enrollment = await query(
                 'SELECT status FROM enrollments WHERE user_id = $1 AND course_id = $2',
-                [req.user.id, courseId]
+                [req.user.id, actualCourseId]
             );
             hasFullAccess = enrollment.rows.length > 0 && enrollment.rows[0].status === 'active';
         }
@@ -216,7 +220,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
      LEFT JOIN lessons l ON s.id = l.section_id ${!hasFullAccess ? 'AND l.is_published = true' : ''}
      WHERE s.course_id = $1
      ORDER BY s.order_index, l.order_index`,
-        [courseId]
+        [actualCourseId]
     );
 
     // Group by sections
@@ -263,7 +267,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
     res.json({
         success: true,
         data: {
-            courseId,
+            courseId: actualCourseId,
             hasFullAccess,
             sections: Array.from(sectionsMap.values())
         }

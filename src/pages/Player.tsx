@@ -358,7 +358,7 @@ const Player = () => {
       <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-card px-4 flex-shrink-0 w-full">
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
-            <Logo size="lg" />
+            <Logo size="sm" className="h-8 w-8" />
             <span className="font-display font-bold text-primary text-base hidden sm:inline">Cradema</span>
           </Link>
           <span className="text-muted-foreground/40 hidden sm:inline">|</span>
@@ -830,11 +830,11 @@ const Player = () => {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1 overflow-hidden">
             <div className="border-b border-border px-2 py-1.5">
-              <TabsList className="grid w-full grid-cols-3 h-9 gap-1">
-                <TabsTrigger value="content" className="text-xs sm:text-sm px-2 sm:px-4">Lessons</TabsTrigger>
-                <TabsTrigger value="resources" className="text-xs sm:text-sm px-2 sm:px-4">Resources</TabsTrigger>
-                <TabsTrigger value="projects" className="text-xs sm:text-sm px-2 sm:px-4">Projects</TabsTrigger>
-                <TabsTrigger value="assessment" className="text-xs sm:text-sm px-2 sm:px-4">Assessment</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-4 h-auto gap-1">
+                <TabsTrigger value="content" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Lessons</TabsTrigger>
+                <TabsTrigger value="resources" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Resources</TabsTrigger>
+                <TabsTrigger value="projects" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Projects</TabsTrigger>
+                <TabsTrigger value="assessment" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Quiz</TabsTrigger>
               </TabsList>
             </div>
 

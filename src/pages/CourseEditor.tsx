@@ -596,7 +596,7 @@ const CourseEditor = () => {
 
                     {/* Tabs */}
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                        <TabsList className="grid w-full max-w-lg grid-cols-4">
+                        <TabsList className="grid w-full max-w-2xl grid-cols-5">
                             <TabsTrigger value="details" className="gap-2">
                                 <Settings2 className="h-4 w-4" />
                                 Details
@@ -604,6 +604,10 @@ const CourseEditor = () => {
                             <TabsTrigger value="content" className="gap-2" disabled={isNewCourse}>
                                 <Layers className="h-4 w-4" />
                                 Content
+                            </TabsTrigger>
+                            <TabsTrigger value="quiz" className="gap-2" disabled={isNewCourse}>
+                                <HelpCircle className="h-4 w-4" />
+                                Quiz
                             </TabsTrigger>
                             <TabsTrigger value="resources" className="gap-2" disabled={isNewCourse}>
                                 <FileText className="h-4 w-4" />
@@ -1377,6 +1381,11 @@ const CourseEditor = () => {
                             </div>
                         </TabsContent>
 
+                        {/* ========== QUIZ TAB ========== */}
+                        <TabsContent value="quiz" className="space-y-6">
+                            <QuizzesManager courseId={id!} />
+                        </TabsContent>
+
                         {/* ========== RESOURCES TAB ========== */}
                         <TabsContent value="resources" className="space-y-6">
                             <ResourcesManager courseId={id!} />
@@ -1588,6 +1597,285 @@ const ResourcesManager = ({ courseId }: { courseId: string }) => {
                     )}
                     Add Resource
                 </Button>
+            </div>
+        </div>
+    );
+};
+
+// Quizzes Manager Sub-component
+const QuizzesManager = ({ courseId }: { courseId: string }) => {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+    const navigate = useNavigate();
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [quizText, setQuizText] = useState('');
+    const [quizData, setQuizData] = useState<any[]>([]);
+    const [quizTitle, setQuizTitle] = useState('');
+    const [isMandatory, setIsMandatory] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+    const [targetSectionId, setTargetSectionId] = useState('');
+
+    const { data: sections = [], isLoading } = useQuery({
+        queryKey: ['courseLessons', courseId],
+        queryFn: () => coursesService.getCourseLessons(courseId),
+        enabled: !!courseId,
+    });
+
+    // Collect all quiz-type lessons from all sections
+    const quizLessons = sections.flatMap((s: Section) =>
+        (s.lessons || []).filter((l: Lesson) => l.type === 'quiz').map((l: Lesson) => ({
+            ...l,
+            sectionTitle: s.title
+        }))
+    );
+
+    const createLessonMutation = useMutation({
+        mutationFn: (data: any) => instructorService.createLesson(data),
+        onSuccess: () => {
+            toast({ title: 'Quiz lesson created!' });
+            setQuizTitle('');
+            setQuizText('');
+            setQuizData([]);
+            setIsMandatory(false);
+            setIsCreating(false);
+            setTargetSectionId('');
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', courseId] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to create quiz', variant: 'destructive' });
+        },
+    });
+
+    const deleteLessonMutation = useMutation({
+        mutationFn: (lessonId: string) => instructorService.deleteLesson(lessonId),
+        onSuccess: () => {
+            toast({ title: 'Quiz deleted' });
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', courseId] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to delete quiz', variant: 'destructive' });
+        },
+    });
+
+    const handleGenerateQuiz = async () => {
+        if (!quizText.trim()) {
+            toast({ title: 'Please provide text to generate the quiz', variant: 'destructive' });
+            return;
+        }
+        setIsGenerating(true);
+        try {
+            const data = await instructorService.generateQuiz(quizText);
+            setQuizData(data);
+            toast({ title: 'Quiz generated successfully!' });
+        } catch (error: any) {
+            toast({ title: 'Failed to generate quiz', description: error.message || 'Please try again', variant: 'destructive' });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleCreateQuiz = () => {
+        if (!quizTitle.trim()) {
+            toast({ title: 'Quiz title is required', variant: 'destructive' });
+            return;
+        }
+        if (!targetSectionId) {
+            toast({ title: 'Please select a section', variant: 'destructive' });
+            return;
+        }
+        if (!quizData.length) {
+            toast({ title: 'Please generate quiz questions first', variant: 'destructive' });
+            return;
+        }
+        createLessonMutation.mutate({
+            sectionId: targetSectionId,
+            courseId,
+            title: quizTitle,
+            type: 'quiz',
+            content: '',
+            isFree: false,
+            isMandatory,
+            quizData,
+        });
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="rounded-xl border border-border bg-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="font-semibold text-foreground">Course Quizzes</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Create and manage quizzes for your course. Quizzes are AI-generated from text you provide.
+                        </p>
+                    </div>
+                    {!isCreating && (
+                        <Button size="sm" onClick={() => setIsCreating(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Quiz
+                        </Button>
+                    )}
+                </div>
+
+                {/* Create Quiz Form */}
+                {isCreating && (
+                    <div className="rounded-lg border border-dashed border-border p-4 space-y-4 mb-6 bg-muted/20">
+                        <h4 className="text-sm font-semibold">New Quiz</h4>
+                        <div className="space-y-3">
+                            <div>
+                                <Label className="text-xs">Section *</Label>
+                                <div className="relative mt-1">
+                                    <select
+                                        value={targetSectionId}
+                                        onChange={(e) => setTargetSectionId(e.target.value)}
+                                        className="w-full appearance-none rounded-lg border border-border bg-secondary px-3 py-2.5 pr-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                                    >
+                                        <option value="" disabled>
+                                            {sections.length > 0 ? 'Select a section...' : 'No sections — create one in Content tab'}
+                                        </option>
+                                        {sections.map((s: Section) => (
+                                            <option key={s.id} value={s.id}>{s.title}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                </div>
+                            </div>
+                            <div>
+                                <Label className="text-xs">Quiz Title *</Label>
+                                <Input
+                                    value={quizTitle}
+                                    onChange={(e) => setQuizTitle(e.target.value)}
+                                    placeholder="e.g., Module 1 Assessment"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    id="newQuizMandatory"
+                                    checked={isMandatory}
+                                    onChange={(e) => setIsMandatory(e.target.checked)}
+                                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                                />
+                                <Label htmlFor="newQuizMandatory" className="cursor-pointer text-sm font-medium">
+                                    Mandatory (locks next lessons until passed)
+                                </Label>
+                            </div>
+                            <div>
+                                <Label className="text-xs">Paste text to generate quiz questions (AI)</Label>
+                                <textarea
+                                    value={quizText}
+                                    onChange={(e) => setQuizText(e.target.value)}
+                                    placeholder="Paste course content, notes, or any text here. AI will generate quiz questions from it..."
+                                    rows={5}
+                                    className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y"
+                                />
+                            </div>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={isGenerating || !quizText.trim()}
+                                onClick={handleGenerateQuiz}
+                            >
+                                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HelpCircle className="mr-2 h-4 w-4" />}
+                                Generate Quiz with AI
+                            </Button>
+                            {quizData.length > 0 && (
+                                <div className="text-sm bg-accent/10 p-3 rounded text-accent">
+                                    {quizData.length} question{quizData.length !== 1 ? 's' : ''} generated. You can create the quiz now.
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                            <Button
+                                size="sm"
+                                onClick={handleCreateQuiz}
+                                disabled={createLessonMutation.isPending || !quizData.length}
+                            >
+                                {createLessonMutation.isPending ? (
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                ) : (
+                                    <Plus className="mr-2 h-3 w-3" />
+                                )}
+                                Create Quiz
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsCreating(false);
+                                    setQuizTitle('');
+                                    setQuizText('');
+                                    setQuizData([]);
+                                    setIsMandatory(false);
+                                    setTargetSectionId('');
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Existing Quizzes */}
+                {isLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : quizLessons.length === 0 && !isCreating ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <HelpCircle className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm">No quizzes yet</p>
+                        <p className="text-xs mt-1">Click "New Quiz" to create a quiz for students.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {quizLessons.map((quiz: any) => {
+                            const questionCount = (() => {
+                                try {
+                                    const data = typeof quiz.quizData === 'string' ? JSON.parse(quiz.quizData || '[]') : (quiz.quizData || []);
+                                    return Array.isArray(data) ? data.length : 0;
+                                } catch { return 0; }
+                            })();
+                            return (
+                                <div
+                                    key={quiz.id}
+                                    className="rounded-lg border border-border p-4 flex items-start justify-between gap-4 hover:bg-accent/5 transition-colors"
+                                >
+                                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                                        <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                                            <HelpCircle className="h-4 w-4 text-accent" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h4 className="font-medium text-sm text-foreground">{quiz.title}</h4>
+                                            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                                                <Badge variant="outline" className="text-[10px] h-4">{quiz.sectionTitle}</Badge>
+                                                <span>{questionCount} question{questionCount !== 1 ? 's' : ''}</span>
+                                                {quiz.isMandatory && (
+                                                    <Badge className="text-[10px] h-4 bg-red-500/20 text-red-400">Mandatory</Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                            onClick={() => {
+                                                if (window.confirm('Delete this quiz? This cannot be undone.')) {
+                                                    deleteLessonMutation.mutate(quiz.id);
+                                                }
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );

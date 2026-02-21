@@ -175,7 +175,9 @@ export const instructorService = {
 
     // Quiz Generation
     async generateQuiz(text: string, options?: { questionCount?: number; difficulty?: string }): Promise<any> {
-        const response = await api.post('/quiz/generate', { text, options });
+        const response = await api.post('/quiz/generate', { text, options }, {
+            timeout: 180000 // 3 min timeout for AI quiz generation (can generate many questions)
+        });
         return response.data.data;
     }
 };

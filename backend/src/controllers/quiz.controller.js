@@ -14,15 +14,22 @@ const generateQuiz = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Text content is required to generate a quiz');
     }
 
-    const { questionCount = 5, difficulty = 'medium' } = options || {};
+    const { questionCount, difficulty = 'medium' } = options || {};
 
-    const prompt = `You are a helpful education assistant. Generate a Multiple Choice Quiz based on the text provided below. 
+    // Helper: build prompt for a chunk of text
+    const buildPrompt = (inputText, count) => {
+        const countInstruction = count
+            ? `Generate exactly ${count} questions.`
+            : `Generate as many questions as the text supports. Extract EVERY possible fact, concept, and detail from the text and create a unique question for each. Do NOT limit yourself — aim for thoroughness. If the text can support 20+ questions, generate 20+ questions.`;
+
+        return `You are a helpful education assistant. Generate a Multiple Choice Quiz based on the text provided below.
 Requirements:
-1. Generate exactly ${questionCount} questions.
+1. ${countInstruction}
 2. Difficulty should be ${difficulty}.
 3. Each question must have exactly 4 options.
 4. Provide the correct answer index (0-3).
-5. Output MUST be ONLY valid JSON matching this schema:
+5. Cover ALL topics, facts, and details present in the text — do NOT skip any.
+6. Output MUST be ONLY valid JSON matching this schema:
 [
   {
     "question": "Question text?",
@@ -33,21 +40,25 @@ Requirements:
 ]
 
 Text:
-${text}
+${inputText}
 `;
+    };
 
-    try {
+    // Helper: call the AI API for a given prompt
+    const callAI = async (prompt) => {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: 'deepseek-chat',
             messages: [
-                { role: 'system', content: 'You are a quiz generator. You only output valid JSON. No markdown formatting like ```json or anything else, just raw JSON text.' },
+                { role: 'system', content: 'You are a quiz generator. You only output valid JSON arrays. No markdown formatting like ```json or anything else, just raw JSON text. Generate ALL questions the text supports — be thorough and exhaustive.' },
                 { role: 'user', content: prompt }
-            ]
+            ],
+            max_tokens: 16384
         }, {
             headers: {
                 'Authorization': `Bearer sk-4a857c0c76cf4db89fef65b871da982a`,
                 'Content-Type': 'application/json'
-            }
+            },
+            timeout: 120000 // 2 min timeout for AI generation
         });
 
         let content = response.data.choices[0].message.content;
@@ -55,7 +66,6 @@ ${text}
         // cleanup potential markdown formatting
         content = content.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        // Ensure it's valid JSON
         let quizData;
         try {
             quizData = JSON.parse(content);
@@ -67,9 +77,56 @@ ${text}
             throw new ApiError(500, 'Failed to parse generated quiz');
         }
 
+        return Array.isArray(quizData) ? quizData : [];
+    };
+
+    try {
+        // For very large texts, split into chunks and merge results
+        const MAX_CHARS_PER_CHUNK = 12000;
+        let allQuestions = [];
+
+        if (text.length <= MAX_CHARS_PER_CHUNK) {
+            // Single call
+            const prompt = buildPrompt(text, questionCount);
+            allQuestions = await callAI(prompt);
+        } else {
+            // Split text into chunks by paragraphs
+            const paragraphs = text.split(/\n\s*\n/);
+            const chunks = [];
+            let currentChunk = '';
+
+            for (const para of paragraphs) {
+                if ((currentChunk + '\n\n' + para).length > MAX_CHARS_PER_CHUNK && currentChunk.length > 0) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = para;
+                } else {
+                    currentChunk += (currentChunk ? '\n\n' : '') + para;
+                }
+            }
+            if (currentChunk.trim()) {
+                chunks.push(currentChunk.trim());
+            }
+
+            console.log(`Quiz generation: splitting text into ${chunks.length} chunks (total ${text.length} chars)`);
+
+            // Process each chunk and collect questions
+            for (const chunk of chunks) {
+                const prompt = buildPrompt(chunk, null); // let AI generate as many as possible per chunk
+                const chunkQuestions = await callAI(prompt);
+                allQuestions.push(...chunkQuestions);
+            }
+
+            // If a specific count was requested, trim to that count
+            if (questionCount && allQuestions.length > questionCount) {
+                allQuestions = allQuestions.slice(0, questionCount);
+            }
+        }
+
+        console.log(`Quiz generation complete: ${allQuestions.length} questions generated`);
+
         res.json({
             success: true,
-            data: quizData
+            data: allQuestions
         });
     } catch (error) {
         console.error('Quiz generation error:', error.response?.data || error.message);

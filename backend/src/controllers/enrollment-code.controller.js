@@ -235,8 +235,8 @@ const redeemEnrollmentCode = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'This enrollment code has expired');
     }
 
-    if (enrollmentCode.course_status !== 'published') {
-        throw new ApiError(400, 'This course is not available for enrollment');
+    if (enrollmentCode.course_status === 'archived') {
+        throw new ApiError(400, 'This course is no longer available for enrollment');
     }
 
     // Check if already enrolled
@@ -408,7 +408,7 @@ const getAvailableCodes = asyncHandler(async (req, res) => {
          FROM enrollment_codes ec
          JOIN courses c ON ec.course_id = c.id
          WHERE ec.is_used = false
-           AND c.status = 'published'
+           AND c.status != 'archived'
            AND (ec.expires_at IS NULL OR ec.expires_at > CURRENT_TIMESTAMP)
          ORDER BY c.title, ec.created_at DESC`
     );
@@ -488,8 +488,8 @@ const claimCode = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'This enrollment code has expired');
     }
 
-    if (enrollmentCode.course_status !== 'published') {
-        throw new ApiError(400, 'This course is not available for enrollment');
+    if (enrollmentCode.course_status === 'archived') {
+        throw new ApiError(400, 'This course is no longer available for enrollment');
     }
 
     // Check if already enrolled

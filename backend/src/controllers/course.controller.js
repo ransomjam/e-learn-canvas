@@ -199,10 +199,24 @@ const getCourseById = asyncHandler(async (req, res) => {
 
     const course = result.rows[0];
 
-    // Check access: non-admin/non-owner users can only see published AND approved courses
+    // Check if user is enrolled (needed before access check)
+    let isEnrolled = false;
+    let enrollmentProgress = 0;
+    if (req.user) {
+        const enrollmentResult = await query(
+            'SELECT status, progress_percentage FROM enrollments WHERE user_id = $1 AND course_id = $2',
+            [req.user.id, course.id]
+        );
+        if (enrollmentResult.rows.length > 0) {
+            isEnrolled = enrollmentResult.rows[0].status === 'active';
+            enrollmentProgress = parseFloat(enrollmentResult.rows[0].progress_percentage);
+        }
+    }
+
+    // Check access: non-admin/non-owner/non-enrolled users can only see published AND approved courses
     const isOwner = req.user && req.user.id === course.instructor_id;
     const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin && !isOwner) {
+    if (!isAdmin && !isOwner && !isEnrolled) {
         if (course.status !== 'published' || course.moderation_status !== 'approved') {
             throw new ApiError(404, 'Course not found');
         }
@@ -230,20 +244,6 @@ const getCourseById = asyncHandler(async (req, res) => {
      ORDER BY s.order_index`,
         [course.id]
     );
-
-    // Check if user is enrolled
-    let isEnrolled = false;
-    let enrollmentProgress = 0;
-    if (req.user) {
-        const enrollmentResult = await query(
-            'SELECT status, progress_percentage FROM enrollments WHERE user_id = $1 AND course_id = $2',
-            [req.user.id, course.id]
-        );
-        if (enrollmentResult.rows.length > 0) {
-            isEnrolled = enrollmentResult.rows[0].status === 'active';
-            enrollmentProgress = parseFloat(enrollmentResult.rows[0].progress_percentage);
-        }
-    }
 
     res.json({
         success: true,

@@ -52,7 +52,7 @@ ${inputText}
                 { role: 'system', content: 'You are a quiz generator. You only output valid JSON arrays. No markdown formatting like ```json or anything else, just raw JSON text. Generate ALL questions the text supports — be thorough and exhaustive.' },
                 { role: 'user', content: prompt }
             ],
-            max_tokens: 16384
+            max_tokens: 8192
         }, {
             headers: {
                 'Authorization': `Bearer sk-4a857c0c76cf4db89fef65b871da982a`,

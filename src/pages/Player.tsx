@@ -309,10 +309,10 @@ const Player = () => {
   const processedLessonsLookup = new Map<string, boolean>();
 
   if (user?.role !== 'instructor' && user?.role !== 'admin') {
-    const completedLessonsList = progress?.completedLessons || [];
+    const completedLessonIds: string[] = progress?.completedLessonIds || [];
     allLessons.forEach(l => {
       processedLessonsLookup.set(l.id, isSubsequentLocked);
-      const isCompleted = completedLessonsList.includes(l.id);
+      const isCompleted = completedLessonIds.includes(l.id);
       if (l.type === 'quiz' && l.isMandatory && !isCompleted) {
         isSubsequentLocked = true;
       }

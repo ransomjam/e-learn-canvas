@@ -33,6 +33,7 @@ export interface CourseProgress {
     enrollmentId: string;
     progressPercentage: number;
     completedLessons: number;
+    completedLessonIds: string[];
     totalLessons: number;
     lessons: Progress[];
 }

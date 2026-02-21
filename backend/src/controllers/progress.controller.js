@@ -236,6 +236,16 @@ const getCourseProgress = asyncHandler(async (req, res) => {
         });
     }
 
+    // Build a flat array of completed lesson IDs (used by the Player for quiz-locking logic)
+    const completedLessonIds = [];
+    for (const section of sectionsMap.values()) {
+        for (const lesson of section.lessons) {
+            if (lesson.isCompleted) {
+                completedLessonIds.push(lesson.id);
+            }
+        }
+    }
+
     res.json({
         success: true,
         data: {
@@ -244,6 +254,7 @@ const getCourseProgress = asyncHandler(async (req, res) => {
             progressPercentage: parseFloat(enrollment.progress_percentage),
             totalLessons,
             completedLessons,
+            completedLessonIds,
             totalWatchTime,
             sections: Array.from(sectionsMap.values()).map(s => ({
                 ...s,

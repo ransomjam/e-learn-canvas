@@ -65,6 +65,8 @@ export interface Lesson {
     content?: string;
     resources?: any;
     practiceFiles?: any;
+    isMandatory?: boolean;
+    quizData?: any;
 }
 
 export interface CoursesParams {

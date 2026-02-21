@@ -209,7 +209,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
         `SELECT s.id as section_id, s.title as section_title, s.description as section_description,
             s.order_index as section_order,
             l.id, l.title, l.slug, l.description, l.type, l.video_duration,
-            l.order_index, l.is_free, l.is_published,
+            l.order_index, l.is_free, l.is_published, l.is_mandatory, l.quiz_data,
             l.content, l.video_url, l.resources, l.practice_files,
             l.created_at
      FROM sections s
@@ -243,6 +243,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
                 orderIndex: row.order_index,
                 isFree: row.is_free,
                 isPublished: row.is_published,
+                isMandatory: row.is_mandatory,
                 createdAt: row.created_at
             };
 
@@ -252,6 +253,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
                 lesson.videoUrl = row.video_url;
                 lesson.resources = row.resources;
                 lesson.practiceFiles = row.practice_files;
+                lesson.quizData = row.quiz_data;
             }
 
             sectionsMap.get(row.section_id).lessons.push(lesson);
@@ -320,6 +322,8 @@ const getLessonById = asyncHandler(async (req, res) => {
                 orderIndex: lesson.order_index,
                 isFree: lesson.is_free,
                 isPublished: lesson.is_published,
+                isMandatory: lesson.is_mandatory,
+                quizData: lesson.quiz_data,
                 resources: lesson.resources,
                 createdAt: lesson.created_at
             }
@@ -377,6 +381,8 @@ const getLessonById = asyncHandler(async (req, res) => {
             orderIndex: lesson.order_index,
             isFree: lesson.is_free,
             isPublished: lesson.is_published,
+            isMandatory: lesson.is_mandatory,
+            quizData: lesson.quiz_data,
             resources: lesson.resources,
             section: {
                 id: lesson.section_id,
@@ -412,6 +418,8 @@ const createLesson = asyncHandler(async (req, res) => {
         orderIndex,
         isFree = false,
         isPublished = true,
+        isMandatory = false,
+        quizData = [],
         resources = [],
         practiceFiles = []
     } = req.body;
@@ -457,12 +465,12 @@ const createLesson = asyncHandler(async (req, res) => {
     const result = await query(
         `INSERT INTO lessons (
       section_id, course_id, title, slug, description, content, type,
-      video_url, video_duration, order_index, is_free, is_published, resources, practice_files
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      video_url, video_duration, order_index, is_free, is_published, is_mandatory, quiz_data, resources, practice_files
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING *`,
         [
             sectionId, courseId, title, slug, description, content, type,
-            videoUrl, videoDuration, order, isFree, isPublished, JSON.stringify(resources), JSON.stringify(practiceFiles)
+            videoUrl, videoDuration, order, isFree, isPublished, isMandatory, JSON.stringify(quizData), JSON.stringify(resources), JSON.stringify(practiceFiles)
         ]
     );
 
@@ -518,7 +526,7 @@ const updateLesson = asyncHandler(async (req, res) => {
 
     const allowedFields = [
         'title', 'description', 'content', 'type', 'videoUrl', 'videoDuration',
-        'orderIndex', 'isFree', 'isPublished', 'resources', 'practiceFiles'
+        'orderIndex', 'isFree', 'isPublished', 'isMandatory', 'quizData', 'resources', 'practiceFiles'
     ];
 
     const fieldMapping = {
@@ -526,7 +534,9 @@ const updateLesson = asyncHandler(async (req, res) => {
         videoDuration: 'video_duration',
         orderIndex: 'order_index',
         isFree: 'is_free',
-        isPublished: 'is_published'
+        isPublished: 'is_published',
+        isMandatory: 'is_mandatory',
+        quizData: 'quiz_data'
     };
 
     const updates = [];
@@ -538,7 +548,7 @@ const updateLesson = asyncHandler(async (req, res) => {
             const dbField = fieldMapping[field] || field.replace(/([A-Z])/g, '_$1').toLowerCase();
             updates.push(`${dbField} = $${paramIndex++}`);
             let value = req.body[field];
-            if (field === 'resources' || field === 'practiceFiles') {
+            if (field === 'resources' || field === 'practiceFiles' || field === 'quizData') {
                 value = JSON.stringify(value);
             }
             params.push(value);

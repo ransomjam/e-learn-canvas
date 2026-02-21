@@ -71,13 +71,14 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
     const handlePlayPause = (e?: React.MouseEvent) => {
         e?.stopPropagation();
         if (videoRef.current) {
-            if (isPlaying) {
+            if (videoRef.current.paused) {
+                videoRef.current.play().catch(error => {
+                    console.error("Video play failed:", error);
+                });
+            } else {
                 videoRef.current.pause();
                 setShowControls(true); // Keep controls visible when paused
-            } else {
-                videoRef.current.play();
             }
-            setIsPlaying(!isPlaying);
         }
     };
 
@@ -229,6 +230,8 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => setIsPlaying(false)}
                 onError={() => setVideoError(true)}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
                 playsInline
                 // @ts-ignore — webkit attribute required for older iOS Safari inline playback
                 webkit-playsinline="true"
@@ -266,7 +269,8 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
             {/* Giant center play button when paused */}
             {!isPlaying && (
                 <div
-                    className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20"
+                    className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/20"
+                    onClick={handlePlayPause}
                 >
                     <div className="bg-primary/80 text-primary-foreground p-5 rounded-full shadow-lg backdrop-blur-sm transform transition-transform hover:scale-105">
                         <Play className="h-10 w-10 ml-1" />

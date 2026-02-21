@@ -140,6 +140,10 @@ export const instructorService = {
         videoUrl?: string;
         duration?: number;
         isFree?: boolean;
+        isMandatory?: boolean;
+        quizData?: any[];
+        resources?: any[];
+        practiceFiles?: any[];
     }): Promise<any> {
         const response = await api.post('/lessons', data);
         return response.data.data;
@@ -152,6 +156,10 @@ export const instructorService = {
         videoUrl?: string;
         duration?: number;
         isFree?: boolean;
+        isMandatory?: boolean;
+        quizData?: any[];
+        resources?: any[];
+        practiceFiles?: any[];
     }): Promise<any> {
         const response = await api.put(`/lessons/${lessonId}`, data);
         return response.data.data;
@@ -164,4 +172,10 @@ export const instructorService = {
     async reorderLessons(sectionId: string, lessonIds: string[]): Promise<void> {
         await api.put(`/lessons/sections/${sectionId}/reorder`, { lessonIds });
     },
+
+    // Quiz Generation
+    async generateQuiz(text: string, options?: { questionCount?: number; difficulty?: string }): Promise<any> {
+        const response = await api.post('/quiz/generate', { text, options });
+        return response.data.data;
+    }
 };

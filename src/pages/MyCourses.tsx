@@ -59,36 +59,36 @@ const MyCourses = () => {
                         </div>
 
                         {/* Stats */}
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 px-4 py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                                    <BookOpen className="h-4 w-4 text-primary" />
+                        <div className="flex w-full sm:w-auto items-center justify-between gap-1.5 sm:gap-3">
+                            <div className="flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-1.5 sm:gap-3 rounded-lg border border-border/50 bg-card/40 p-2 sm:px-4 sm:py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border min-w-0">
+                                <div className="flex h-6 w-6 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                                    <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                                 </div>
-                                <div className="flex flex-col">
-                                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Enrolled</p>
-                                    <p className="font-display text-lg font-bold leading-none text-foreground mt-0.5">
+                                <div className="flex flex-col min-w-0">
+                                    <p className="text-[8px] sm:text-[10px] font-medium uppercase tracking-normal sm:tracking-wider text-muted-foreground truncate">Enrolled</p>
+                                    <p className="font-display text-sm sm:text-lg font-bold leading-none text-foreground mt-0.5">
                                         {enrollments.length}
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 px-4 py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
-                                    <TrendingUp className="h-4 w-4 text-blue-500" />
+                            <div className="flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-1.5 sm:gap-3 rounded-lg border border-border/50 bg-card/40 p-2 sm:px-4 sm:py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border min-w-0">
+                                <div className="flex h-6 w-6 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
+                                    <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
                                 </div>
-                                <div className="flex flex-col">
-                                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">In Progress</p>
-                                    <p className="font-display text-lg font-bold leading-none text-foreground mt-0.5">
+                                <div className="flex flex-col min-w-0">
+                                    <p className="text-[8px] sm:text-[10px] font-medium uppercase tracking-normal sm:tracking-wider text-muted-foreground truncate">In Progress</p>
+                                    <p className="font-display text-sm sm:text-lg font-bold leading-none text-foreground mt-0.5">
                                         {inProgressCount}
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 px-4 py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10">
-                                    <Award className="h-4 w-4 text-emerald-500" />
+                            <div className="flex flex-1 sm:flex-none items-center justify-center sm:justify-start gap-1.5 sm:gap-3 rounded-lg border border-border/50 bg-card/40 p-2 sm:px-4 sm:py-2.5 shadow-sm transition-colors hover:bg-card/60 hover:border-border min-w-0">
+                                <div className="flex h-6 w-6 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
+                                    <Award className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-500" />
                                 </div>
-                                <div className="flex flex-col">
-                                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Completed</p>
-                                    <p className="font-display text-lg font-bold leading-none text-foreground mt-0.5">
+                                <div className="flex flex-col min-w-0">
+                                    <p className="text-[8px] sm:text-[10px] font-medium uppercase tracking-normal sm:tracking-wider text-muted-foreground truncate">Completed</p>
+                                    <p className="font-display text-sm sm:text-lg font-bold leading-none text-foreground mt-0.5">
                                         {completedCount}
                                     </p>
                                 </div>

@@ -24,6 +24,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { projectsService, Project } from '@/services/projects.service';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import CustomVideoPlayer from '@/components/ui/CustomVideoPlayer';
+import QuizPlayer from '@/components/ui/QuizPlayer';
 const renderMessageWithLinks = (text: string) => {
   if (!text) return null;
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -287,6 +288,20 @@ const Player = () => {
   }, [sections, resources]);
 
   const allLessons = sections.flatMap(s => s.lessons);
+  let isSubsequentLocked = false;
+  const processedLessonsLookup = new Map<string, boolean>();
+
+  if (user?.role !== 'instructor' && user?.role !== 'admin') {
+    const completedLessonsList = progress?.completedLessons || [];
+    allLessons.forEach(l => {
+      processedLessonsLookup.set(l.id, isSubsequentLocked);
+      const isCompleted = completedLessonsList.includes(l.id);
+      if (l.type === 'quiz' && l.isMandatory && !isCompleted) {
+        isSubsequentLocked = true;
+      }
+    });
+  }
+
   const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
   const totalLessons = allLessons.length;
   const completedLessons = progress?.completedLessons || 0;
@@ -302,7 +317,14 @@ const Player = () => {
 
   const goToLesson = (direction: 'prev' | 'next') => {
     const idx = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-    if (idx >= 0 && idx < allLessons.length) setCurrentLessonId(allLessons[idx].id);
+    if (idx >= 0 && idx < allLessons.length) {
+      const nextId = allLessons[idx].id;
+      if (!processedLessonsLookup.get(nextId)) {
+        setCurrentLessonId(nextId);
+      } else {
+        toast({ title: 'Lesson Locked', description: 'Please complete the mandatory quiz first.', variant: 'destructive' });
+      }
+    }
   };
 
   useEffect(() => {
@@ -336,7 +358,7 @@ const Player = () => {
       <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-card px-4 flex-shrink-0 w-full">
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
-            <Logo size="sm" />
+            <Logo size="lg" />
             <span className="font-display font-bold text-primary text-base hidden sm:inline">Cradema</span>
           </Link>
           <span className="text-muted-foreground/40 hidden sm:inline">|</span>
@@ -357,13 +379,13 @@ const Player = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-10 w-10 rounded-md bg-white/10 border-2 border-white/50 hover:bg-white/20 shadow-md transition-all active:scale-95"
+            className="lg:hidden h-10 w-10 hover:bg-transparent hover:text-foreground transition-all active:scale-95"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
             {isSidebarOpen ? (
-              <X className="h-6 w-6 text-white stroke-[3px]" />
+              <X className="h-7 w-7" />
             ) : (
-              <Menu className="h-6 w-6 text-white stroke-[3px]" />
+              <Menu className="h-7 w-7" />
             )}
           </Button>
         </div>
@@ -394,7 +416,6 @@ const Player = () => {
                       <CustomVideoPlayer
                         key={`${currentLessonId}-${resolvedVideoUrl}`}
                         src={resolvedVideoUrl}
-                        poster={resolveMediaUrl(course.thumbnailUrl)}
                         title={currentLesson.title}
                       />
                     );
@@ -449,6 +470,16 @@ const Player = () => {
                         )}
                       </div>
                     )}
+                  </div>
+                ) : currentLesson.type === 'quiz' ? (
+                  <div className="h-full w-full overflow-auto bg-card">
+                    <QuizPlayer
+                      lessonId={currentLesson.id}
+                      quizData={typeof currentLesson.quizData === 'string' ? JSON.parse(currentLesson.quizData) : currentLesson.quizData}
+                      onComplete={() => {
+                        completeLessonMutation.mutate(currentLesson.id);
+                      }}
+                    />
                   </div>
                 ) : (
                   <div className="h-full w-full p-8 overflow-auto">
@@ -803,6 +834,7 @@ const Player = () => {
                 <TabsTrigger value="content" className="text-xs sm:text-sm px-2 sm:px-4">Lessons</TabsTrigger>
                 <TabsTrigger value="resources" className="text-xs sm:text-sm px-2 sm:px-4">Resources</TabsTrigger>
                 <TabsTrigger value="projects" className="text-xs sm:text-sm px-2 sm:px-4">Projects</TabsTrigger>
+                <TabsTrigger value="assessment" className="text-xs sm:text-sm px-2 sm:px-4">Assessment</TabsTrigger>
               </TabsList>
             </div>
 
@@ -827,10 +859,15 @@ const Player = () => {
                         <div className="space-y-1">
                           {section.lessons && section.lessons.map((lesson) => {
                             const isActive = currentLessonId === lesson.id;
+                            const isLocked = processedLessonsLookup.get(lesson.id);
                             return (
                               <button
                                 key={lesson.id}
                                 onClick={() => {
+                                  if (isLocked) {
+                                    toast({ title: 'Lesson Locked', description: 'Please complete previous mandatory quizzes.', variant: 'destructive' });
+                                    return;
+                                  }
                                   setCurrentLessonId(lesson.id);
                                   if (isMobile) {
                                     setIsSidebarOpen(false);
@@ -860,9 +897,13 @@ const Player = () => {
                                       <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
                                         <Play className="h-3 w-3 text-foreground ml-0.5" />
                                       </div>
+                                    ) : lesson.type === 'quiz' ? (
+                                      <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
+                                        {isLocked ? <Lock className="h-3 w-3 text-foreground" /> : <CheckCircle className="h-3 w-3 text-emerald-500" />}
+                                      </div>
                                     ) : (
                                       <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
-                                        <FileText className="h-3 w-3 text-foreground" />
+                                        {isLocked ? <Lock className="h-3 w-3 text-foreground" /> : <FileText className="h-3 w-3 text-foreground" />}
                                       </div>
                                     )}
                                   </div>
@@ -1180,6 +1221,63 @@ const Player = () => {
                         </div>
                       );
                     })
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Assessment tab */}
+            <TabsContent
+              value="assessment"
+              className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
+              style={{ display: activeTab === 'assessment' ? 'flex' : 'none', flexDirection: 'column' }}
+            >
+              <ScrollArea className="flex-1 min-h-0 p-3">
+                <div className="space-y-3">
+                  {allLessons.filter(l => l.type === 'quiz').length === 0 ? (
+                    <div className="py-12 text-center">
+                      <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        No quizzes available for this course.
+                      </p>
+                    </div>
+                  ) : (
+                    allLessons.filter(l => l.type === 'quiz').map((quiz) => (
+                      <div
+                        key={quiz.id}
+                        className="group rounded-xl border border-border bg-card hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-md p-5 flex flex-col gap-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              <CheckCircle className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-base text-foreground leading-tight">{quiz.title}</h4>
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5 font-medium">
+                                {quiz.isMandatory ? <Lock className="h-3 w-3 text-red-500" /> : <Play className="h-3 w-3 text-primary/70" />}
+                                {quiz.isMandatory ? 'Mandatory Quiz' : 'Optional Quiz'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3 pt-4 border-t border-border mt-auto">
+                          {quiz.isCompleted && <span className="text-sm text-emerald-500 font-medium px-2 py-1 bg-emerald-500/10 rounded-md">Completed</span>}
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setCurrentLessonId(quiz.id);
+                              setActiveTab('content');
+                              setIsSidebarOpen(false);
+                            }}
+                            className="w-full sm:w-auto"
+                          >
+                            Take Quiz
+                          </Button>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </ScrollArea>

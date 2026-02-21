@@ -20,6 +20,8 @@ const AddLesson = () => {
     const queryClient = useQueryClient();
 
     const [isUploading, setIsUploading] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [quizText, setQuizText] = useState('');
     const [lessonForm, setLessonForm] = useState({
         title: '',
         type: 'video' as string,
@@ -27,6 +29,8 @@ const AddLesson = () => {
         videoUrl: '',
         duration: 0,
         isFree: false,
+        isMandatory: false,
+        quizData: [] as any[],
         resources: [] as any[],
         targetSectionId: '',
     });
@@ -129,6 +133,23 @@ const AddLesson = () => {
         }));
     };
 
+    const handleGenerateQuiz = async () => {
+        if (!quizText.trim()) {
+            toast({ title: 'Please provide text to generate the quiz', variant: 'destructive' });
+            return;
+        }
+        setIsGenerating(true);
+        try {
+            const data = await instructorService.generateQuiz(quizText);
+            setLessonForm(prev => ({ ...prev, quizData: data }));
+            toast({ title: 'Quiz generated successfully!' });
+        } catch (error: any) {
+            toast({ title: 'Failed to generate quiz', description: error.message || 'Please try again', variant: 'destructive' });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const handleAddLesson = () => {
         if (!lessonForm.title.trim()) {
             toast({ title: 'Lesson title is required', variant: 'destructive' });
@@ -148,6 +169,8 @@ const AddLesson = () => {
             videoUrl: lessonForm.videoUrl || undefined,
             videoDuration: lessonForm.duration,
             isFree: lessonForm.isFree,
+            isMandatory: lessonForm.isMandatory,
+            quizData: lessonForm.type === 'quiz' ? lessonForm.quizData : undefined,
             resources: lessonForm.resources,
         });
     };
@@ -380,6 +403,62 @@ const AddLesson = () => {
                             }
                         />
                     </div>
+
+                    {/* Quiz Settings */}
+                    {lessonForm.type === 'quiz' && (
+                        <div className="space-y-4 pt-4 border-t border-border">
+                            <h3 className="text-sm font-semibold">Quiz Settings</h3>
+                            <div className="flex items-center space-x-2">
+                                <Label className="text-sm font-medium">Make Quiz Mandatory?</Label>
+                                <input
+                                    type="checkbox"
+                                    checked={lessonForm.isMandatory}
+                                    onChange={(e) => setLessonForm(p => ({ ...p, isMandatory: e.target.checked }))}
+                                    className="w-4 h-4 text-primary bg-secondary border-border rounded focus:ring-primary"
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground">If checked, students must pass this quiz to continue to the next section.</p>
+
+                            <div className="space-y-2 mt-4">
+                                <Label className="text-sm font-medium">Generate AI Quiz</Label>
+                                <p className="text-xs text-muted-foreground">Paste your lesson content or study material below to automatically generate MCQs.</p>
+                                <textarea
+                                    value={quizText}
+                                    onChange={(e) => setQuizText(e.target.value)}
+                                    rows={4}
+                                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-primary"
+                                    placeholder="Paste text here to generate quiz questions..."
+                                />
+                                <Button
+                                    onClick={handleGenerateQuiz}
+                                    disabled={isGenerating || !quizText.trim()}
+                                    variant="secondary"
+                                    className="w-full gap-2 mt-2"
+                                >
+                                    {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                    {isGenerating ? 'Generating...' : 'Generate with AI'}
+                                </Button>
+                            </div>
+
+                            {lessonForm.quizData.length > 0 && (
+                                <div className="space-y-3 mt-4">
+                                    <Label className="text-sm font-medium">Generated Questions ({lessonForm.quizData.length})</Label>
+                                    {lessonForm.quizData.map((q: any, i: number) => (
+                                        <div key={i} className="p-3 bg-secondary rounded-lg border border-border">
+                                            <p className="font-medium text-sm mb-2">{i + 1}. {q.question}</p>
+                                            <div className="space-y-1">
+                                                {q.options.map((opt: string, j: number) => (
+                                                    <div key={j} className={`text-xs p-1.5 rounded ${j === q.correctAnswer ? 'bg-emerald-500/10 text-emerald-500 font-medium' : 'text-muted-foreground'}`}>
+                                                        {opt}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Practice Files Section */}
                     <div className="space-y-3 pt-4 border-t border-border">

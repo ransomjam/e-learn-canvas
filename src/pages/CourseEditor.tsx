@@ -94,6 +94,10 @@ const CourseEditor = () => {
         isFree: false,
         resources: [] as any[],
         targetSectionId: '',
+        isMandatory: false,
+        quizData: [] as any[],
+        isGenerating: false,
+        quizText: '',
     });
 
     // Fetch existing course
@@ -304,6 +308,10 @@ const CourseEditor = () => {
             isFree: false,
             resources: [],
             targetSectionId: '',
+            isMandatory: false,
+            quizData: [],
+            isGenerating: false,
+            quizText: '',
         });
     };
 
@@ -1020,6 +1028,10 @@ const CourseEditor = () => {
                                                                                                         isFree: lesson.isFree,
                                                                                                         resources: Array.isArray(practiceFiles) ? practiceFiles : [],
                                                                                                         targetSectionId: '',
+                                                                                                        isMandatory: lesson.isMandatory || false,
+                                                                                                        quizData: typeof lesson.quizData === 'string' ? JSON.parse(lesson.quizData || '[]') : (lesson.quizData || []),
+                                                                                                        isGenerating: false,
+                                                                                                        quizText: '',
                                                                                                     });
                                                                                                 }
                                                                                             }}
@@ -1159,6 +1171,57 @@ const CourseEditor = () => {
                                                                             </div>
                                                                         </div>
 
+                                                                        {lessonForm.type === 'quiz' && (
+                                                                            <div className="space-y-4 pt-4 border-t border-border">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        id="editIsMandatory"
+                                                                                        checked={lessonForm.isMandatory}
+                                                                                        onChange={(e) => setLessonForm((p) => ({ ...p, isMandatory: e.target.checked }))}
+                                                                                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                                                                                    />
+                                                                                    <Label htmlFor="editIsMandatory" className="cursor-pointer font-medium">
+                                                                                        Mandatory Quiz (locks next lessons until passed)
+                                                                                    </Label>
+                                                                                </div>
+                                                                                <div className="space-y-2">
+                                                                                    <Label className="text-xs">Regenerate Quiz Questions (AI)</Label>
+                                                                                    <textarea
+                                                                                        placeholder="Paste text here to generate quiz questions..."
+                                                                                        value={lessonForm.quizText}
+                                                                                        onChange={(e) => setLessonForm(p => ({ ...p, quizText: e.target.value }))}
+                                                                                        className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y"
+                                                                                        rows={3}
+                                                                                    />
+                                                                                    <Button
+                                                                                        variant="secondary"
+                                                                                        size="sm"
+                                                                                        disabled={lessonForm.isGenerating || !lessonForm.quizText.trim()}
+                                                                                        onClick={async () => {
+                                                                                            setLessonForm(p => ({ ...p, isGenerating: true }));
+                                                                                            try {
+                                                                                                const data = await instructorService.generateQuiz(lessonForm.quizText);
+                                                                                                setLessonForm(p => ({ ...p, quizData: data, isGenerating: false, quizText: '' }));
+                                                                                                toast({ title: 'Quiz generated successfully!' });
+                                                                                            } catch (error) {
+                                                                                                toast({ title: 'Failed to generate quiz', variant: 'destructive' });
+                                                                                                setLessonForm(p => ({ ...p, isGenerating: false }));
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        {lessonForm.isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                                                        Regenerate with AI
+                                                                                    </Button>
+                                                                                </div>
+                                                                                {lessonForm.quizData && lessonForm.quizData.length > 0 && (
+                                                                                    <div className="text-sm bg-accent/10 p-3 rounded text-accent">
+                                                                                        This quiz currently has {lessonForm.quizData.length} generated questions.
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+
                                                                         {/* Resources */}
                                                                         <div className="space-y-3 pt-4 border-t border-border">
                                                                             <div className="flex items-center justify-between">
@@ -1230,6 +1293,8 @@ const CourseEditor = () => {
                                                                                             isFree: lessonForm.isFree,
                                                                                             practiceFiles: lessonForm.resources,
                                                                                             resources: [],
+                                                                                            isMandatory: lessonForm.isMandatory,
+                                                                                            quizData: lessonForm.quizData,
                                                                                         },
                                                                                     })
                                                                                 }

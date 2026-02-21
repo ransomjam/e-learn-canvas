@@ -293,7 +293,7 @@ const Player = () => {
   const processedLessonsLookup = new Map<string, boolean>();
 
   if (user?.role !== 'instructor' && user?.role !== 'admin') {
-    const completedLessonsList = progress?.completedLessons || [];
+    const completedLessonsList = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
     allLessons.forEach(l => {
       processedLessonsLookup.set(l.id, isSubsequentLocked);
       const isCompleted = completedLessonsList.includes(l.id);
@@ -305,7 +305,7 @@ const Player = () => {
 
   const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
   const totalLessons = allLessons.length;
-  const completedLessons = progress?.completedLessons || 0;
+  const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons.length : (typeof progress?.completedLessons === 'number' ? progress.completedLessons : 0);
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
   const isVideoLesson = currentLesson?.type === 'video';
 

@@ -5,7 +5,64 @@
 @tailwind utilities;
 
 @layer base {
+  /* ─── Light theme (default) ─── */
   :root {
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 93%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 9% 43%;
+
+    --accent: 187 85% 38%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14% 87%;
+    --input: 220 14% 87%;
+    --ring: 217 91% 50%;
+
+    --radius: 0.75rem;
+
+    --surface: 220 14% 96%;
+    --surface-hover: 220 14% 92%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 50%), hsl(217 91% 42%));
+    --gradient-accent: linear-gradient(135deg, hsl(187 85% 38%), hsl(187 85% 30%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 50% / 0.1), hsl(187 85% 38% / 0.08));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 14% 98%));
+
+    --shadow-sm: 0 1px 3px hsl(222 47% 11% / 0.06);
+    --shadow-md: 0 4px 12px hsl(222 47% 11% / 0.08);
+    --shadow-lg: 0 8px 24px hsl(222 47% 11% / 0.1);
+    --shadow-glow: 0 0 20px hsl(217 91% 50% / 0.15);
+    --shadow-accent-glow: 0 0 20px hsl(187 85% 38% / 0.15);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 217 91% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 93%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 14% 87%;
+    --sidebar-ring: 217 91% 50%;
+  }
+
+  /* ─── Dark theme ─── */
+  .dark {
     --background: 222 47% 7%;
     --foreground: 220 14% 91%;
 
@@ -33,8 +90,6 @@
     --border: 222 26% 18%;
     --input: 222 26% 18%;
     --ring: 217 91% 60%;
-
-    --radius: 0.75rem;
 
     --surface: 222 41% 11%;
     --surface-hover: 222 41% 14%;

@@ -31,6 +31,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Security middleware - configure CSP for dashboard
+const isProd = process.env.NODE_ENV === 'production';
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -39,14 +40,13 @@ app.use(helmet({
             scriptSrcAttr: ["'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "blob:", "https:", "http://localhost:*", "https://res.cloudinary.com"],
-            mediaSrc: ["'self'", "blob:", "https:", "http://localhost:*", "https://res.cloudinary.com"],
-            connectSrc: ["'self'", "http://localhost:*", "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://*.cradema.com", "https://cradema.com"],
+            imgSrc: ["'self'", "data:", "blob:", "https:", ...(isProd ? [] : ["http://localhost:*"]), "https://res.cloudinary.com"],
+            mediaSrc: ["'self'", "blob:", "https:", ...(isProd ? [] : ["http://localhost:*"]), "https://res.cloudinary.com"],
+            connectSrc: ["'self'", ...(isProd ? [] : ["http://localhost:*"]), "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://*.cradema.com", "https://cradema.com"],
             workerSrc: ["'self'", "blob:"],
             frameSrc: ["'self'", "https://accounts.google.com", "https://drive.google.com", "https://*.google.com", "https://view.officeapps.live.com"],
-            // Don't force upgrade-insecure-requests — it breaks mixed-content
-            // on localhost in dev and can confuse Safari behind Cloudflare.
-            upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+            // Don't force upgrade-insecure-requests in dev (breaks mixed-content)
+            upgradeInsecureRequests: isProd ? [] : null,
         },
     },
     // Safari aggressively enforces CORP/COOP. The defaults (same-origin) cause
@@ -56,6 +56,14 @@ app.use(helmet({
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // needed for Google OAuth popup
     // referrer-policy: Safari may refuse requests if referrer is suppressed
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    // Disable origin-agent-cluster — experimental header that can break Safari
+    originAgentCluster: false,
+    // Reduce HSTS max-age so Safari doesn't cache failure states for 6 months.
+    // Once everything is stable, this can be increased again.
+    strictTransportSecurity: {
+        maxAge: 86400,           // 1 day (was 180 days)
+        includeSubDomains: true,
+    },
 }));
 app.use(cors({
     origin: function (origin, callback) {

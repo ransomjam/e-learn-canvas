@@ -41,7 +41,7 @@ app.use(helmet({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "blob:", "https:", "http://localhost:*", "https://res.cloudinary.com"],
             mediaSrc: ["'self'", "blob:", "https:", "http://localhost:*", "https://res.cloudinary.com"],
-            connectSrc: ["'self'", "http://localhost:*", "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com"],
+            connectSrc: ["'self'", "http://localhost:*", "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://*.cradema.com", "https://cradema.com"],
             workerSrc: ["'self'", "blob:"],
             frameSrc: ["'self'", "https://accounts.google.com", "https://drive.google.com", "https://*.google.com", "https://view.officeapps.live.com"],
         },
@@ -84,7 +84,11 @@ app.use(cors({
         console.error(`Blocked CORS origin: ${origin}`);
         callback(new Error('Not allowed by CORS'));
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length'],
+    maxAge: 86400, // Cache preflight for 24 h — Safari sends many preflights without this
 }));
 
 // Rate limiting - more lenient for development
@@ -98,7 +102,9 @@ const limiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => isDev && req.path === '/api/v1/auth/me', // Skip rate limit for auth/me in dev
+    // Skip preflight (OPTIONS) requests so Safari's frequent CORS checks don't
+    // consume the rate-limit budget and cause "server stopped responding".
+    skip: (req) => req.method === 'OPTIONS' || (isDev && req.path === '/api/v1/auth/me'),
 });
 app.use('/api/', limiter);
 

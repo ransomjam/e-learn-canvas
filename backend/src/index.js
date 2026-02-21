@@ -49,11 +49,18 @@ const startServer = async () => {
     await cleanupDemoAccounts();
 
     // Start server
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api/v1`);
       console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
+
+    // Keep-alive tuning — prevents Safari "server stopped responding" errors.
+    // The keepAliveTimeout MUST exceed the reverse-proxy / load-balancer timeout
+    // (Render uses ~60 s) so Node never closes a connection the proxy thinks is
+    // still alive.  headersTimeout must be slightly larger than keepAliveTimeout.
+    server.keepAliveTimeout = 65000;   // 65 seconds
+    server.headersTimeout  = 66000;    // 66 seconds
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
     process.exit(1);

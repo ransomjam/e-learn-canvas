@@ -6,34 +6,56 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { lazy, Suspense } from "react";
 
-// Lazy-loaded pages (each gets its own chunk)
-const Index = lazy(() => import("./pages/Index"));
-const Courses = lazy(() => import("./pages/Courses"));
-const CourseDetail = lazy(() => import("./pages/CourseDetail"));
-const Auth = lazy(() => import("./pages/Auth"));
-const Player = lazy(() => import("./pages/Player"));
-const Profile = lazy(() => import("./pages/Profile"));
-const InstructorDashboard = lazy(() => import("./pages/InstructorDashboard"));
-const CourseEditor = lazy(() => import("./pages/CourseEditor"));
-const MyCourses = lazy(() => import("./pages/MyCourses"));
-const InstructorCourses = lazy(() => import("./pages/InstructorCourses"));
-const InstructorSubmissions = lazy(() => import("./pages/InstructorSubmissions"));
-const AddLesson = lazy(() => import("./pages/AddLesson"));
-const AdminEnrollmentCodes = lazy(() => import("./pages/AdminEnrollmentCodes"));
-const AdminStudents = lazy(() => import("./pages/AdminStudents"));
-const AdminCourses = lazy(() => import("./pages/AdminCourses"));
-const AdminInstructors = lazy(() => import("./pages/AdminInstructors"));
-const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
-const Wishlist = lazy(() => import("./pages/Wishlist"));
-const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
-const EnrollmentClaim = lazy(() => import("./pages/EnrollmentClaim"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Terms = lazy(() => import("./pages/Terms"));
+/**
+ * Retry a dynamic import up to `retries` times with an exponential back-off.
+ * Mobile browsers on flaky connections frequently fail to fetch JS chunks on
+ * the first attempt; this avoids a permanent blank screen.
+ */
+function lazyRetry<T extends { default: React.ComponentType<any> }>(
+  factory: () => Promise<T>,
+  retries = 3,
+): React.LazyExoticComponent<T["default"]> {
+  return lazy(() => {
+    const attempt = (remaining: number): Promise<T> =>
+      factory().catch((err) => {
+        if (remaining <= 0) throw err;
+        return new Promise<T>((res) =>
+          setTimeout(() => res(attempt(remaining - 1)), 1000 * (retries - remaining + 1)),
+        );
+      });
+    return attempt(retries);
+  });
+}
+
+// Lazy-loaded pages (each gets its own chunk) – with automatic retry
+const Index = lazyRetry(() => import("./pages/Index"));
+const Courses = lazyRetry(() => import("./pages/Courses"));
+const CourseDetail = lazyRetry(() => import("./pages/CourseDetail"));
+const Auth = lazyRetry(() => import("./pages/Auth"));
+const Player = lazyRetry(() => import("./pages/Player"));
+const Profile = lazyRetry(() => import("./pages/Profile"));
+const InstructorDashboard = lazyRetry(() => import("./pages/InstructorDashboard"));
+const CourseEditor = lazyRetry(() => import("./pages/CourseEditor"));
+const MyCourses = lazyRetry(() => import("./pages/MyCourses"));
+const InstructorCourses = lazyRetry(() => import("./pages/InstructorCourses"));
+const InstructorSubmissions = lazyRetry(() => import("./pages/InstructorSubmissions"));
+const AddLesson = lazyRetry(() => import("./pages/AddLesson"));
+const AdminEnrollmentCodes = lazyRetry(() => import("./pages/AdminEnrollmentCodes"));
+const AdminStudents = lazyRetry(() => import("./pages/AdminStudents"));
+const AdminCourses = lazyRetry(() => import("./pages/AdminCourses"));
+const AdminInstructors = lazyRetry(() => import("./pages/AdminInstructors"));
+const PaymentCallback = lazyRetry(() => import("./pages/PaymentCallback"));
+const Wishlist = lazyRetry(() => import("./pages/Wishlist"));
+const ProjectDetail = lazyRetry(() => import("./pages/ProjectDetail"));
+const EnrollmentClaim = lazyRetry(() => import("./pages/EnrollmentClaim"));
+const NotFound = lazyRetry(() => import("./pages/NotFound"));
+const ForgotPassword = lazyRetry(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazyRetry(() => import("./pages/ResetPassword"));
+const Privacy = lazyRetry(() => import("./pages/Privacy"));
+const Terms = lazyRetry(() => import("./pages/Terms"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +76,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <ErrorBoundary>
             <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -221,6 +244,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </ErrorBoundary>
           </TooltipProvider>
         </AuthProvider>
       </BrowserRouter>

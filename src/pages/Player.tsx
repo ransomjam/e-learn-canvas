@@ -66,13 +66,13 @@ const Player = () => {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Queries
-  const { data: course, isLoading: courseLoading } = useQuery({
+  const { data: course, isLoading: courseLoading, isError: courseError } = useQuery({
     queryKey: ['course', id],
     queryFn: () => coursesService.getCourseById(id!),
     enabled: !!id,
   });
 
-  const { data: sections = [], isLoading: lessonsLoading } = useQuery({
+  const { data: sections = [], isLoading: lessonsLoading, isError: lessonsError } = useQuery({
     queryKey: ['courseLessons', id],
     queryFn: () => coursesService.getCourseLessons(id!),
     enabled: !!id,
@@ -356,6 +356,18 @@ const Player = () => {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (courseError || lessonsError) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-background gap-4 px-4 text-center">
+        <p className="text-muted-foreground">Failed to load the course. Please check your connection and try again.</p>
+        <div className="flex gap-3">
+          <Button onClick={() => window.location.reload()}>Reload</Button>
+          <Link to="/courses"><Button variant="outline">Browse Courses</Button></Link>
+        </div>
       </div>
     );
   }

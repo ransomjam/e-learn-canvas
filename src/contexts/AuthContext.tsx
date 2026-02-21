@@ -26,9 +26,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const token = getAccessToken();
             if (token) {
                 try {
-                    const userData = await authService.getMe();
+                    // Race against a timeout so users are never stuck on a blank spinner
+                    const userData = await Promise.race([
+                        authService.getMe(),
+                        new Promise<never>((_, reject) =>
+                            setTimeout(() => reject(new Error('Auth check timed out')), 10000)
+                        ),
+                    ]);
                     setUser(userData);
                 } catch {
+                    // Token invalid, expired, or network unreachable – clear and let user re-auth
                     clearTokens();
                 }
             }

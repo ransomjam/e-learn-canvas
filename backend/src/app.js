@@ -44,8 +44,18 @@ app.use(helmet({
             connectSrc: ["'self'", "http://localhost:*", "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://*.cradema.com", "https://cradema.com"],
             workerSrc: ["'self'", "blob:"],
             frameSrc: ["'self'", "https://accounts.google.com", "https://drive.google.com", "https://*.google.com", "https://view.officeapps.live.com"],
+            // Don't force upgrade-insecure-requests — it breaks mixed-content
+            // on localhost in dev and can confuse Safari behind Cloudflare.
+            upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
         },
     },
+    // Safari aggressively enforces CORP/COOP. The defaults (same-origin) cause
+    // "connection unexpectedly closed" when behind Cloudflare or on www/non-www
+    // mismatches. Use cross-origin so sub-resources and API responses are allowed.
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // needed for Google OAuth popup
+    // referrer-policy: Safari may refuse requests if referrer is suppressed
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
 }));
 app.use(cors({
     origin: function (origin, callback) {

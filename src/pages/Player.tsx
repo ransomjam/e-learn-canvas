@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Play, ChevronLeft, CheckCircle, Menu, X, FileText, Clock, Loader2,
+  Play, ChevronLeft, CheckCircle, Menu, X, FileText, Clock,
   Send, Download, ChevronRight, Lock, ThumbsUp, Paperclip, Upload, Calendar, Star,
-  Trash2, Reply, CornerDownRight,
+  Trash2, Reply, CornerDownRight, Loader2,
   ClipboardCheck // icon for quiz thumbnails
 } from 'lucide-react';
+import ParticleLoader from '@/components/ui/ParticleLoader';
 import Logo from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -339,7 +340,7 @@ const Player = () => {
   if (courseLoading || lessonsLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <ParticleLoader size={40} />
       </div>
     );
   }

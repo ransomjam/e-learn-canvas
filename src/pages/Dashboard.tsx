@@ -2,8 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   BookOpen, Clock, Award, Flame, Play,
-  TrendingUp, Calendar, Loader2
+  TrendingUp, Calendar
 } from 'lucide-react';
+import ParticleLoader from '@/components/ui/ParticleLoader';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -51,7 +52,7 @@ const Dashboard = () => {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <ParticleLoader size={40} />
             </div>
           ) : (
             <>

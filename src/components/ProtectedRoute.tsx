@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import ParticleLoader from '@/components/ui/ParticleLoader';
 import { useEffect, useState } from 'react';
 
 interface ProtectedRouteProps {
@@ -28,7 +28,7 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
     if (isLoading && !timedOut) {
         return (
             <div className="flex min-h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <ParticleLoader size={40} />
             </div>
         );
     }

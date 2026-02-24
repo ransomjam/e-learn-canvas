@@ -69,7 +69,10 @@ api.interceptors.response.use(
                                 originalRequest.headers.Authorization = `Bearer ${token}`;
                             }
                             resolve(api(originalRequest));
-                        }, reject
+                        }, reject: (err: Error) => {
+                            // Silently reject — the caller (AuthContext) will handle this
+                            reject(err);
+                        }
                     });
                 });
             }

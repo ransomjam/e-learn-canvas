@@ -25,9 +25,9 @@ const createProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Not authorized');
     }
 
-    // Handle file attachment
-    let attachmentUrl = null;
-    let attachmentName = null;
+    // Handle file attachment — accept pre-uploaded Cloudinary URL from body OR multer file
+    let attachmentUrl = req.body.attachmentUrl || null;
+    let attachmentName = req.body.attachmentName || null;
     if (req.file) {
         if (cloudinaryEnabled) {
             const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
@@ -141,7 +141,7 @@ const submitProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'You must be enrolled in this course to submit');
     }
 
-    // Handle file upload
+    // Handle file upload — accept pre-uploaded Cloudinary URL from body OR multer file
     let submissionUrl = req.body.submissionUrl || null;
     let fileName = req.body.fileName || null;
     let fileSize = req.body.fileSize || null;
@@ -403,9 +403,9 @@ const updateProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Not authorized');
     }
 
-    // Handle file attachment
-    let attachmentUrl = projectResult.rows[0].attachment_url;
-    let attachmentName = projectResult.rows[0].attachment_name;
+    // Handle file attachment — accept pre-uploaded Cloudinary URL from body OR multer file
+    let attachmentUrl = req.body.attachmentUrl || projectResult.rows[0].attachment_url;
+    let attachmentName = req.body.attachmentName || projectResult.rows[0].attachment_name;
     if (req.file) {
         if (cloudinaryEnabled) {
             const uploaded = await uploadToCloudinary(req.file.buffer, req.file.originalname);

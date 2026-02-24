@@ -105,14 +105,69 @@ export const instructorService = {
         return response.data.data;
     },
 
-    // File upload
+    // File upload — uses direct Cloudinary upload to bypass Render's 30 s timeout
     async uploadFile(file: File): Promise<{ url: string; filename: string; fileType?: string; originalName?: string }> {
-        const formData = new FormData();
-        formData.append('file', file);
-        const response = await api.post('/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        return response.data.data;
+        // Detect file type from extension
+        const ext = file.name.split('.').pop()?.toLowerCase() || '';
+        let fileType = 'file';
+        if (/jpeg|jpg|png|gif|webp/.test(ext)) fileType = 'image';
+        else if (/mp4|webm|ogg|mov|avi|mkv/.test(ext)) fileType = 'video';
+        else if (ext === 'pdf') fileType = 'pdf';
+        else if (/pptx?/.test(ext)) fileType = 'ppt';
+        else if (/docx?/.test(ext)) fileType = 'doc';
+
+        try {
+            // Step 1: Get signed upload params from backend
+            const signRes = await api.get('/upload/sign', { params: { fileType } });
+            const sig = signRes.data.data;
+
+            // Step 2: Upload directly to Cloudinary (bypasses Render entirely)
+            const cloudFormData = new FormData();
+            cloudFormData.append('file', file);
+            cloudFormData.append('api_key', sig.apiKey);
+            cloudFormData.append('timestamp', String(sig.timestamp));
+            cloudFormData.append('signature', sig.signature);
+            cloudFormData.append('folder', sig.folder);
+            if (sig.format) cloudFormData.append('format', sig.format);
+            if (sig.use_filename) cloudFormData.append('use_filename', sig.use_filename);
+            if (sig.unique_filename) cloudFormData.append('unique_filename', sig.unique_filename);
+
+            const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`;
+            const uploadRes = await fetch(cloudinaryUrl, {
+                method: 'POST',
+                body: cloudFormData,
+            });
+
+            if (!uploadRes.ok) {
+                const errBody = await uploadRes.json().catch(() => ({}));
+                throw new Error(errBody?.error?.message || `Cloudinary upload failed (${uploadRes.status})`);
+            }
+
+            const result = await uploadRes.json();
+            let url = result.secure_url;
+            // Ensure video URL ends with .mp4 for mobile compatibility
+            if (sig.resourceType === 'video' && url && !url.endsWith('.mp4')) {
+                url = url.replace(/\.[^/.]+$/, '.mp4');
+            }
+
+            return {
+                url,
+                filename: result.original_filename || file.name,
+                fileType,
+                originalName: file.name,
+            };
+        } catch (signErr: any) {
+            // If signature endpoint fails (e.g. Cloudinary not configured), fall back
+            // to the backend proxy upload (works in local dev)
+            console.warn('Direct Cloudinary upload unavailable, falling back to backend proxy:', signErr?.message);
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await api.post('/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                timeout: 10 * 60 * 1000, // 10 min for large videos via backend
+            });
+            return response.data.data;
+        }
     },
 
     // Section management

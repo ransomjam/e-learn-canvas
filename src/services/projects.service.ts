@@ -72,16 +72,36 @@ export const projectsService = {
         instructions?: string;
         dueDate?: string;
     }, file?: File): Promise<Project> {
-        const formData = new FormData();
-        formData.append('title', data.title);
-        if (data.description) formData.append('description', data.description);
-        if (data.instructions) formData.append('instructions', data.instructions);
-        if (data.dueDate) formData.append('dueDate', data.dueDate);
-        if (file) formData.append('file', file);
+        // If there's a file, upload directly to Cloudinary first
+        let attachmentUrl: string | undefined;
+        let attachmentName: string | undefined;
+        if (file) {
+            try {
+                const { instructorService: svc } = await import('./instructor.service');
+                const uploaded = await svc.uploadFile(file);
+                attachmentUrl = uploaded.url;
+                attachmentName = file.name;
+            } catch {
+                // Fall back to multipart upload through backend
+                const formData = new FormData();
+                formData.append('title', data.title);
+                if (data.description) formData.append('description', data.description);
+                if (data.instructions) formData.append('instructions', data.instructions);
+                if (data.dueDate) formData.append('dueDate', data.dueDate);
+                formData.append('file', file);
+                const response = await api.post(`/courses/${courseId}/projects`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    timeout: 5 * 60 * 1000,
+                });
+                return response.data.data;
+            }
+        }
 
-        const response = await api.post(`/courses/${courseId}/projects`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const body: Record<string, any> = { ...data };
+        if (attachmentUrl) body.attachmentUrl = attachmentUrl;
+        if (attachmentName) body.attachmentName = attachmentName;
+
+        const response = await api.post(`/courses/${courseId}/projects`, body);
         return response.data.data;
     },
 
@@ -91,16 +111,36 @@ export const projectsService = {
         instructions?: string;
         dueDate?: string;
     }, file?: File): Promise<Project> {
-        const formData = new FormData();
-        if (data.title) formData.append('title', data.title);
-        if (data.description !== undefined) formData.append('description', data.description || '');
-        if (data.instructions !== undefined) formData.append('instructions', data.instructions || '');
-        if (data.dueDate) formData.append('dueDate', data.dueDate);
-        if (file) formData.append('file', file);
+        // If there's a file, upload directly to Cloudinary first
+        let attachmentUrl: string | undefined;
+        let attachmentName: string | undefined;
+        if (file) {
+            try {
+                const { instructorService: svc } = await import('./instructor.service');
+                const uploaded = await svc.uploadFile(file);
+                attachmentUrl = uploaded.url;
+                attachmentName = file.name;
+            } catch {
+                // Fall back to multipart upload through backend
+                const formData = new FormData();
+                if (data.title) formData.append('title', data.title);
+                if (data.description !== undefined) formData.append('description', data.description || '');
+                if (data.instructions !== undefined) formData.append('instructions', data.instructions || '');
+                if (data.dueDate) formData.append('dueDate', data.dueDate);
+                formData.append('file', file);
+                const response = await api.put(`/courses/projects/${projectId}`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    timeout: 5 * 60 * 1000,
+                });
+                return response.data.data;
+            }
+        }
 
-        const response = await api.put(`/courses/projects/${projectId}`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const body: Record<string, any> = { ...data };
+        if (attachmentUrl) body.attachmentUrl = attachmentUrl;
+        if (attachmentName) body.attachmentName = attachmentName;
+
+        const response = await api.put(`/courses/projects/${projectId}`, body);
         return response.data.data;
     },
 
@@ -111,13 +151,36 @@ export const projectsService = {
     async submitProject(projectId: string, data: {
         submissionText?: string;
     }, file?: File): Promise<ProjectSubmission> {
-        const formData = new FormData();
-        if (data.submissionText) formData.append('submissionText', data.submissionText);
-        if (file) formData.append('file', file);
+        // If there's a file, upload directly to Cloudinary first
+        let submissionUrl: string | undefined;
+        let fileName: string | undefined;
+        let fileSize: number | undefined;
+        if (file) {
+            try {
+                const { instructorService: svc } = await import('./instructor.service');
+                const uploaded = await svc.uploadFile(file);
+                submissionUrl = uploaded.url;
+                fileName = file.name;
+                fileSize = file.size;
+            } catch {
+                // Fall back to multipart upload through backend
+                const formData = new FormData();
+                if (data.submissionText) formData.append('submissionText', data.submissionText);
+                formData.append('file', file);
+                const response = await api.post(`/courses/projects/${projectId}/submit`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    timeout: 5 * 60 * 1000,
+                });
+                return response.data.data;
+            }
+        }
 
-        const response = await api.post(`/courses/projects/${projectId}/submit`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const body: Record<string, any> = { ...data };
+        if (submissionUrl) body.submissionUrl = submissionUrl;
+        if (fileName) body.fileName = fileName;
+        if (fileSize) body.fileSize = fileSize;
+
+        const response = await api.post(`/courses/projects/${projectId}/submit`, body);
         return response.data.data;
     },
 

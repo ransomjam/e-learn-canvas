@@ -8,6 +8,12 @@ export interface User {
     role: 'learner' | 'instructor' | 'admin';
     avatarUrl?: string;
     bio?: string;
+    headline?: string;
+    linkedinUrl?: string;
+    githubUrl?: string;
+    twitterUrl?: string;
+    websiteUrl?: string;
+    skills?: string[];
     createdAt: string;
 }
 

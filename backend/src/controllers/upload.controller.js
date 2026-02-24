@@ -4,6 +4,15 @@ const path = require('path');
 const fs = require('fs');
 const { cloudinary, isConfigured: cloudinaryEnabled } = require('../config/cloudinary');
 
+// In production, Cloudinary MUST be configured. Render's filesystem is ephemeral —
+// files saved to local disk are lost on every redeploy/restart.
+if (process.env.NODE_ENV === 'production' && !cloudinaryEnabled) {
+    console.error('\n🚨 CRITICAL: Cloudinary is NOT configured but NODE_ENV=production!');
+    console.error('   Uploads will fail because Render uses an ephemeral filesystem.');
+    console.error('   Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET');
+    console.error('   in your Render dashboard environment variables.\n');
+}
+
 // ── Helper: detect file type from extension ──────────────────────────────────
 const detectFileType = (originalname) => {
     const ext = path.extname(originalname).toLowerCase().slice(1);
@@ -122,10 +131,20 @@ const uploadFile = asyncHandler(async (req, res) => {
 
     if (cloudinaryEnabled) {
         // Upload buffer to Cloudinary
-        const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
-        fileUrl = result.url; // full https://res.cloudinary.com/... URL
+        try {
+            const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+            fileUrl = result.url; // full https://res.cloudinary.com/... URL
+        } catch (err) {
+            console.error('❌ Cloudinary upload failed for', req.file.originalname, err.message);
+            throw new ApiError(500, 'File upload failed. Please try again later.');
+        }
+    } else if (process.env.NODE_ENV === 'production') {
+        // In production without Cloudinary, reject the upload immediately.
+        // Render's ephemeral filesystem means local files will be lost on redeploy.
+        console.error('❌ Upload rejected: Cloudinary not configured in production');
+        throw new ApiError(503, 'File uploads are temporarily unavailable. Cloud storage is not configured.');
     } else {
-        // Local disk — file already saved by multer diskStorage
+        // Local disk — file already saved by multer diskStorage (dev only)
         fileUrl = `/uploads/${req.file.filename}`;
     }
 
@@ -226,4 +245,42 @@ function streamResponse(proxyRes, res, downloadName, originalUrl) {
     proxyRes.pipe(res);
 }
 
-module.exports = { upload, projectUpload, uploadFile, downloadFile, uploadToCloudinary, detectFileType, cloudinaryEnabled, handleMulterError };
+// ── Signed upload params for direct frontend-to-Cloudinary uploads ───────────
+const getUploadSignature = asyncHandler(async (req, res) => {
+    if (!cloudinaryEnabled) {
+        throw new ApiError(503, 'Cloud storage is not configured');
+    }
+
+    const { fileType } = req.query; // 'image', 'video', 'pdf', etc.
+    const detectedType = fileType || 'file';
+    const resourceType = getCloudinaryResourceType(detectedType);
+    const folder = `cradema/${detectedType === 'image' ? 'images' : detectedType === 'video' ? 'videos' : 'files'}`;
+
+    const timestamp = Math.round(Date.now() / 1000);
+    const params = {
+        timestamp,
+        folder,
+        resource_type: resourceType,
+        ...(resourceType === 'video' ? { format: 'mp4' } : {}),
+        ...(resourceType === 'raw' ? { use_filename: true, unique_filename: true } : {}),
+    };
+
+    // Generate the signature
+    const signature = cloudinary.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET);
+
+    res.json({
+        success: true,
+        data: {
+            signature,
+            timestamp,
+            cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+            apiKey: process.env.CLOUDINARY_API_KEY,
+            folder,
+            resourceType,
+            ...(resourceType === 'video' ? { format: 'mp4' } : {}),
+            ...(resourceType === 'raw' ? { use_filename: 'true', unique_filename: 'true' } : {}),
+        }
+    });
+});
+
+module.exports = { upload, projectUpload, uploadFile, downloadFile, uploadToCloudinary, detectFileType, cloudinaryEnabled, handleMulterError, getUploadSignature };

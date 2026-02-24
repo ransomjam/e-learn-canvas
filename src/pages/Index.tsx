@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { coursesService } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
 import { useAuth } from '@/contexts/AuthContext';
+import TechBackground from '@/components/ui/TechBackground';
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
@@ -36,20 +37,16 @@ const Index = () => {
     <Layout>
       {/* Hero Section */}
       <section className="relative overflow-hidden py-16 sm:py-20 lg:py-28">
-        {/* Background Effects */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-primary/20 blur-[100px]" />
-          <div className="absolute -right-40 top-20 h-80 w-80 rounded-full bg-accent/20 blur-[100px]" />
-        </div>
+        <TechBackground />
 
         <div className="container relative mx-auto px-4">
           <div className="mx-auto max-w-3xl text-center animate-fade-in">
-            <h1 className="font-display text-4xl font-bold leading-tight text-foreground sm:text-5xl md:text-6xl">
+            <h1 className="font-display text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl">
               Unlock Your{' '}
               <span className="text-gradient">Potential</span> with Expert-Led Courses
             </h1>
 
-            <p className="mt-5 text-base text-muted-foreground sm:mt-6 sm:text-lg md:text-lg">
+            <p className="mt-5 text-base text-white/70 sm:mt-6 sm:text-lg md:text-lg">
               Master in-demand skills with courses taught by industry experts.
             </p>
 

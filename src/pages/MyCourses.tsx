@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-    BookOpen, Clock, CheckCircle2, Play, Loader2, Search, Filter,
+    BookOpen, Clock, CheckCircle2, Play, Search, Filter,
     TrendingUp, Award, GraduationCap
 } from 'lucide-react';
+import ParticleLoader from '@/components/ui/ParticleLoader';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -125,7 +126,7 @@ const MyCourses = () => {
                     {/* Course List */}
                     {isLoading ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <ParticleLoader size={40} />
                         </div>
                     ) : isError ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">

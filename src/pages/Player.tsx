@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Play, ChevronLeft, CheckCircle, Menu, X, FileText, Clock, Loader2,
+  Play, ChevronLeft, CheckCircle, Menu, X, FileText, Clock,
   Send, Download, ChevronRight, Lock, ThumbsUp, Paperclip, Upload, Calendar, Star,
-  Trash2, Reply, CornerDownRight,
+  Trash2, Reply, CornerDownRight, Loader2,
   ClipboardCheck // icon for quiz thumbnails
 } from 'lucide-react';
+import ParticleLoader from '@/components/ui/ParticleLoader';
 import Logo from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -293,7 +294,7 @@ const Player = () => {
   const processedLessonsLookup = new Map<string, boolean>();
 
   if (user?.role !== 'instructor' && user?.role !== 'admin') {
-    const completedLessonsList = progress?.completedLessons || [];
+    const completedLessonsList = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
     allLessons.forEach(l => {
       processedLessonsLookup.set(l.id, isSubsequentLocked);
       const isCompleted = completedLessonsList.includes(l.id);
@@ -305,7 +306,7 @@ const Player = () => {
 
   const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
   const totalLessons = allLessons.length;
-  const completedLessons = progress?.completedLessons || 0;
+  const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons.length : (typeof progress?.completedLessons === 'number' ? progress.completedLessons : 0);
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
   const isVideoLesson = currentLesson?.type === 'video';
 
@@ -339,7 +340,7 @@ const Player = () => {
   if (courseLoading || lessonsLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <ParticleLoader size={40} />
       </div>
     );
   }

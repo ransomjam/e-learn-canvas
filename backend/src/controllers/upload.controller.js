@@ -325,10 +325,13 @@ const getUploadSignature = asyncHandler(async (req, res) => {
   const folder = `cradema/${detectedType === "image" ? "images" : detectedType === "video" ? "videos" : "files"}`;
 
   const timestamp = Math.round(Date.now() / 1000);
+  // NOTE: resource_type must NOT be included in the signed params — it is part
+  // of the upload URL, not the form body.  Including it causes an "Invalid
+  // Signature" 401 because Cloudinary's server-side verification never sees it
+  // as a form field and therefore excludes it from its own string-to-sign.
   const params = {
     timestamp,
     folder,
-    resource_type: resourceType,
     ...(resourceType === "video" ? { format: "mp4" } : {}),
     ...(resourceType === "raw"
       ? { use_filename: true, unique_filename: true }

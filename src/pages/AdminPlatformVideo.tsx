@@ -43,7 +43,15 @@ const AdminPlatformVideo = () => {
     // Fetch existing video
     const { data: existingVideo, isLoading } = useQuery({
         queryKey: ['platformVideo'],
-        queryFn: () => adminService.getPlatformVideo(),
+        queryFn: async () => {
+            try {
+                return await adminService.getPlatformVideo();
+            } catch {
+                // If the endpoint fails (e.g. table doesn't exist yet), return null
+                return null;
+            }
+        },
+        retry: false,
     });
 
     // Populate form when data loads

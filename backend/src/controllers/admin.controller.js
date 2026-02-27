@@ -1,6 +1,8 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
 const { logWithState, AUDIT_ACTIONS } = require('../middleware/audit.middleware');
+const path = require('path');
+const fs = require('fs');
 
 // =====================
 // USER MANAGEMENT

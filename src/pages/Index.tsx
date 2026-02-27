@@ -30,7 +30,14 @@ const Index = () => {
   // Fetch platform video
   const { data: platformVideo, isLoading: videoLoading } = useQuery({
     queryKey: ['platformVideoView'],
-    queryFn: () => adminService.getPlatformVideo(),
+    queryFn: async () => {
+      try {
+        return await adminService.getPlatformVideo();
+      } catch {
+        return null;
+      }
+    },
+    retry: false,
   });
 
   const courses = coursesData?.data || [];

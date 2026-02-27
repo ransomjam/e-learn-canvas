@@ -684,6 +684,89 @@ const reorderLessons = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * @desc    Reorder sections in a course
+ * @route   PUT /api/v1/lessons/course/:courseId/sections/reorder
+ * @access  Private/Instructor
+ */
+const reorderSections = asyncHandler(async (req, res) => {
+    const { courseId } = req.params;
+    const { sectionIds } = req.body;
+
+    if (!Array.isArray(sectionIds) || sectionIds.length === 0) {
+        throw new ApiError(400, 'sectionIds must be a non-empty array');
+    }
+
+    // Check course ownership
+    const courseResult = await query(
+        `SELECT instructor_id FROM courses WHERE id = $1`,
+        [courseId]
+    );
+
+    if (courseResult.rows.length === 0) {
+        throw new ApiError(404, 'Course not found');
+    }
+
+    if (req.user.role !== 'admin' && courseResult.rows[0].instructor_id !== req.user.id) {
+        throw new ApiError(403, 'You can only reorder sections in your own courses');
+    }
+
+    // Update order of each section
+    for (let i = 0; i < sectionIds.length; i++) {
+        await query(
+            'UPDATE sections SET order_index = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND course_id = $3',
+            [i, sectionIds[i], courseId]
+        );
+    }
+
+    res.json({
+        success: true,
+        message: 'Sections reordered successfully'
+    });
+});
+
+/**
+ * @desc    Reorder multiple lessons possibly across sections
+ * @route   PUT /api/v1/lessons/course/:courseId/lessons/reorder-all
+ * @access  Private/Instructor
+ */
+const reorderAllLessons = asyncHandler(async (req, res) => {
+    const { courseId } = req.params;
+    const { updates } = req.body; // Array of { id, sectionId, orderIndex }
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+        throw new ApiError(400, 'updates must be a non-empty array');
+    }
+
+    // Check course ownership
+    const courseResult = await query(
+        `SELECT instructor_id FROM courses WHERE id = $1`,
+        [courseId]
+    );
+
+    if (courseResult.rows.length === 0) {
+        throw new ApiError(404, 'Course not found');
+    }
+
+    if (req.user.role !== 'admin' && courseResult.rows[0].instructor_id !== req.user.id) {
+        throw new ApiError(403, 'You can only reorder lessons in your own courses');
+    }
+
+    // Update all lessons
+    for (const update of updates) {
+        await query(
+            'UPDATE lessons SET order_index = $1, section_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND course_id = $4',
+            [update.orderIndex, update.sectionId, update.id, courseId]
+        );
+    }
+
+    res.json({
+        success: true,
+        message: 'Lessons reordered successfully'
+    });
+});
+
+
 module.exports = {
     // Sections
     createSection,
@@ -696,5 +779,7 @@ module.exports = {
     createLesson,
     updateLesson,
     deleteLesson,
-    reorderLessons
+    reorderLessons,
+    reorderSections,
+    reorderAllLessons
 };

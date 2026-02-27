@@ -18,38 +18,7 @@ import { coursesService, Course, Section, Lesson } from '@/services/courses.serv
 import { instructorService } from '@/services/instructor.service';
 import { projectsService, Project } from '@/services/projects.service';
 import { resolveMediaUrl } from '@/lib/media';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragEndEvent,
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
-    useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
-const SortableLessonItem = ({ id, children }: { id: string; children: (props: any) => React.ReactNode }) => {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-    return <>{children({ setNodeRef, attributes, listeners, style })}</>;
-};
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const CourseEditor = () => {
     const { id } = useParams<{ id: string }>();
@@ -269,32 +238,82 @@ const CourseEditor = () => {
         }
     });
 
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-    );
+    const reorderSectionsMutation = useMutation({
+        mutationFn: (sectionIds: string[]) => instructorService.reorderSections(id!, sectionIds),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', id] });
+            toast({ title: 'Sections reordered' });
+        }
+    });
 
-    const handleLessonDragEnd = (event: DragEndEvent, sectionId: string, sectionLessons: Lesson[]) => {
-        const { active, over } = event;
-        if (over && active.id !== over.id) {
-            const oldIndex = sectionLessons.findIndex((l) => l.id === active.id);
-            const newIndex = sectionLessons.findIndex((l) => l.id === over.id);
-            const newLessons = arrayMove(sectionLessons, oldIndex, newIndex);
+    const reorderAllLessonsMutation = useMutation({
+        mutationFn: (updates: { id: string; sectionId: string; orderIndex: number }[]) =>
+            instructorService.reorderAllLessons(id!, updates),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['courseLessons', id] });
+            toast({ title: 'Lessons updated' });
+        }
+    });
 
-            queryClient.setQueryData(['courseLessons', id], (oldData: any) => {
-                if (!oldData) return oldData;
-                return oldData.map((section: any) => {
-                    if (section.id === sectionId) {
-                        return { ...section, lessons: newLessons };
-                    }
-                    return section;
+    const onDragEnd = (result: DropResult) => {
+        const { source, destination, type } = result;
+
+        if (!destination) return;
+
+        if (
+            source.droppableId === destination.droppableId &&
+            source.index === destination.index
+        ) {
+            return;
+        }
+
+        if (type === 'SECTION') {
+            const newSections = Array.from(sections);
+            const [moved] = newSections.splice(source.index, 1);
+            newSections.splice(destination.index, 0, moved);
+
+            queryClient.setQueryData(['courseLessons', id], newSections);
+            reorderSectionsMutation.mutate(newSections.map((s: any) => s.id));
+            return;
+        }
+
+        if (type === 'LESSON') {
+            const sourceSectionIndex = sections.findIndex((s: any) => s.id === source.droppableId);
+            const destSectionIndex = sections.findIndex((s: any) => s.id === destination.droppableId);
+
+            if (sourceSectionIndex === -1 || destSectionIndex === -1) return;
+
+            const newSections = Array.from(sections) as Section[];
+            const sourceSection = { ...newSections[sourceSectionIndex], lessons: [...(newSections[sourceSectionIndex].lessons || [])] };
+            const destSection = source.droppableId === destination.droppableId
+                ? sourceSection
+                : { ...newSections[destSectionIndex], lessons: [...(newSections[destSectionIndex].lessons || [])] };
+
+            const [moved] = sourceSection.lessons!.splice(source.index, 1);
+            destSection.lessons!.splice(destination.index, 0, moved);
+
+            newSections[sourceSectionIndex] = sourceSection;
+            if (source.droppableId !== destination.droppableId) {
+                newSections[destSectionIndex] = destSection;
+            }
+
+            queryClient.setQueryData(['courseLessons', id], newSections);
+
+            if (source.droppableId === destination.droppableId) {
+                reorderLessonsMutation.mutate({
+                    sectionId: source.droppableId,
+                    lessonIds: sourceSection.lessons!.map(l => l.id)
                 });
-            });
-
-            reorderLessonsMutation.mutate({
-                sectionId,
-                lessonIds: newLessons.map((l) => l.id)
-            });
+            } else {
+                const updates = newSections.flatMap(sec =>
+                    (sec.lessons || []).map((l, idx) => ({
+                        id: l.id,
+                        sectionId: sec.id,
+                        orderIndex: idx
+                    }))
+                );
+                reorderAllLessonsMutation.mutate(updates);
+            }
         }
     };
 
@@ -904,479 +923,494 @@ const CourseEditor = () => {
                                 </div>
 
                                 {/* Sections */}
-                                <div className="space-y-4">
-                                    {sections.map((section: Section, sectionIndex: number) => (
-                                        <div key={section.id} className="rounded-lg border border-border bg-secondary/30">
-                                            {/* Section Header */}
-                                            <div
-                                                className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/60 transition-colors"
-                                                onClick={() => toggleSection(section.id)}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                                    {expandedSections.has(section.id) ? (
-                                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                                    ) : (
-                                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                                    )}
-                                                    <div>
-                                                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                                            Section {sectionIndex + 1}
-                                                        </p>
-                                                        <p className="font-semibold text-foreground">{section.title}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="outline">{section.lessons?.length || 0} lessons</Badge>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (window.confirm('Delete this section and all its lessons?')) {
-                                                                deleteSectionMutation.mutate(section.id);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-
-                                            {/* Section Content (Lessons) */}
-                                            {expandedSections.has(section.id) && (
-                                                <div className="border-t border-border p-4">
-                                                    {/* Existing Lessons */}
-                                                    {section.lessons && section.lessons.length > 0 && (
-                                                        <div className="space-y-2 mb-4">
-                                                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleLessonDragEnd(e, section.id, section.lessons)}>
-                                                                <SortableContext items={section.lessons.map((l: any) => l.id)} strategy={verticalListSortingStrategy}>
-                                                                    {section.lessons.map((lesson: Lesson, lessonIndex: number) => (
-                                                                        <SortableLessonItem key={lesson.id} id={lesson.id}>
-                                                                            {({ setNodeRef, attributes, listeners, style }: any) => (
-                                                                                <div
-                                                                                    ref={setNodeRef} style={style}
-                                                                                    className="flex items-center justify-between rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors bg-background relative z-10"
-                                                                                >
-                                                                                    <div className="flex items-center gap-3">
-                                                                                        <div {...attributes} {...listeners} className="cursor-grab hover:bg-secondary/50 p-1 rounded -ml-1 flex items-center justify-center">
-                                                                                            <GripVertical className="h-3 w-3 text-muted-foreground" />
-                                                                                        </div>
-                                                                                        {lesson.type === 'video' ? (
-                                                                                            <Play className="h-4 w-4 text-primary" />
-                                                                                        ) : lesson.type === 'pdf' ? (
-                                                                                            <FileText className="h-4 w-4 text-red-500" />
-                                                                                        ) : lesson.type === 'ppt' ? (
-                                                                                            <FileText className="h-4 w-4 text-orange-500" />
-                                                                                        ) : lesson.type === 'doc' ? (
-                                                                                            <FileText className="h-4 w-4 text-blue-500" />
-                                                                                        ) : lesson.type === 'document' ? (
-                                                                                            <FileText className="h-4 w-4 text-primary" />
-                                                                                        ) : lesson.type === 'quiz' ? (
-                                                                                            <HelpCircle className="h-4 w-4 text-accent" />
-                                                                                        ) : (
-                                                                                            <FileText className="h-4 w-4 text-primary" />
-                                                                                        )}
-                                                                                        <div>
-                                                                                            <p className="text-sm font-medium text-foreground">{lesson.title}</p>
-                                                                                            <div className="flex items-center gap-2 mt-0.5">
-                                                                                                <Badge variant="outline" className="text-[10px] h-4">
-                                                                                                    {getLessonTypeLabel(lesson.type)}
-                                                                                                </Badge>
-                                                                                                {lesson.duration && (
-                                                                                                    <span className="text-xs text-muted-foreground">
-                                                                                                        {lesson.duration} min
-                                                                                                    </span>
-                                                                                                )}
-                                                                                                {lesson.isFree && (
-                                                                                                    <Badge className="text-[10px] h-4 bg-emerald-500/20 text-emerald-400">
-                                                                                                        Free
-                                                                                                    </Badge>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="flex items-center gap-1">
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="icon"
-                                                                                            className="h-7 w-7"
-                                                                                            onClick={() => {
-                                                                                                setEditingLesson(editingLesson === lesson.id ? null : lesson.id);
-                                                                                                if (editingLesson !== lesson.id) {
-                                                                                                    let practiceFiles: any[] = [];
-                                                                                                    try {
-                                                                                                        let raw = lesson.practiceFiles;
-                                                                                                        // Check if practiceFiles is effectively empty
-                                                                                                        const isEmpty = !raw || (Array.isArray(raw) && raw.length === 0) || raw === '[]';
-
-                                                                                                        if (isEmpty && lesson.resources) {
-                                                                                                            raw = lesson.resources;
-                                                                                                        }
-
-                                                                                                        practiceFiles = typeof raw === 'string'
-                                                                                                            ? JSON.parse(raw || '[]')
-                                                                                                            : (raw || []);
-                                                                                                    } catch (e) {
-                                                                                                        console.error('Error parsing practice files', e);
-                                                                                                        practiceFiles = [];
-                                                                                                    }
-
-                                                                                                    setLessonForm({
-                                                                                                        title: lesson.title,
-                                                                                                        type: lesson.type,
-                                                                                                        content: lesson.content || '',
-                                                                                                        videoUrl: lesson.videoUrl || '',
-                                                                                                        duration: lesson.duration || 0,
-                                                                                                        isFree: lesson.isFree,
-                                                                                                        resources: Array.isArray(practiceFiles) ? practiceFiles : [],
-                                                                                                        targetSectionId: '',
-                                                                                                        isMandatory: lesson.isMandatory || false,
-                                                                                                        quizData: typeof lesson.quizData === 'string' ? JSON.parse(lesson.quizData || '[]') : (lesson.quizData || []),
-                                                                                                        isGenerating: false,
-                                                                                                        quizText: '',
-                                                                                                    });
-                                                                                                }
-                                                                                            }}
-                                                                                        >
-                                                                                            <Settings2 className="h-3 w-3" />
-                                                                                        </Button>
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="icon"
-                                                                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                                                                            onClick={() => {
-                                                                                                if (window.confirm('Delete this lesson?')) {
-                                                                                                    deleteLessonMutation.mutate(lesson.id);
-                                                                                                }
-                                                                                            }}
-                                                                                        >
-                                                                                            <Trash2 className="h-3 w-3" />
-                                                                                        </Button>
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                        </SortableLessonItem>
-                                                                    ))}
-                                                                </SortableContext>
-                                                            </DndContext>
-
-                                                            {/* Lesson Edit Form (inline) */}
-                                                            {editingLesson &&
-                                                                section.lessons.some((l: Lesson) => l.id === editingLesson) && (
-                                                                    <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
-                                                                        <h4 className="text-sm font-semibold text-foreground">Edit Lesson</h4>
-                                                                        <div className="grid gap-3 sm:grid-cols-2">
-                                                                            <div>
-                                                                                <Label className="text-xs">Title</Label>
-                                                                                <Input
-                                                                                    value={lessonForm.title}
-                                                                                    onChange={(e) =>
-                                                                                        setLessonForm((p) => ({ ...p, title: e.target.value }))
-                                                                                    }
-                                                                                    className="mt-1"
-                                                                                />
-                                                                            </div>
-                                                                            <div>
-                                                                                <Label className="text-xs">Lesson Type</Label>
-                                                                                <div className="relative mt-1">
-                                                                                    <select
-                                                                                        value={lessonForm.type}
-                                                                                        onChange={(e) =>
-                                                                                            setLessonForm((p) => ({ ...p, type: e.target.value }))
-                                                                                        }
-                                                                                        className="w-full appearance-none rounded-lg border border-border bg-secondary px-3 py-2 pr-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                                                                                    >
-                                                                                        <option value="video">Video</option>
-                                                                                        <option value="pdf">PDF Document</option>
-                                                                                        <option value="ppt">PowerPoint (PPT/PPTX)</option>
-                                                                                        <option value="doc">Word Document (DOC/DOCX)</option>
-                                                                                        <option value="document">Other Document</option>
-                                                                                        <option value="text">Article</option>
-                                                                                        <option value="quiz">Quiz</option>
-                                                                                        <option value="assignment">Assignment</option>
-                                                                                    </select>
-                                                                                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                                                </div>
-                                                                            </div>
+                                <DragDropContext onDragEnd={onDragEnd}>
+                                    <Droppable droppableId="sections" type="SECTION">
+                                        {(provided) => (
+                                            <div className="space-y-4" {...provided.droppableProps} ref={provided.innerRef}>
+                                                {sections.map((section: Section, sectionIndex: number) => (
+                                                    <Draggable key={section.id} draggableId={section.id} index={sectionIndex}>
+                                                        {(provided) => (
+                                                            <div
+                                                                className="rounded-lg border border-border bg-secondary/30"
+                                                                ref={provided.innerRef}
+                                                                {...provided.draggableProps}
+                                                            >
+                                                                {/* Section Header */}
+                                                                <div
+                                                                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/60 transition-colors"
+                                                                    onClick={() => toggleSection(section.id)}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div {...provided.dragHandleProps} className="p-1 hover:bg-secondary/80 rounded cursor-grab" onClick={(e) => e.stopPropagation()}>
+                                                                            <GripVertical className="h-4 w-4 text-muted-foreground" />
                                                                         </div>
-                                                                        {isFileType(lessonForm.type) && (
-                                                                            <div>
-                                                                                <Label className="text-xs">{lessonForm.type === 'video' ? 'Video URL' : `${getLessonTypeLabel(lessonForm.type)} URL`}</Label>
-                                                                                <div className="flex gap-2 mt-1">
-                                                                                    <Input
-                                                                                        value={lessonForm.videoUrl}
-                                                                                        onChange={(e) =>
-                                                                                            setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))
-                                                                                        }
-                                                                                        placeholder={`Paste URL or upload a ${getLessonTypeLabel(lessonForm.type).toLowerCase()} file`}
-                                                                                        className="flex-1"
-                                                                                    />
-                                                                                    <Button
-                                                                                        variant="outline"
-                                                                                        size="sm"
-                                                                                        className="gap-2"
-                                                                                        onClick={() => {
-                                                                                            const input = document.createElement('input');
-                                                                                            input.type = 'file';
-                                                                                            input.accept = getAcceptForType(lessonForm.type);
-                                                                                            input.onchange = (e) => {
-                                                                                                const file = (e.target as HTMLInputElement).files?.[0];
-                                                                                                if (file) handleVideoUpload(file);
-                                                                                            };
-                                                                                            input.click();
-                                                                                        }}
-                                                                                        disabled={isUploading}
-                                                                                    >
-                                                                                        {isUploading ? (
-                                                                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                                                                        ) : (
-                                                                                            <>
-                                                                                                {lessonForm.type === 'video' ? <Video className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-                                                                                                {lessonForm.type === 'video' ? 'Replace Video' : 'Replace File'}
-                                                                                            </>
-                                                                                        )}
-                                                                                    </Button>
-                                                                                </div>
-                                                                            </div>
+                                                                        {expandedSections.has(section.id) ? (
+                                                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                                                        ) : (
+                                                                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                                                         )}
                                                                         <div>
-                                                                            <Label className="text-xs">Content / Description</Label>
-                                                                            <textarea
-                                                                                value={lessonForm.content}
-                                                                                onChange={(e) =>
-                                                                                    setLessonForm((p) => ({ ...p, content: e.target.value }))
-                                                                                }
-                                                                                rows={3}
-                                                                                className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y"
-                                                                                placeholder="Lesson content or description..."
-                                                                            />
-                                                                        </div>
-                                                                        <div>
-                                                                            <div>
-                                                                                <Label className="text-xs">Duration (minutes)</Label>
-                                                                                <Input
-                                                                                    type="text"
-                                                                                    inputMode="numeric"
-                                                                                    value={lessonForm.duration || ''}
-                                                                                    onChange={(e) => {
-                                                                                        const val = e.target.value;
-                                                                                        if (val === '' || /^\d+$/.test(val)) {
-                                                                                            setLessonForm((p) => ({
-                                                                                                ...p,
-                                                                                                duration: val === '' ? 0 : parseInt(val) || 0,
-                                                                                            }));
-                                                                                        }
-                                                                                    }}
-                                                                                    placeholder="e.g. 15"
-                                                                                    className="mt-1"
-                                                                                />
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {lessonForm.type === 'quiz' && (
-                                                                            <div className="space-y-4 pt-4 border-t border-border">
-                                                                                <div className="flex items-center gap-3">
-                                                                                    <input
-                                                                                        type="checkbox"
-                                                                                        id="editIsMandatory"
-                                                                                        checked={lessonForm.isMandatory}
-                                                                                        onChange={(e) => setLessonForm((p) => ({ ...p, isMandatory: e.target.checked }))}
-                                                                                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                                                                                    />
-                                                                                    <Label htmlFor="editIsMandatory" className="cursor-pointer font-medium">
-                                                                                        Mandatory Quiz (locks next lessons until passed)
-                                                                                    </Label>
-                                                                                </div>
-                                                                                <div className="space-y-2">
-                                                                                    <Label className="text-xs">Regenerate Quiz Questions (AI)</Label>
-                                                                                    <textarea
-                                                                                        placeholder="Paste text here to generate quiz questions..."
-                                                                                        value={lessonForm.quizText}
-                                                                                        onChange={(e) => setLessonForm(p => ({ ...p, quizText: e.target.value }))}
-                                                                                        className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y"
-                                                                                        rows={3}
-                                                                                    />
-                                                                                    <Button
-                                                                                        variant="secondary"
-                                                                                        size="sm"
-                                                                                        disabled={lessonForm.isGenerating || !lessonForm.quizText.trim()}
-                                                                                        onClick={async () => {
-                                                                                            setLessonForm(p => ({ ...p, isGenerating: true }));
-                                                                                            try {
-                                                                                                const data = await instructorService.generateQuiz(lessonForm.quizText);
-                                                                                                setLessonForm(p => ({ ...p, quizData: data, isGenerating: false, quizText: '' }));
-                                                                                                toast({ title: 'Quiz generated successfully!' });
-                                                                                            } catch (error) {
-                                                                                                toast({ title: 'Failed to generate quiz', variant: 'destructive' });
-                                                                                                setLessonForm(p => ({ ...p, isGenerating: false }));
-                                                                                            }
-                                                                                        }}
-                                                                                    >
-                                                                                        {lessonForm.isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                                                        Regenerate with AI
-                                                                                    </Button>
-                                                                                </div>
-                                                                                {lessonForm.quizData && lessonForm.quizData.length > 0 && (
-                                                                                    <div className="text-sm bg-accent/10 p-3 rounded text-accent">
-                                                                                        This quiz currently has {lessonForm.quizData.length} generated questions.
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-
-                                                                        {/* Resources */}
-                                                                        <div className="space-y-3 pt-4 border-t border-border">
-                                                                            <div className="flex items-center justify-between">
-                                                                                <Label className="text-xs font-semibold">Resources</Label>
-                                                                                <span className="text-[10px] text-muted-foreground bg-secondary rounded-full px-2 py-0.5">
-                                                                                    {lessonForm.resources.length} resource{lessonForm.resources.length === 1 ? '' : 's'}
-                                                                                </span>
-                                                                            </div>
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                className="w-full gap-2 border-dashed h-8 text-xs"
-                                                                                onClick={() => {
-                                                                                    const input = document.createElement('input');
-                                                                                    input.type = 'file';
-                                                                                    input.multiple = true;
-                                                                                    input.onchange = (e) => {
-                                                                                        const files = (e.target as HTMLInputElement).files;
-                                                                                        if (files) {
-                                                                                            Array.from(files).forEach((file) =>
-                                                                                                handlePracticeResourceUpload(file)
-                                                                                            );
-                                                                                        }
-                                                                                    };
-                                                                                    input.click();
-                                                                                }}
-                                                                                disabled={isUploading}
-                                                                            >
-                                                                                {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                                                                                Add Resource
-                                                                            </Button>
-                                                                            {lessonForm.resources && lessonForm.resources.length > 0 ? (
-                                                                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                                                                    {lessonForm.resources.map((res: any, idx: number) => (
-                                                                                        <div key={idx} className="flex items-center justify-between rounded bg-secondary/50 p-2 text-xs">
-                                                                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                                                                {getLessonResourceIcon(res.type)}
-                                                                                                <span className="truncate">{res.title}</span>
-                                                                                            </div>
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                                                                                onClick={() => removeLessonResource(idx)}
-                                                                                            >
-                                                                                                <X className="h-3 w-3" />
-                                                                                            </Button>
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            ) : (
-                                                                                <p className="text-xs text-muted-foreground">
-                                                                                    No resources added for this lesson yet.
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex gap-2">
-                                                                            <Button
-                                                                                size="sm"
-                                                                                onClick={() =>
-                                                                                    updateLessonMutation.mutate({
-                                                                                        lessonId: editingLesson!,
-                                                                                        data: {
-                                                                                            title: lessonForm.title,
-                                                                                            type: lessonForm.type,
-                                                                                            content: lessonForm.content,
-                                                                                            videoUrl: lessonForm.videoUrl || undefined,
-                                                                                            videoDuration: lessonForm.duration,
-                                                                                            isFree: lessonForm.isFree,
-                                                                                            practiceFiles: lessonForm.resources,
-                                                                                            resources: [],
-                                                                                            isMandatory: lessonForm.isMandatory,
-                                                                                            quizData: lessonForm.quizData,
-                                                                                        },
-                                                                                    })
-                                                                                }
-                                                                                disabled={updateLessonMutation.isPending || isUploading}
-                                                                            >
-                                                                                {updateLessonMutation.isPending ? (
-                                                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                                                                ) : (
-                                                                                    <Save className="mr-1 h-3 w-3" />
-                                                                                )}
-                                                                                Save
-                                                                            </Button>
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                onClick={() => {
-                                                                                    setEditingLesson(null);
-                                                                                    resetLessonForm();
-                                                                                }}
-                                                                            >
-                                                                                Cancel
-                                                                            </Button>
+                                                                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                                                                Section {sectionIndex + 1}
+                                                                            </p>
+                                                                            <p className="font-semibold text-foreground">{section.title}</p>
                                                                         </div>
                                                                     </div>
-                                                                )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                    {/* Add New Section */}
-                                    <div className="mb-6 rounded-xl border border-primary/50 bg-primary/5 p-6 shadow-sm">
-                                        <div className="mb-4">
-                                            <h4 className="text-base font-semibold text-foreground">Add New Section</h4>
-                                            <p className="text-sm text-muted-foreground mt-1">Start by creating a section to organize your lessons (e.g., "Introduction", "Module 1"). You must have at least one section before you can add lessons.</p>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <Input
-                                                value={newSectionTitle}
-                                                onChange={(e) => setNewSectionTitle(e.target.value)}
-                                                placeholder="Enter section title..."
-                                                className="flex-1 bg-background"
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && newSectionTitle.trim()) {
-                                                        createSectionMutation.mutate({ title: newSectionTitle });
-                                                    }
-                                                }}
-                                            />
-                                            <Button
-                                                onClick={() => {
-                                                    if (newSectionTitle.trim()) {
-                                                        createSectionMutation.mutate({ title: newSectionTitle });
-                                                    }
-                                                }}
-                                                disabled={createSectionMutation.isPending || !newSectionTitle.trim()}
-                                            >
-                                                {createSectionMutation.isPending ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Plus className="mr-2 h-4 w-4" />
-                                                )}
-                                                Add Section
-                                            </Button>
-                                        </div>
-                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Badge variant="outline">{section.lessons?.length || 0} lessons</Badge>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (window.confirm('Delete this section and all its lessons?')) {
+                                                                                    deleteSectionMutation.mutate(section.id);
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
 
-                                    {/* Add New Lesson Button */}
-                                    <div className="rounded-lg border-2 border-dashed border-border bg-secondary/10 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-foreground">Add New Lesson</h4>
-                                            <p className="text-xs text-muted-foreground mt-1">Create a new lesson and assign it to one of your created sections.</p>
-                                        </div>
-                                        <Button variant="outline" onClick={() => navigate(`/instructor/courses/${id}/lessons/new`)}>
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Add Lesson
+                                                                {/* Section Content (Lessons) */}
+                                                                {expandedSections.has(section.id) && (
+                                                                    <div className="border-t border-border p-4">
+                                                                        {/* Existing Lessons */}
+                                                                        <Droppable droppableId={section.id} type="LESSON">
+                                                                            {(provided) => (
+                                                                                <div className="space-y-2 mb-4 min-h-[50px]" {...provided.droppableProps} ref={provided.innerRef}>
+                                                                                    {section.lessons && section.lessons.map((lesson: Lesson, lessonIndex: number) => (
+                                                                                        <Draggable key={lesson.id} draggableId={lesson.id} index={lessonIndex}>
+                                                                                            {(provided) => (
+                                                                                                <div
+                                                                                                    ref={provided.innerRef}
+                                                                                                    {...provided.draggableProps}
+                                                                                                    className="flex items-center justify-between rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors bg-background relative z-10"
+                                                                                                >
+                                                                                                    <div className="flex items-center gap-3">
+                                                                                                        <div {...provided.dragHandleProps} className="cursor-grab hover:bg-secondary/50 p-1 rounded -ml-1 flex items-center justify-center">
+                                                                                                            <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                                                                                        </div>
+                                                                                                        {lesson.type === 'video' ? (
+                                                                                                            <Play className="h-4 w-4 text-primary" />
+                                                                                                        ) : lesson.type === 'pdf' ? (
+                                                                                                            <FileText className="h-4 w-4 text-red-500" />
+                                                                                                        ) : lesson.type === 'ppt' ? (
+                                                                                                            <FileText className="h-4 w-4 text-orange-500" />
+                                                                                                        ) : lesson.type === 'doc' ? (
+                                                                                                            <FileText className="h-4 w-4 text-blue-500" />
+                                                                                                        ) : lesson.type === 'document' ? (
+                                                                                                            <FileText className="h-4 w-4 text-primary" />
+                                                                                                        ) : lesson.type === 'quiz' ? (
+                                                                                                            <HelpCircle className="h-4 w-4 text-accent" />
+                                                                                                        ) : (
+                                                                                                            <FileText className="h-4 w-4 text-primary" />
+                                                                                                        )}
+                                                                                                        <div>
+                                                                                                            <p className="text-sm font-medium text-foreground">{lesson.title}</p>
+                                                                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                                                                <Badge variant="outline" className="text-[10px] h-4">
+                                                                                                                    {getLessonTypeLabel(lesson.type)}
+                                                                                                                </Badge>
+                                                                                                                {lesson.duration && (
+                                                                                                                    <span className="text-xs text-muted-foreground">
+                                                                                                                        {lesson.duration} min
+                                                                                                                    </span>
+                                                                                                                )}
+                                                                                                                {lesson.isFree && (
+                                                                                                                    <Badge className="text-[10px] h-4 bg-emerald-500/20 text-emerald-400">
+                                                                                                                        Free
+                                                                                                                    </Badge>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                    <div className="flex items-center gap-1">
+                                                                                                        <Button
+                                                                                                            variant="ghost"
+                                                                                                            size="icon"
+                                                                                                            className="h-7 w-7"
+                                                                                                            onClick={() => {
+                                                                                                                setEditingLesson(editingLesson === lesson.id ? null : lesson.id);
+                                                                                                                if (editingLesson !== lesson.id) {
+                                                                                                                    let practiceFiles: any[] = [];
+                                                                                                                    try {
+                                                                                                                        let raw = lesson.practiceFiles;
+                                                                                                                        const isEmpty = !raw || (Array.isArray(raw) && raw.length === 0) || raw === '[]';
+
+                                                                                                                        if (isEmpty && lesson.resources) {
+                                                                                                                            raw = lesson.resources;
+                                                                                                                        }
+
+                                                                                                                        practiceFiles = typeof raw === 'string'
+                                                                                                                            ? JSON.parse(raw || '[]')
+                                                                                                                            : (raw || []);
+                                                                                                                    } catch (e) {
+                                                                                                                        practiceFiles = [];
+                                                                                                                    }
+
+                                                                                                                    setLessonForm({
+                                                                                                                        title: lesson.title,
+                                                                                                                        type: lesson.type,
+                                                                                                                        content: lesson.content || '',
+                                                                                                                        videoUrl: lesson.videoUrl || '',
+                                                                                                                        duration: lesson.duration || 0,
+                                                                                                                        isFree: lesson.isFree,
+                                                                                                                        resources: Array.isArray(practiceFiles) ? practiceFiles : [],
+                                                                                                                        targetSectionId: '',
+                                                                                                                        isMandatory: lesson.isMandatory || false,
+                                                                                                                        quizData: typeof lesson.quizData === 'string' ? JSON.parse(lesson.quizData || '[]') : (lesson.quizData || []),
+                                                                                                                        isGenerating: false,
+                                                                                                                        quizText: '',
+                                                                                                                    });
+                                                                                                                }
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            <Settings2 className="h-3 w-3" />
+                                                                                                        </Button>
+                                                                                                        <Button
+                                                                                                            variant="ghost"
+                                                                                                            size="icon"
+                                                                                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                                                                            onClick={() => {
+                                                                                                                if (window.confirm('Delete this lesson?')) {
+                                                                                                                    deleteLessonMutation.mutate(lesson.id);
+                                                                                                                }
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            <Trash2 className="h-3 w-3" />
+                                                                                                        </Button>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </Draggable>
+                                                                                    ))}
+                                                                                    {provided.placeholder}
+                                                                                </div>
+                                                                            )}
+                                                                        </Droppable>
+
+                                                                        {/* Lesson Edit Form (inline) */}
+                                                                        {editingLesson &&
+                                                                            section.lessons?.some((l: Lesson) => l.id === editingLesson) && (
+                                                                                <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                                                                                    <h4 className="text-sm font-semibold text-foreground">Edit Lesson</h4>
+                                                                                    <div className="grid gap-3 sm:grid-cols-2">
+                                                                                        <div>
+                                                                                            <Label className="text-xs">Title</Label>
+                                                                                            <Input
+                                                                                                value={lessonForm.title}
+                                                                                                onChange={(e) =>
+                                                                                                    setLessonForm((p) => ({ ...p, title: e.target.value }))
+                                                                                                }
+                                                                                                className="mt-1"
+                                                                                            />
+                                                                                        </div>
+                                                                                        <div>
+                                                                                            <Label className="text-xs">Lesson Type</Label>
+                                                                                            <div className="relative mt-1">
+                                                                                                <select
+                                                                                                    value={lessonForm.type}
+                                                                                                    onChange={(e) =>
+                                                                                                        setLessonForm((p) => ({ ...p, type: e.target.value }))
+                                                                                                    }
+                                                                                                    className="w-full appearance-none rounded-lg border border-border bg-secondary px-3 py-2 pr-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                                                                                                >
+                                                                                                    <option value="video">Video</option>
+                                                                                                    <option value="pdf">PDF Document</option>
+                                                                                                    <option value="ppt">PowerPoint (PPT/PPTX)</option>
+                                                                                                    <option value="doc">Word Document (DOC/DOCX)</option>
+                                                                                                    <option value="document">Other Document</option>
+                                                                                                    <option value="text">Article</option>
+                                                                                                    <option value="quiz">Quiz</option>
+                                                                                                    <option value="assignment">Assignment</option>
+                                                                                                </select>
+                                                                                                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    {isFileType(lessonForm.type) && (
+                                                                                        <div>
+                                                                                            <Label className="text-xs">{lessonForm.type === 'video' ? 'Video URL' : `${getLessonTypeLabel(lessonForm.type)} URL`}</Label>
+                                                                                            <div className="flex gap-2 mt-1">
+                                                                                                <Input
+                                                                                                    value={lessonForm.videoUrl}
+                                                                                                    onChange={(e) =>
+                                                                                                        setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))
+                                                                                                    }
+                                                                                                    placeholder={`Paste URL or upload a ${getLessonTypeLabel(lessonForm.type).toLowerCase()} file`}
+                                                                                                    className="flex-1"
+                                                                                                />
+                                                                                                <Button
+                                                                                                    variant="outline"
+                                                                                                    size="sm"
+                                                                                                    className="gap-2"
+                                                                                                    onClick={() => {
+                                                                                                        const input = document.createElement('input');
+                                                                                                        input.type = 'file';
+                                                                                                        input.accept = getAcceptForType(lessonForm.type);
+                                                                                                        input.onchange = (e) => {
+                                                                                                            const file = (e.target as HTMLInputElement).files?.[0];
+                                                                                                            if (file) handleVideoUpload(file);
+                                                                                                        };
+                                                                                                        input.click();
+                                                                                                    }}
+                                                                                                    disabled={isUploading}
+                                                                                                >
+                                                                                                    {isUploading ? (
+                                                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                                    ) : (
+                                                                                                        <>
+                                                                                                            {lessonForm.type === 'video' ? <Video className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                                                                                                            {lessonForm.type === 'video' ? 'Replace Video' : 'Replace File'}
+                                                                                                        </>
+                                                                                                    )}
+                                                                                                </Button>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <div>
+                                                                                        <Label className="text-xs">Content / Description</Label>
+                                                                                        <textarea
+                                                                                            value={lessonForm.content}
+                                                                                            onChange={(e) =>
+                                                                                                setLessonForm((p) => ({ ...p, content: e.target.value }))
+                                                                                            }
+                                                                                            rows={3}
+                                                                                            className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y"
+                                                                                            placeholder="Lesson content or description..."
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <div>
+                                                                                            <Label className="text-xs">Duration (minutes)</Label>
+                                                                                            <Input
+                                                                                                type="text"
+                                                                                                inputMode="numeric"
+                                                                                                value={lessonForm.duration || ''}
+                                                                                                onChange={(e) => {
+                                                                                                    const val = e.target.value;
+                                                                                                    if (val === '' || /^\d+$/.test(val)) {
+                                                                                                        setLessonForm((p) => ({
+                                                                                                            ...p,
+                                                                                                            duration: val === '' ? 0 : parseInt(val) || 0,
+                                                                                                        }));
+                                                                                                    }
+                                                                                                }}
+                                                                                                placeholder="e.g. 15"
+                                                                                                className="mt-1"
+                                                                                            />
+                                                                                        </div>
+                                                                                    </div>
+
+                                                                                    {lessonForm.type === 'quiz' && (
+                                                                                        <div className="space-y-4 pt-4 border-t border-border">
+                                                                                            <div className="flex items-center gap-3">
+                                                                                                <input
+                                                                                                    type="checkbox"
+                                                                                                    id="editIsMandatory"
+                                                                                                    checked={lessonForm.isMandatory}
+                                                                                                    onChange={(e) => setLessonForm((p) => ({ ...p, isMandatory: e.target.checked }))}
+                                                                                                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                                                                                                />
+                                                                                                <Label htmlFor="editIsMandatory" className="cursor-pointer font-medium">
+                                                                                                    Mandatory Quiz (locks next lessons until passed)
+                                                                                                </Label>
+                                                                                            </div>
+                                                                                            <div className="space-y-2">
+                                                                                                <Label className="text-xs">Regenerate Quiz Questions (AI)</Label>
+                                                                                                <textarea
+                                                                                                    placeholder="Paste text here to generate quiz questions..."
+                                                                                                    value={lessonForm.quizText}
+                                                                                                    onChange={(e) => setLessonForm(p => ({ ...p, quizText: e.target.value }))}
+                                                                                                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y"
+                                                                                                    rows={3}
+                                                                                                />
+                                                                                                <Button
+                                                                                                    variant="secondary"
+                                                                                                    size="sm"
+                                                                                                    disabled={lessonForm.isGenerating || !lessonForm.quizText.trim()}
+                                                                                                    onClick={async () => {
+                                                                                                        setLessonForm(p => ({ ...p, isGenerating: true }));
+                                                                                                        try {
+                                                                                                            const data = await instructorService.generateQuiz(lessonForm.quizText);
+                                                                                                            setLessonForm(p => ({ ...p, quizData: data, isGenerating: false, quizText: '' }));
+                                                                                                            toast({ title: 'Quiz generated successfully!' });
+                                                                                                        } catch (error) {
+                                                                                                            toast({ title: 'Failed to generate quiz', variant: 'destructive' });
+                                                                                                            setLessonForm(p => ({ ...p, isGenerating: false }));
+                                                                                                        }
+                                                                                                    }}
+                                                                                                >
+                                                                                                    {lessonForm.isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                                                                    Regenerate with AI
+                                                                                                </Button>
+                                                                                            </div>
+                                                                                            {lessonForm.quizData && lessonForm.quizData.length > 0 && (
+                                                                                                <div className="text-sm bg-accent/10 p-3 rounded text-accent">
+                                                                                                    This quiz currently has {lessonForm.quizData.length} generated questions.
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    )}
+
+                                                                                    {/* Resources */}
+                                                                                    <div className="space-y-3 pt-4 border-t border-border">
+                                                                                        <div className="flex items-center justify-between">
+                                                                                            <Label className="text-xs font-semibold">Resources</Label>
+                                                                                            <span className="text-[10px] text-muted-foreground bg-secondary rounded-full px-2 py-0.5">
+                                                                                                {lessonForm.resources.length} resource{lessonForm.resources.length === 1 ? '' : 's'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <Button
+                                                                                            variant="outline"
+                                                                                            size="sm"
+                                                                                            className="w-full gap-2 border-dashed h-8 text-xs"
+                                                                                            onClick={() => {
+                                                                                                const input = document.createElement('input');
+                                                                                                input.type = 'file';
+                                                                                                input.multiple = true;
+                                                                                                input.onchange = (e) => {
+                                                                                                    const files = (e.target as HTMLInputElement).files;
+                                                                                                    if (files) {
+                                                                                                        Array.from(files).forEach((file) =>
+                                                                                                            handlePracticeResourceUpload(file)
+                                                                                                        );
+                                                                                                    }
+                                                                                                };
+                                                                                                input.click();
+                                                                                            }}
+                                                                                            disabled={isUploading}
+                                                                                        >
+                                                                                            {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                                                                                            Add Resource
+                                                                                        </Button>
+                                                                                        {lessonForm.resources && lessonForm.resources.length > 0 ? (
+                                                                                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                                                                                {lessonForm.resources.map((res: any, idx: number) => (
+                                                                                                    <div key={idx} className="flex items-center justify-between rounded bg-secondary/50 p-2 text-xs">
+                                                                                                        <div className="flex items-center gap-2 overflow-hidden">
+                                                                                                            {getLessonResourceIcon(res.type)}
+                                                                                                            <span className="truncate">{res.title}</span>
+                                                                                                        </div>
+                                                                                                        <Button
+                                                                                                            variant="ghost"
+                                                                                                            size="icon"
+                                                                                                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                                                                                            onClick={() => removeLessonResource(idx)}
+                                                                                                        >
+                                                                                                            <X className="h-3 w-3" />
+                                                                                                        </Button>
+                                                                                                    </div>
+                                                                                                ))}
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <p className="text-xs text-muted-foreground">
+                                                                                                No resources added for this lesson yet.
+                                                                                            </p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="flex gap-2">
+                                                                                        <Button
+                                                                                            size="sm"
+                                                                                            onClick={() =>
+                                                                                                updateLessonMutation.mutate({
+                                                                                                    lessonId: editingLesson!,
+                                                                                                    data: {
+                                                                                                        title: lessonForm.title,
+                                                                                                        type: lessonForm.type,
+                                                                                                        content: lessonForm.content,
+                                                                                                        videoUrl: lessonForm.videoUrl || undefined,
+                                                                                                        videoDuration: lessonForm.duration,
+                                                                                                        isFree: lessonForm.isFree,
+                                                                                                        practiceFiles: lessonForm.resources,
+                                                                                                        resources: [],
+                                                                                                        isMandatory: lessonForm.isMandatory,
+                                                                                                        quizData: lessonForm.quizData,
+                                                                                                    },
+                                                                                                })
+                                                                                            }
+                                                                                            disabled={updateLessonMutation.isPending || isUploading}
+                                                                                        >
+                                                                                            {updateLessonMutation.isPending ? (
+                                                                                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                                                            ) : (
+                                                                                                <Save className="mr-1 h-3 w-3" />
+                                                                                            )}
+                                                                                            Save
+                                                                                        </Button>
+                                                                                        <Button
+                                                                                            variant="outline"
+                                                                                            size="sm"
+                                                                                            onClick={() => {
+                                                                                                setEditingLesson(null);
+                                                                                                resetLessonForm();
+                                                                                            }}
+                                                                                        >
+                                                                                            Cancel
+                                                                                        </Button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {provided.placeholder}
+                                            </div>
+                                        )}
+                                    </Droppable>
+                                </DragDropContext>
+                                {/* Add New Section */}
+                                <div className="mb-6 rounded-xl border border-primary/50 bg-primary/5 p-6 shadow-sm">
+                                    <div className="mb-4">
+                                        <h4 className="text-base font-semibold text-foreground">Add New Section</h4>
+                                        <p className="text-sm text-muted-foreground mt-1">Start by creating a section to organize your lessons (e.g., "Introduction", "Module 1"). You must have at least one section before you can add lessons.</p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <Input
+                                            value={newSectionTitle}
+                                            onChange={(e) => setNewSectionTitle(e.target.value)}
+                                            placeholder="Enter section title..."
+                                            className="flex-1 bg-background"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && newSectionTitle.trim()) {
+                                                    createSectionMutation.mutate({ title: newSectionTitle });
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            onClick={() => {
+                                                if (newSectionTitle.trim()) {
+                                                    createSectionMutation.mutate({ title: newSectionTitle });
+                                                }
+                                            }}
+                                            disabled={createSectionMutation.isPending || !newSectionTitle.trim()}
+                                        >
+                                            {createSectionMutation.isPending ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Plus className="mr-2 h-4 w-4" />
+                                            )}
+                                            Add Section
                                         </Button>
                                     </div>
+                                </div>
+
+                                {/* Add New Lesson Button */}
+                                <div className="rounded-lg border-2 border-dashed border-border bg-secondary/10 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-foreground">Add New Lesson</h4>
+                                        <p className="text-xs text-muted-foreground mt-1">Create a new lesson and assign it to one of your created sections.</p>
+                                    </div>
+                                    <Button variant="outline" onClick={() => navigate(`/instructor/courses/${id}/lessons/new`)}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add Lesson
+                                    </Button>
                                 </div>
                             </div>
                         </TabsContent>
@@ -1398,7 +1432,7 @@ const CourseEditor = () => {
                     </Tabs>
                 </div>
             </div>
-        </AdminLayout>
+        </AdminLayout >
     );
 };
 

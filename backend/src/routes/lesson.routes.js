@@ -13,7 +13,9 @@ const {
     createLesson,
     updateLesson,
     deleteLesson,
-    reorderLessons
+    reorderLessons,
+    reorderSections,
+    reorderAllLessons
 } = require('../controllers/lesson.controller');
 
 const {
@@ -63,6 +65,20 @@ router.delete('/sections/:id', authenticate, authorize('instructor', 'admin'), d
  * @access  Private/Instructor
  */
 router.put('/sections/:sectionId/reorder', authenticate, authorize('instructor', 'admin'), reorderLessons);
+
+/**
+ * @route   PUT /api/v1/lessons/course/:courseId/sections/reorder
+ * @desc    Reorder sections in a course
+ * @access  Private/Instructor
+ */
+router.put('/course/:courseId/sections/reorder', authenticate, authorize('instructor', 'admin'), reorderSections);
+
+/**
+ * @route   PUT /api/v1/lessons/course/:courseId/lessons/reorder-all
+ * @desc    Reorder multiple lessons possibly across sections
+ * @access  Private/Instructor
+ */
+router.put('/course/:courseId/lessons/reorder-all', authenticate, authorize('instructor', 'admin'), reorderAllLessons);
 
 // =====================
 // LESSON ROUTES

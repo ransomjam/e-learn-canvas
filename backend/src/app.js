@@ -42,7 +42,7 @@ app.use(helmet({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "blob:", "https:", ...(isProd ? [] : ["http://localhost:*"]), "https://res.cloudinary.com"],
             mediaSrc: ["'self'", "blob:", "https:", ...(isProd ? [] : ["http://localhost:*"]), "https://res.cloudinary.com"],
-            connectSrc: ["'self'", ...(isProd ? [] : ["http://localhost:*"]), "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://*.cradema.com", "https://cradema.com"],
+            connectSrc: ["'self'", ...(isProd ? [] : ["http://localhost:*"]), "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://api.cloudinary.com", "https://*.cradema.com", "https://cradema.com"],
             workerSrc: ["'self'", "blob:"],
             frameSrc: ["'self'", "https://accounts.google.com", "https://drive.google.com", "https://*.google.com", "https://view.officeapps.live.com"],
             // Don't force upgrade-insecure-requests in dev (breaks mixed-content)

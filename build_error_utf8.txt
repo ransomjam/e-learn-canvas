@@ -1,0 +1,82 @@
+﻿
+> vite_react_shadcn_ts@0.0.0 build
+> vite build
+
+[36mvite v5.4.19 [32mbuilding for production...[36m[39m
+transforming...
+node.exe : Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Browserslist: b...ld. Please run::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[32mΓ£ô[39m 10 modules transformed.
+[31mx[39m Build failed in 27.14s
+[31merror during build:
+[31m[vite:esbuild] Transform failed with 5 errors:
+C:/Users/user/Desktop/elearn/e-learn-canvas/src/pages/CourseEditor.tsx:1416:26: ERROR: Unexpected closing "div" tag 
+does not match opening "TabsContent" tag
+C:/Users/user/Desktop/elearn/e-learn-canvas/src/pages/CourseEditor.tsx:1417:22: ERROR: Unexpected closing 
+"TabsContent" tag does not match opening "Tabs" tag
+C:/Users/user/Desktop/elearn/e-learn-canvas/src/pages/CourseEditor.tsx:1433:18: ERROR: Unexpected closing "Tabs" tag 
+does not match opening "div" tag
+C:/Users/user/Desktop/elearn/e-learn-canvas/src/pages/CourseEditor.tsx:1435:10: ERROR: Unexpected closing "div" tag 
+does not match opening "AdminLayout" tag
+C:/Users/user/Desktop/elearn/e-learn-canvas/src/pages/CourseEditor.tsx:1436:23: ERROR: Unterminated regular 
+expression[31m
+file: [36mC:/Users/user/Desktop/elearn/e-learn-canvas/src/pages/CourseEditor.tsx:1416:26[31m
+[33m
+[33mUnexpected closing "div" tag does not match opening "TabsContent" tag[33m
+1414|                                  </div>
+1415|                              </div>
+1416|                          </div>
+   |                            ^
+1417|                      </TabsContent>
+1418|  
+
+[33mUnexpected closing "TabsContent" tag does not match opening "Tabs" tag[33m
+1415|                              </div>
+1416|                          </div>
+1417|                      </TabsContent>
+   |                        ^
+1418|  
+1419|                      {/* ========== QUIZ TAB ========== */}
+
+[33mUnexpected closing "Tabs" tag does not match opening "div" tag[33m
+1431|                          <ProjectsManager courseId={id!} />
+1432|                      </TabsContent>
+1433|                  </Tabs>
+   |                    ^
+1434|              </div>
+1435|          </div>
+
+[33mUnexpected closing "div" tag does not match opening "AdminLayout" tag[33m
+1433|                  </Tabs>
+1434|              </div>
+1435|          </div>
+   |            ^
+1436|          </AdminLayout >
+1437|      );
+
+[33mUnterminated regular expression[33m
+1434|              </div>
+1435|          </div>
+1436|          </AdminLayout >
+   |                         ^
+1437|      );
+1438|  };
+[31m
+    at failureErrorWithLog (C:\Users\user\Desktop\elearn\e-learn-canvas\node_modules\esbuild\lib\main.js:1472:15)
+    at C:\Users\user\Desktop\elearn\e-learn-canvas\node_modules\esbuild\lib\main.js:755:50
+    at responseCallbacks.<computed> 
+(C:\Users\user\Desktop\elearn\e-learn-canvas\node_modules\esbuild\lib\main.js:622:9)
+    at handleIncomingPacket (C:\Users\user\Desktop\elearn\e-learn-canvas\node_modules\esbuild\lib\main.js:677:12)
+    at Socket.readFromStdout (C:\Users\user\Desktop\elearn\e-learn-canvas\node_modules\esbuild\lib\main.js:600:7)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)[39m

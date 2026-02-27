@@ -228,6 +228,14 @@ export const instructorService = {
         await api.put(`/lessons/sections/${sectionId}/reorder`, { lessonIds });
     },
 
+    async reorderSections(courseId: string, sectionIds: string[]): Promise<void> {
+        await api.put(`/lessons/course/${courseId}/sections/reorder`, { sectionIds });
+    },
+
+    async reorderAllLessons(courseId: string, updates: { id: string, sectionId: string, orderIndex: number }[]): Promise<void> {
+        await api.put(`/lessons/course/${courseId}/lessons/reorder-all`, { updates });
+    },
+
     // Quiz Generation
     async generateQuiz(text: string, options?: { questionCount?: number; difficulty?: string }): Promise<any> {
         const response = await api.post('/quiz/generate', { text, options }, {

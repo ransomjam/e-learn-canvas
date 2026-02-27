@@ -1103,10 +1103,10 @@ const Player = () => {
               className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
               style={{ display: activeTab === 'projects' ? 'flex' : 'none', flexDirection: 'column' }}
             >
-              <ScrollArea className="flex-1 min-h-0 p-3">
-                <div className="space-y-3">
+              <ScrollArea className="flex-1">
+                <div className="p-3 space-y-3">
                   {projects.length === 0 ? (
-                    <div className="py-12 text-center">
+                    <div className="py-8 text-center">
                       <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
                       <p className="mt-3 text-xs text-muted-foreground">
                         No projects assigned yet.
@@ -1260,153 +1260,153 @@ const Player = () => {
                       );
                     })
                   )}
-                </div>
 
-                {/* ─── Upload Custom Exercise ─── */}
-                {user?.role !== 'instructor' && user?.role !== 'admin' && (
-                  <div className="mt-2">
-                    {/* Divider with label */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="h-px flex-1 bg-border" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Upload Custom Exercise</span>
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-
-                    <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-                          <Upload className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-foreground leading-tight">Upload Custom Exercise</h4>
-                          <p className="text-[11px] text-muted-foreground">Share a practice file you worked on during a lesson</p>
-                        </div>
+                  {/* ─── Upload Custom Exercise ─── */}
+                  {user?.role !== 'instructor' && user?.role !== 'admin' && (
+                    <div className="mt-2">
+                      {/* Divider with label */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Upload Custom Exercise</span>
+                        <div className="h-px flex-1 bg-border" />
                       </div>
 
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (!customUploadLessonId) {
-                            toast({ title: 'Please select a lesson', variant: 'destructive' });
-                            return;
-                          }
-                          if (!customUploadFile && !customUploadNotes.trim()) {
-                            toast({ title: 'Please upload a file or add notes', variant: 'destructive' });
-                            return;
-                          }
-                          submitCustomUploadMutation.mutate({
-                            lessonId: customUploadLessonId,
-                            notes: customUploadNotes || undefined,
-                            file: customUploadFile || undefined,
-                          });
-                        }}
-                        className="space-y-3"
-                      >
-                        {/* Lesson selector */}
-                        <div>
-                          <label className="text-xs font-medium mb-1 block text-foreground">Lesson</label>
-                          <select
-                            value={customUploadLessonId}
-                            onChange={(e) => setCustomUploadLessonId(e.target.value)}
-                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                          >
-                            <option value="">-- Select a lesson --</option>
-                            {sections.map((section) =>
-                              section.lessons.map((lesson) => (
-                                <option key={lesson.id} value={lesson.id}>
-                                  {section.title}: {lesson.title}
-                                </option>
-                              ))
-                            )}
-                          </select>
-                        </div>
-
-                        {/* File picker */}
-                        <div>
-                          <label className="text-xs font-medium mb-1 block text-foreground">File</label>
-                          <div className="border-2 border-dashed border-border rounded-lg p-3 text-center hover:bg-muted/20 transition-colors">
-                            <input
-                              ref={customUploadFileRef}
-                              type="file"
-                              onChange={(e) => setCustomUploadFile(e.target.files?.[0] || null)}
-                              className="hidden"
-                              id="custom-exercise-file"
-                            />
-                            <label htmlFor="custom-exercise-file" className="cursor-pointer block">
-                              {customUploadFile ? (
-                                <div className="flex items-center justify-center gap-2 text-xs text-primary">
-                                  <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
-                                  <span className="truncate max-w-[140px]">{customUploadFile.name}</span>
-                                  <span className="text-muted-foreground flex-shrink-0">
-                                    ({(customUploadFile.size / 1024 / 1024).toFixed(1)} MB)
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="space-y-1 py-1">
-                                  <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
-                                  <p className="text-xs text-muted-foreground">Click to select file</p>
-                                </div>
-                              )}
-                            </label>
+                      <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+                            <Upload className="h-3.5 w-3.5 text-primary" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm text-foreground leading-tight">Upload Custom Exercise</h4>
+                            <p className="text-[11px] text-muted-foreground">Share a practice file you worked on during a lesson</p>
                           </div>
                         </div>
 
-                        {/* Notes */}
-                        <div>
-                          <label className="text-xs font-medium mb-1 block text-foreground">Notes <span className="font-normal text-muted-foreground">(Optional)</span></label>
-                          <Textarea
-                            value={customUploadNotes}
-                            onChange={(e) => setCustomUploadNotes(e.target.value)}
-                            placeholder="Describe what you built or practiced..."
-                            rows={2}
-                            className="text-xs"
-                          />
-                        </div>
-
-                        <Button
-                          type="submit"
-                          size="sm"
-                          className="w-full"
-                          disabled={submitCustomUploadMutation.isPending}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!customUploadLessonId) {
+                              toast({ title: 'Please select a lesson', variant: 'destructive' });
+                              return;
+                            }
+                            if (!customUploadFile && !customUploadNotes.trim()) {
+                              toast({ title: 'Please upload a file or add notes', variant: 'destructive' });
+                              return;
+                            }
+                            submitCustomUploadMutation.mutate({
+                              lessonId: customUploadLessonId,
+                              notes: customUploadNotes || undefined,
+                              file: customUploadFile || undefined,
+                            });
+                          }}
+                          className="space-y-3"
                         >
-                          {submitCustomUploadMutation.isPending ? (
-                            <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Uploading...</>
-                          ) : (
-                            <><Send className="mr-2 h-3.5 w-3.5" />Submit Exercise</>
-                          )}
-                        </Button>
-                      </form>
+                          {/* Lesson selector */}
+                          <div>
+                            <label className="text-xs font-medium mb-1 block text-foreground">Lesson</label>
+                            <select
+                              value={customUploadLessonId}
+                              onChange={(e) => setCustomUploadLessonId(e.target.value)}
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                            >
+                              <option value="">-- Select a lesson --</option>
+                              {sections.map((section) =>
+                                section.lessons.map((lesson) => (
+                                  <option key={lesson.id} value={lesson.id}>
+                                    {section.title}: {lesson.title}
+                                  </option>
+                                ))
+                              )}
+                            </select>
+                          </div>
 
-                      {/* My previous uploads */}
-                      {myPracticeSubmissions.length > 0 && (
-                        <div className="pt-2 border-t border-border/50">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">My Submissions</p>
-                          <div className="space-y-2">
-                            {myPracticeSubmissions.slice(0, 3).map((sub: PracticeSubmission) => (
-                              <div
-                                key={sub.id}
-                                className="rounded-lg bg-background border border-border/60 px-3 py-2 space-y-0.5"
-                              >
-                                <p className="text-[11px] font-medium text-foreground truncate">
-                                  {sub.lesson_title || sub.lessonTitle}
-                                </p>
-                                {(sub.file_name || sub.fileName) && (
-                                  <div className="flex items-center gap-1 text-[11px] text-primary">
-                                    <Paperclip className="h-2.5 w-2.5 flex-shrink-0" />
-                                    <span className="truncate">{sub.file_name || sub.fileName}</span>
+                          {/* File picker */}
+                          <div>
+                            <label className="text-xs font-medium mb-1 block text-foreground">File</label>
+                            <div className="border-2 border-dashed border-border rounded-lg p-3 text-center hover:bg-muted/20 transition-colors">
+                              <input
+                                ref={customUploadFileRef}
+                                type="file"
+                                onChange={(e) => setCustomUploadFile(e.target.files?.[0] || null)}
+                                className="hidden"
+                                id="custom-exercise-file"
+                              />
+                              <label htmlFor="custom-exercise-file" className="cursor-pointer block">
+                                {customUploadFile ? (
+                                  <div className="flex items-center justify-center gap-2 text-xs text-primary">
+                                    <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span className="truncate max-w-[140px]">{customUploadFile.name}</span>
+                                    <span className="text-muted-foreground flex-shrink-0">
+                                      ({(customUploadFile.size / 1024 / 1024).toFixed(1)} MB)
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-1 py-1">
+                                    <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
+                                    <p className="text-xs text-muted-foreground">Click to select file</p>
                                   </div>
                                 )}
-                                <p className="text-[10px] text-muted-foreground/60">
-                                  {new Date(sub.submitted_at || sub.submittedAt || '').toLocaleDateString()}
-                                </p>
-                              </div>
-                            ))}
+                              </label>
+                            </div>
                           </div>
-                        </div>
-                      )}
+
+                          {/* Notes */}
+                          <div>
+                            <label className="text-xs font-medium mb-1 block text-foreground">Notes <span className="font-normal text-muted-foreground">(Optional)</span></label>
+                            <Textarea
+                              value={customUploadNotes}
+                              onChange={(e) => setCustomUploadNotes(e.target.value)}
+                              placeholder="Describe what you built or practiced..."
+                              rows={2}
+                              className="text-xs"
+                            />
+                          </div>
+
+                          <Button
+                            type="submit"
+                            size="sm"
+                            className="w-full"
+                            disabled={submitCustomUploadMutation.isPending}
+                          >
+                            {submitCustomUploadMutation.isPending ? (
+                              <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Uploading...</>
+                            ) : (
+                              <><Send className="mr-2 h-3.5 w-3.5" />Submit Exercise</>
+                            )}
+                          </Button>
+                        </form>
+
+                        {/* My previous uploads */}
+                        {myPracticeSubmissions.length > 0 && (
+                          <div className="pt-2 border-t border-border/50">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">My Submissions</p>
+                            <div className="space-y-2">
+                              {myPracticeSubmissions.slice(0, 3).map((sub: PracticeSubmission) => (
+                                <div
+                                  key={sub.id}
+                                  className="rounded-lg bg-background border border-border/60 px-3 py-2 space-y-0.5"
+                                >
+                                  <p className="text-[11px] font-medium text-foreground truncate">
+                                    {sub.lesson_title || sub.lessonTitle}
+                                  </p>
+                                  {(sub.file_name || sub.fileName) && (
+                                    <div className="flex items-center gap-1 text-[11px] text-primary">
+                                      <Paperclip className="h-2.5 w-2.5 flex-shrink-0" />
+                                      <span className="truncate">{sub.file_name || sub.fileName}</span>
+                                    </div>
+                                  )}
+                                  <p className="text-[10px] text-muted-foreground/60">
+                                    {new Date(sub.submitted_at || sub.submittedAt || '').toLocaleDateString()}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </ScrollArea>
             </TabsContent>
 

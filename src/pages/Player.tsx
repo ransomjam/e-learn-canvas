@@ -861,11 +861,10 @@ const Player = () => {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1 overflow-hidden">
             <div className="border-b border-border px-2 py-1.5">
-              <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
+              <TabsList className="grid w-full grid-cols-4 h-auto gap-1">
                 <TabsTrigger value="content" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Lessons</TabsTrigger>
                 <TabsTrigger value="resources" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Resources</TabsTrigger>
                 <TabsTrigger value="projects" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Projects</TabsTrigger>
-                <TabsTrigger value="uploads" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Uploads</TabsTrigger>
                 <TabsTrigger value="assessment" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Quiz</TabsTrigger>
               </TabsList>
             </div>
@@ -1262,27 +1261,25 @@ const Player = () => {
                     })
                   )}
                 </div>
-              </ScrollArea>
-            </TabsContent>
 
-            {/* Custom Uploads tab */}
-            <TabsContent
-              value="uploads"
-              className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
-              style={{ display: activeTab === 'uploads' ? 'flex' : 'none', flexDirection: 'column' }}
-            >
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="p-3 space-y-4">
-                  {/* Upload form - only for non-instructors */}
-                  {user?.role !== 'instructor' && user?.role !== 'admin' && (
-                    <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
-                      <div className="flex items-center gap-2 mb-1">
+                {/* ─── Upload Custom Exercise ─── */}
+                {user?.role !== 'instructor' && user?.role !== 'admin' && (
+                  <div className="mt-2">
+                    {/* Divider with label */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="h-px flex-1 bg-border" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Upload Custom Exercise</span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+
+                    <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
                           <Upload className="h-3.5 w-3.5 text-primary" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-sm text-foreground">Upload Practice File</h4>
-                          <p className="text-xs text-muted-foreground">Share a file you worked on during a lesson</p>
+                          <h4 className="font-semibold text-sm text-foreground leading-tight">Upload Custom Exercise</h4>
+                          <p className="text-[11px] text-muted-foreground">Share a practice file you worked on during a lesson</p>
                         </div>
                       </div>
 
@@ -1307,13 +1304,13 @@ const Player = () => {
                       >
                         {/* Lesson selector */}
                         <div>
-                          <label className="text-xs font-medium mb-1.5 block text-foreground">Select Lesson</label>
+                          <label className="text-xs font-medium mb-1 block text-foreground">Lesson</label>
                           <select
                             value={customUploadLessonId}
                             onChange={(e) => setCustomUploadLessonId(e.target.value)}
                             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                           >
-                            <option value="">-- Choose a lesson --</option>
+                            <option value="">-- Select a lesson --</option>
                             {sections.map((section) =>
                               section.lessons.map((lesson) => (
                                 <option key={lesson.id} value={lesson.id}>
@@ -1326,29 +1323,28 @@ const Player = () => {
 
                         {/* File picker */}
                         <div>
-                          <label className="text-xs font-medium mb-1.5 block text-foreground">Practice File</label>
-                          <div className="border-2 border-dashed border-border rounded-lg p-3 text-center hover:bg-muted/20 transition-colors cursor-pointer">
+                          <label className="text-xs font-medium mb-1 block text-foreground">File</label>
+                          <div className="border-2 border-dashed border-border rounded-lg p-3 text-center hover:bg-muted/20 transition-colors">
                             <input
                               ref={customUploadFileRef}
                               type="file"
                               onChange={(e) => setCustomUploadFile(e.target.files?.[0] || null)}
                               className="hidden"
-                              id="custom-upload-file"
+                              id="custom-exercise-file"
                             />
-                            <label htmlFor="custom-upload-file" className="cursor-pointer">
+                            <label htmlFor="custom-exercise-file" className="cursor-pointer block">
                               {customUploadFile ? (
                                 <div className="flex items-center justify-center gap-2 text-xs text-primary">
-                                  <Paperclip className="h-3.5 w-3.5" />
-                                  <span className="truncate max-w-[160px]">{customUploadFile.name}</span>
+                                  <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
+                                  <span className="truncate max-w-[140px]">{customUploadFile.name}</span>
                                   <span className="text-muted-foreground flex-shrink-0">
-                                    ({(customUploadFile.size / 1024 / 1024).toFixed(1)}MB)
+                                    ({(customUploadFile.size / 1024 / 1024).toFixed(1)} MB)
                                   </span>
                                 </div>
                               ) : (
-                                <div className="space-y-1">
+                                <div className="space-y-1 py-1">
                                   <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
                                   <p className="text-xs text-muted-foreground">Click to select file</p>
-                                  <p className="text-[10px] text-muted-foreground/60">All file types accepted</p>
                                 </div>
                               )}
                             </label>
@@ -1357,7 +1353,7 @@ const Player = () => {
 
                         {/* Notes */}
                         <div>
-                          <label className="text-xs font-medium mb-1.5 block text-foreground">Notes (Optional)</label>
+                          <label className="text-xs font-medium mb-1 block text-foreground">Notes <span className="font-normal text-muted-foreground">(Optional)</span></label>
                           <Textarea
                             value={customUploadNotes}
                             onChange={(e) => setCustomUploadNotes(e.target.value)}
@@ -1376,51 +1372,41 @@ const Player = () => {
                           {submitCustomUploadMutation.isPending ? (
                             <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Uploading...</>
                           ) : (
-                            <><Send className="mr-2 h-3.5 w-3.5" />Submit Upload</>
+                            <><Send className="mr-2 h-3.5 w-3.5" />Submit Exercise</>
                           )}
                         </Button>
                       </form>
-                    </div>
-                  )}
 
-                  {/* My previous uploads */}
-                  {user?.role !== 'instructor' && user?.role !== 'admin' && (
-                    <div>
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-1">My Uploads</h4>
-                      {myPracticeSubmissions.length === 0 ? (
-                        <div className="py-8 text-center">
-                          <FileText className="h-6 w-6 text-muted-foreground/20 mx-auto" />
-                          <p className="mt-2 text-xs text-muted-foreground">No uploads yet.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {myPracticeSubmissions.map((sub: PracticeSubmission) => (
-                            <div
-                              key={sub.id}
-                              className="rounded-lg border border-border bg-card p-3 space-y-1.5 text-xs"
-                            >
-                              <p className="font-medium text-foreground text-[11px] truncate">
-                                {sub.lesson_title || sub.lessonTitle}
-                              </p>
-                              {(sub.file_name || sub.fileName) && (
-                                <div className="flex items-center gap-1.5 text-primary">
-                                  <Paperclip className="h-3 w-3 flex-shrink-0" />
-                                  <span className="truncate">{sub.file_name || sub.fileName}</span>
-                                </div>
-                              )}
-                              {sub.notes && (
-                                <p className="text-muted-foreground line-clamp-2">{sub.notes}</p>
-                              )}
-                              <p className="text-[10px] text-muted-foreground/60">
-                                {new Date(sub.submitted_at || sub.submittedAt || '').toLocaleDateString()}
-                              </p>
-                            </div>
-                          ))}
+                      {/* My previous uploads */}
+                      {myPracticeSubmissions.length > 0 && (
+                        <div className="pt-2 border-t border-border/50">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">My Submissions</p>
+                          <div className="space-y-2">
+                            {myPracticeSubmissions.slice(0, 3).map((sub: PracticeSubmission) => (
+                              <div
+                                key={sub.id}
+                                className="rounded-lg bg-background border border-border/60 px-3 py-2 space-y-0.5"
+                              >
+                                <p className="text-[11px] font-medium text-foreground truncate">
+                                  {sub.lesson_title || sub.lessonTitle}
+                                </p>
+                                {(sub.file_name || sub.fileName) && (
+                                  <div className="flex items-center gap-1 text-[11px] text-primary">
+                                    <Paperclip className="h-2.5 w-2.5 flex-shrink-0" />
+                                    <span className="truncate">{sub.file_name || sub.fileName}</span>
+                                  </div>
+                                )}
+                                <p className="text-[10px] text-muted-foreground/60">
+                                  {new Date(sub.submitted_at || sub.submittedAt || '').toLocaleDateString()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </ScrollArea>
             </TabsContent>
 

@@ -530,13 +530,19 @@ const createFapshiPayment = asyncHandler(async (req, res) => {
     const amount = parseFloat(course.discount_price || course.price);
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const externalId = `${courseId}-${req.user.id}-${Date.now()}`;
-    
+    // Build a safe externalId: strip non-allowed chars, limit to 100 chars
+    const rawId = `${courseId}-${req.user.id}-${Date.now()}`;
+    const externalId = rawId.replace(/[^a-zA-Z0-9\-_]/g, '').substring(0, 100);
+
     const payload = {
         amount: Math.round(amount),
         externalId: externalId,
         redirectUrl: `${frontendUrl}/payment/callback`,
-        message: `Payment for course: ${course.title}`
+        message: `Payment for course: ${course.title}`,
+        // Pre-fill user email so the Fapshi checkout page shows it;
+        // the user can still choose MTN or Orange on the hosted page.
+        email: req.user.email || undefined,
+        userId: String(req.user.id).substring(0, 100)
     };
 
     // Initiate Fapshi payment

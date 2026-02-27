@@ -19,6 +19,7 @@ const instructorRoutes = require('./routes/instructor.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const wishlistRoutes = require('./routes/wishlist.routes');
 const quizRoutes = require('./routes/quiz.routes');
+const practiceSubmissionsRoutes = require('./routes/practice-submissions.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/error.middleware');
@@ -259,6 +260,7 @@ app.use('/api/v1/instructor', instructorRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/quiz', quizRoutes);
+app.use('/api/v1/practice-submissions', practiceSubmissionsRoutes);
 
 // API documentation endpoint
 app.get('/api/v1', (req, res) => {

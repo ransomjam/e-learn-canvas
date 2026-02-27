@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { projectsService, Project } from '@/services/projects.service';
+import { practiceSubmissionsService, PracticeSubmission } from '@/services/practiceSubmissions.service';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import CustomVideoPlayer from '@/components/ui/CustomVideoPlayer';
 import QuizPlayer from '@/components/ui/QuizPlayer';
@@ -65,6 +66,11 @@ const Player = () => {
   const [replyTo, setReplyTo] = useState<{ id: string; userName: string; message: string } | null>(null);
   const [contentKey, setContentKey] = useState(0);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  // Custom practice file upload state
+  const [customUploadLessonId, setCustomUploadLessonId] = useState<string>('');
+  const [customUploadFile, setCustomUploadFile] = useState<File | null>(null);
+  const [customUploadNotes, setCustomUploadNotes] = useState<string>('');
+  const customUploadFileRef = useRef<HTMLInputElement>(null);
 
   // Queries
   const { data: course, isLoading: courseLoading } = useQuery({
@@ -101,6 +107,13 @@ const Player = () => {
   const { data: projects = [] } = useQuery({
     queryKey: ['courseProjects', id],
     queryFn: () => projectsService.getCourseProjects(id!),
+    enabled: !!id,
+  });
+
+  // Custom practice file submissions by this user for this course
+  const { data: myPracticeSubmissions = [] } = useQuery({
+    queryKey: ['myPracticeSubmissions', id],
+    queryFn: () => practiceSubmissionsService.getMy(id!),
     enabled: !!id,
   });
 
@@ -176,6 +189,22 @@ const Player = () => {
     },
     onError: () => {
       toast({ title: 'Failed to submit project', variant: 'destructive' });
+    },
+  });
+
+  const submitCustomUploadMutation = useMutation({
+    mutationFn: ({ lessonId, notes, file }: { lessonId: string; notes?: string; file?: File }) =>
+      practiceSubmissionsService.submit({ lessonId, courseId: id!, notes }, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myPracticeSubmissions', id] });
+      toast({ title: 'Practice file uploaded successfully!' });
+      setCustomUploadLessonId('');
+      setCustomUploadFile(null);
+      setCustomUploadNotes('');
+      if (customUploadFileRef.current) customUploadFileRef.current.value = '';
+    },
+    onError: () => {
+      toast({ title: 'Failed to upload practice file', variant: 'destructive' });
     },
   });
 
@@ -832,10 +861,11 @@ const Player = () => {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1 overflow-hidden">
             <div className="border-b border-border px-2 py-1.5">
-              <TabsList className="grid w-full grid-cols-4 h-auto gap-1">
+              <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
                 <TabsTrigger value="content" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Lessons</TabsTrigger>
                 <TabsTrigger value="resources" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Resources</TabsTrigger>
                 <TabsTrigger value="projects" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Projects</TabsTrigger>
+                <TabsTrigger value="uploads" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Uploads</TabsTrigger>
                 <TabsTrigger value="assessment" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Quiz</TabsTrigger>
               </TabsList>
             </div>
@@ -1230,6 +1260,165 @@ const Player = () => {
                         </div>
                       );
                     })
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Custom Uploads tab */}
+            <TabsContent
+              value="uploads"
+              className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
+              style={{ display: activeTab === 'uploads' ? 'flex' : 'none', flexDirection: 'column' }}
+            >
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="p-3 space-y-4">
+                  {/* Upload form - only for non-instructors */}
+                  {user?.role !== 'instructor' && user?.role !== 'admin' && (
+                    <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+                          <Upload className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-foreground">Upload Practice File</h4>
+                          <p className="text-xs text-muted-foreground">Share a file you worked on during a lesson</p>
+                        </div>
+                      </div>
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!customUploadLessonId) {
+                            toast({ title: 'Please select a lesson', variant: 'destructive' });
+                            return;
+                          }
+                          if (!customUploadFile && !customUploadNotes.trim()) {
+                            toast({ title: 'Please upload a file or add notes', variant: 'destructive' });
+                            return;
+                          }
+                          submitCustomUploadMutation.mutate({
+                            lessonId: customUploadLessonId,
+                            notes: customUploadNotes || undefined,
+                            file: customUploadFile || undefined,
+                          });
+                        }}
+                        className="space-y-3"
+                      >
+                        {/* Lesson selector */}
+                        <div>
+                          <label className="text-xs font-medium mb-1.5 block text-foreground">Select Lesson</label>
+                          <select
+                            value={customUploadLessonId}
+                            onChange={(e) => setCustomUploadLessonId(e.target.value)}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          >
+                            <option value="">-- Choose a lesson --</option>
+                            {sections.map((section) =>
+                              section.lessons.map((lesson) => (
+                                <option key={lesson.id} value={lesson.id}>
+                                  {section.title}: {lesson.title}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+
+                        {/* File picker */}
+                        <div>
+                          <label className="text-xs font-medium mb-1.5 block text-foreground">Practice File</label>
+                          <div className="border-2 border-dashed border-border rounded-lg p-3 text-center hover:bg-muted/20 transition-colors cursor-pointer">
+                            <input
+                              ref={customUploadFileRef}
+                              type="file"
+                              onChange={(e) => setCustomUploadFile(e.target.files?.[0] || null)}
+                              className="hidden"
+                              id="custom-upload-file"
+                            />
+                            <label htmlFor="custom-upload-file" className="cursor-pointer">
+                              {customUploadFile ? (
+                                <div className="flex items-center justify-center gap-2 text-xs text-primary">
+                                  <Paperclip className="h-3.5 w-3.5" />
+                                  <span className="truncate max-w-[160px]">{customUploadFile.name}</span>
+                                  <span className="text-muted-foreground flex-shrink-0">
+                                    ({(customUploadFile.size / 1024 / 1024).toFixed(1)}MB)
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
+                                  <p className="text-xs text-muted-foreground">Click to select file</p>
+                                  <p className="text-[10px] text-muted-foreground/60">All file types accepted</p>
+                                </div>
+                              )}
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                          <label className="text-xs font-medium mb-1.5 block text-foreground">Notes (Optional)</label>
+                          <Textarea
+                            value={customUploadNotes}
+                            onChange={(e) => setCustomUploadNotes(e.target.value)}
+                            placeholder="Describe what you built or practiced..."
+                            rows={2}
+                            className="text-xs"
+                          />
+                        </div>
+
+                        <Button
+                          type="submit"
+                          size="sm"
+                          className="w-full"
+                          disabled={submitCustomUploadMutation.isPending}
+                        >
+                          {submitCustomUploadMutation.isPending ? (
+                            <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Uploading...</>
+                          ) : (
+                            <><Send className="mr-2 h-3.5 w-3.5" />Submit Upload</>
+                          )}
+                        </Button>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* My previous uploads */}
+                  {user?.role !== 'instructor' && user?.role !== 'admin' && (
+                    <div>
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-1">My Uploads</h4>
+                      {myPracticeSubmissions.length === 0 ? (
+                        <div className="py-8 text-center">
+                          <FileText className="h-6 w-6 text-muted-foreground/20 mx-auto" />
+                          <p className="mt-2 text-xs text-muted-foreground">No uploads yet.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {myPracticeSubmissions.map((sub: PracticeSubmission) => (
+                            <div
+                              key={sub.id}
+                              className="rounded-lg border border-border bg-card p-3 space-y-1.5 text-xs"
+                            >
+                              <p className="font-medium text-foreground text-[11px] truncate">
+                                {sub.lesson_title || sub.lessonTitle}
+                              </p>
+                              {(sub.file_name || sub.fileName) && (
+                                <div className="flex items-center gap-1.5 text-primary">
+                                  <Paperclip className="h-3 w-3 flex-shrink-0" />
+                                  <span className="truncate">{sub.file_name || sub.fileName}</span>
+                                </div>
+                              )}
+                              {sub.notes && (
+                                <p className="text-muted-foreground line-clamp-2">{sub.notes}</p>
+                              )}
+                              <p className="text-[10px] text-muted-foreground/60">
+                                {new Date(sub.submitted_at || sub.submittedAt || '').toLocaleDateString()}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </ScrollArea>

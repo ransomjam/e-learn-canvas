@@ -165,14 +165,15 @@ const CourseDetail = () => {
     try {
       const result = await paymentsService.createFapshiPayment(id!);
 
-      if (result.checkoutUrl) {
-        // Redirect to Fapshi payment page
-        window.location.href = result.checkoutUrl;
+      // Backend returns Fapshi's hosted checkout link as `link`
+      if (result.link) {
+        // Redirect to Fapshi payment page (supports both MTN & Orange)
+        window.location.href = result.link;
       } else {
-        throw new Error('No payment link received');
+        throw new Error('No payment link received from payment provider');
       }
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "Payment initiation failed.";
+      const errorMsg = error.response?.data?.message || "Payment initiation failed. Please try again.";
       toast({
         title: "Payment failed",
         description: errorMsg,

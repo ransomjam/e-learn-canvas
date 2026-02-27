@@ -539,6 +539,26 @@ const allMigrations = [
         ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE;
         CREATE INDEX IF NOT EXISTS idx_chat_messages_lesson_id ON chat_messages(lesson_id);
     `},
+
+    // ── practice submissions: user uploads practice files for specific lessons
+    {
+        name: '035_create_practice_submissions', up: `
+        CREATE TABLE IF NOT EXISTS practice_submissions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+            course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            file_url TEXT,
+            file_name VARCHAR(255),
+            file_size INTEGER,
+            notes TEXT,
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_practice_submissions_lesson_id ON practice_submissions(lesson_id);
+        CREATE INDEX IF NOT EXISTS idx_practice_submissions_course_id ON practice_submissions(course_id);
+        CREATE INDEX IF NOT EXISTS idx_practice_submissions_user_id ON practice_submissions(user_id);
+    `},
 ];
 
 // ─── runner ─────────────────────────────────────────────────────────────────

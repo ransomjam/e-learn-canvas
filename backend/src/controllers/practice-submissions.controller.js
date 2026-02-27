@@ -1,0 +1,210 @@
+const { query } = require('../config/database');
+const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { projectUpload, uploadToCloudinary, cloudinaryEnabled } = require('./upload.controller');
+
+/**
+ * @desc    Submit a custom practice file for a lesson
+ * @route   POST /api/v1/practice-submissions
+ * @access  Private (Learner)
+ */
+const submitPracticeFile = asyncHandler(async (req, res) => {
+    const { lessonId, courseId, notes } = req.body;
+    const userId = req.user.id;
+
+    if (!lessonId || !courseId) {
+        throw new ApiError(400, 'lessonId and courseId are required');
+    }
+
+    // Verify lesson belongs to the course
+    const lessonResult = await query(
+        'SELECT id, title FROM lessons WHERE id = $1 AND course_id = $2',
+        [lessonId, courseId]
+    );
+
+    if (lessonResult.rows.length === 0) {
+        throw new ApiError(404, 'Lesson not found in this course');
+    }
+
+    // Verify user is enrolled
+    const enrollmentResult = await query(
+        'SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND status = $3',
+        [userId, courseId, 'active']
+    );
+
+    if (enrollmentResult.rows.length === 0) {
+        throw new ApiError(403, 'You must be enrolled in this course to submit files');
+    }
+
+    // Handle file upload — accept pre-uploaded Cloudinary URL from body OR multer file
+    let fileUrl = req.body.fileUrl || null;
+    let fileName = req.body.fileName || null;
+    let fileSize = req.body.fileSize || null;
+
+    if (req.file) {
+        if (cloudinaryEnabled) {
+            const uploaded = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+            fileUrl = uploaded.url;
+        } else {
+            fileUrl = `/uploads/${req.file.filename}`;
+        }
+        fileName = req.file.originalname;
+        fileSize = req.file.size || req.file.buffer?.length;
+    }
+
+    if (!fileUrl && !notes) {
+        throw new ApiError(400, 'Please upload a file or add notes');
+    }
+
+    const result = await query(
+        `INSERT INTO practice_submissions (lesson_id, course_id, user_id, file_url, file_name, file_size, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [lessonId, courseId, userId, fileUrl, fileName, fileSize, notes || null]
+    );
+
+    res.status(201).json({
+        success: true,
+        data: result.rows[0]
+    });
+});
+
+/**
+ * @desc    Get all practice submissions for a user in a course
+ * @route   GET /api/v1/practice-submissions/my?courseId=xxx
+ * @access  Private
+ */
+const getMyPracticeSubmissions = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const { courseId } = req.query;
+
+    let whereClause = 'WHERE ps.user_id = $1';
+    const params = [userId];
+
+    if (courseId) {
+        whereClause += ' AND ps.course_id = $2';
+        params.push(courseId);
+    }
+
+    const result = await query(
+        `SELECT ps.*, 
+                l.title as lesson_title,
+                c.title as course_title
+         FROM practice_submissions ps
+         JOIN lessons l ON ps.lesson_id = l.id
+         JOIN courses c ON ps.course_id = c.id
+         ${whereClause}
+         ORDER BY ps.submitted_at DESC`,
+        params
+    );
+
+    res.json({
+        success: true,
+        data: result.rows
+    });
+});
+
+/**
+ * @desc    Get all practice submissions for instructor's courses
+ * @route   GET /api/v1/practice-submissions/instructor
+ * @access  Private (Instructor)
+ */
+const getInstructorPracticeSubmissions = asyncHandler(async (req, res) => {
+    const instructorId = req.user.id;
+    const { courseId, lessonId, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = 'WHERE c.instructor_id = $1';
+    const params = [instructorId];
+    let paramIndex = 2;
+
+    if (courseId) {
+        whereClause += ` AND ps.course_id = $${paramIndex}`;
+        params.push(courseId);
+        paramIndex++;
+    }
+
+    if (lessonId) {
+        whereClause += ` AND ps.lesson_id = $${paramIndex}`;
+        params.push(lessonId);
+        paramIndex++;
+    }
+
+    // Total count
+    const countResult = await query(
+        `SELECT COUNT(*) as total
+         FROM practice_submissions ps
+         JOIN courses c ON ps.course_id = c.id
+         ${whereClause}`,
+        params
+    );
+
+    const total = parseInt(countResult.rows[0].total);
+
+    const result = await query(
+        `SELECT ps.*,
+                u.first_name, u.last_name, u.email,
+                l.title as lesson_title,
+                c.title as course_title
+         FROM practice_submissions ps
+         JOIN users u ON ps.user_id = u.id
+         JOIN lessons l ON ps.lesson_id = l.id
+         JOIN courses c ON ps.course_id = c.id
+         ${whereClause}
+         ORDER BY ps.submitted_at DESC
+         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+        [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    res.json({
+        success: true,
+        data: {
+            submissions: result.rows,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        }
+    });
+});
+
+/**
+ * @desc    Delete a practice submission
+ * @route   DELETE /api/v1/practice-submissions/:id
+ * @access  Private (owner or instructor/admin)
+ */
+const deletePracticeSubmission = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const submissionResult = await query(
+        `SELECT ps.*, c.instructor_id
+         FROM practice_submissions ps
+         JOIN courses c ON ps.course_id = c.id
+         WHERE ps.id = $1`,
+        [id]
+    );
+
+    if (submissionResult.rows.length === 0) {
+        throw new ApiError(404, 'Submission not found');
+    }
+
+    const submission = submissionResult.rows[0];
+
+    if (submission.user_id !== userId && submission.instructor_id !== userId && req.user.role !== 'admin') {
+        throw new ApiError(403, 'Not authorized');
+    }
+
+    await query('DELETE FROM practice_submissions WHERE id = $1', [id]);
+
+    res.json({ success: true, data: {} });
+});
+
+module.exports = {
+    projectUpload,
+    submitPracticeFile,
+    getMyPracticeSubmissions,
+    getInstructorPracticeSubmissions,
+    deletePracticeSubmission
+};

@@ -34,7 +34,7 @@ export interface FapshiPaymentResponse {
     amount: number;
     currency: string;
     status: string;
-    checkoutUrl?: string;
+    link?: string;       // Fapshi hosted checkout URL (supports MTN & Orange)
     course: {
         id: string;
         title: string;

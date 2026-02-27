@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, PlayCircle, Video as VideoIcon, X } from 'lucide-react';
+import { ArrowRight, PlayCircle, Video as VideoIcon, X, Link2, Check } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import CourseCard from '@/components/courses/CourseCard';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,31 @@ import TechBackground from '@/components/ui/TechBackground';
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
   const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const modalVideoRef = useRef<HTMLVideoElement>(null);
+  const videoSectionRef = useRef<HTMLElement>(null);
+
+  // Auto-open modal when navigating to /how-to-use
+  useEffect(() => {
+    if (location.pathname === '/how-to-use') {
+      // Small delay so the page renders before scrolling
+      const t = setTimeout(() => {
+        videoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setVideoModalOpen(true);
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [location.pathname]);
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/how-to-use`;
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
 
   // Close modal on Escape key
   useEffect(() => {
@@ -105,7 +128,7 @@ const Index = () => {
       </section>
 
       {/* How It Works / Platform Video Section */}
-      <section className="py-12 sm:py-16 md:py-20 lg:py-24">
+      <section ref={videoSectionRef} className="py-12 sm:py-16 md:py-20 lg:py-24">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="font-display text-3xl font-bold text-foreground sm:text-4xl md:text-5xl">
@@ -114,6 +137,17 @@ const Index = () => {
             <p className="mt-4 text-base text-muted-foreground sm:text-lg max-w-2xl mx-auto">
               {platformVideo?.description || 'Watch this quick video to learn how to navigate the platform, discover courses, and start learning effectively.'}
             </p>
+            <button
+              onClick={handleCopyLink}
+              className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              title="Copy shareable link"
+            >
+              {linkCopied ? (
+                <><Check className="h-4 w-4 text-green-500" /><span className="text-green-500">Link copied!</span></>
+              ) : (
+                <><Link2 className="h-4 w-4" /><span>Share video</span></>
+              )}
+            </button>
           </div>
 
           <div className="relative mx-auto aspect-video max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">

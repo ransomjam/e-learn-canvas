@@ -12,18 +12,16 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { adminService } from '@/services/admin.service';
 import { resolveMediaUrl } from '@/lib/media';
-import api from '@/lib/api';
+import { instructorService } from '@/services/instructor.service';
 
-// ── Tiny helper: upload a file through the existing /upload endpoint ─────────
-async function uploadFileToServer(file: File): Promise<string> {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await api.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 0, // Disable the 30s default timeout for large file uploads
-    });
-    return res.data.data.url as string;
-}
+// NOTE: the platform video page previously used a tiny helper that posted
+// directly to `/upload`. that logic bypassed the direct Cloudinary
+// uploads used elsewhere in the app and would fall back to local disk in
+// development. when the local folder is cleared (e.g. restarting the
+// server or during a deploy) the UI would then point at a missing file and
+// generate dozens of 404s. the instructors' upload helper handles
+// signed/direct uploads and always returns an absolute URL, so reuse it
+// here instead of rolling our own.
 
 const AdminPlatformVideo = () => {
     const { toast } = useToast();
@@ -85,11 +83,15 @@ const AdminPlatformVideo = () => {
         if (!file) return;
         setUploadingVideo(true);
         try {
-            const url = await uploadFileToServer(file);
-            setVideoUrl(url);
+            const result = await instructorService.uploadFile(file);
+            setVideoUrl(result.url);
             toast({ title: 'Video uploaded', description: 'Video file ready. Click "Save" to apply.' });
         } catch (err: any) {
-            toast({ title: 'Upload failed', description: err.response?.data?.message || err.message, variant: 'destructive' });
+            toast({
+                title: 'Upload failed',
+                description: err.response?.data?.message || err.message || 'Please try again.',
+                variant: 'destructive'
+            });
         } finally {
             setUploadingVideo(false);
         }
@@ -101,11 +103,15 @@ const AdminPlatformVideo = () => {
         if (!file) return;
         setUploadingThumb(true);
         try {
-            const url = await uploadFileToServer(file);
-            setThumbnailUrl(url);
+            const result = await instructorService.uploadFile(file);
+            setThumbnailUrl(result.url);
             toast({ title: 'Thumbnail uploaded', description: 'Thumbnail ready. Click "Save" to apply.' });
         } catch (err: any) {
-            toast({ title: 'Upload failed', description: err.response?.data?.message || err.message, variant: 'destructive' });
+            toast({
+                title: 'Upload failed',
+                description: err.response?.data?.message || err.message || 'Please try again.',
+                variant: 'destructive'
+            });
         } finally {
             setUploadingThumb(false);
         }
@@ -258,7 +264,13 @@ const AdminPlatformVideo = () => {
                             {/* Save */}
                             <Button
                                 className="w-full"
-                                onClick={() => saveMutation.mutate()}
+                                onClick={async () => {
+                                    try {
+                                        await saveMutation.mutateAsync();
+                                    } catch {
+                                        // onError toast already shown
+                                    }
+                                }}
                                 disabled={!videoUrl || saveMutation.isPending || uploadingVideo || uploadingThumb}
                             >
                                 {saveMutation.isPending ? (
@@ -283,6 +295,10 @@ const AdminPlatformVideo = () => {
                                             poster={resolvedThumb || undefined}
                                             controls
                                             className="h-full w-full object-cover"
+                                            onError={() => {
+                                                // clear a broken URL so the input can be updated
+                                                setVideoUrl('');
+                                            }}
                                         />
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -328,6 +344,7 @@ const AdminPlatformVideo = () => {
                                         src={resolvedThumb}
                                         alt="Thumbnail preview"
                                         className="h-28 w-full object-cover rounded-lg border border-border"
+                                        onError={() => setThumbnailUrl('')}
                                     />
                                 </div>
                             )}

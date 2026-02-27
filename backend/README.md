@@ -47,6 +47,12 @@ A comprehensive REST API backend for the E-Learn Canvas e-learning platform. Bui
    # Edit .env with your database credentials
    ```
 
+   > ⚠️ **IMPORTANT (production)** – file uploads rely on Cloudinary in non‑development
+   > environments. Make sure you set `CLOUDINARY_CLOUD_NAME`,
+   > `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in your production
+   > environment or uploads will be rejected and any previously‑stored files
+   > (e.g. `/uploads/...`) may disappear after a redeploy.
+
 4. **Create the PostgreSQL database**:
    ```sql
    CREATE DATABASE elearn_canvas;

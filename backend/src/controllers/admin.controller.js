@@ -1081,12 +1081,28 @@ const getPlatformVideo = asyncHandler(async (req, res) => {
     }
 
     const v = result.rows[0];
+
+    // If the recorded URL points to a local upload that no longer exists (e.g.
+    // the server was restarted without Cloudinary), clear the value so the
+    // frontend doesn't endlessly try to load a missing file.
+    const sanitizeLocal = (url) => {
+        if (!url) return null;
+        if (url.startsWith('/uploads/')) {
+            const filePath = path.join(__dirname, '../../', url);
+            if (!fs.existsSync(filePath)) {
+                console.warn('Platform video asset not found on disk:', url);
+                return null;
+            }
+        }
+        return url;
+    };
+
     res.json({
         success: true,
         data: {
             id: v.id,
-            videoUrl: v.video_url,
-            thumbnailUrl: v.thumbnail_url,
+            videoUrl: sanitizeLocal(v.video_url),
+            thumbnailUrl: sanitizeLocal(v.thumbnail_url),
             title: v.title,
             description: v.description,
             uploadedBy: v.uploaded_by,

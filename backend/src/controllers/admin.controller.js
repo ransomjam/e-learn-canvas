@@ -1048,6 +1048,123 @@ const getInstructors = asyncHandler(async (req, res) => {
     });
 });
 
+// =====================
+// PLATFORM VIDEO (Homepage)
+// =====================
+
+/**
+ * @desc    Get the homepage platform intro video
+ * @route   GET /api/v1/admin/platform-video
+ * @access  Public (read)
+ */
+const getPlatformVideo = asyncHandler(async (req, res) => {
+    // Ensure the table exists (idempotent)
+    await query(`
+        CREATE TABLE IF NOT EXISTS platform_video (
+            id SERIAL PRIMARY KEY,
+            video_url TEXT NOT NULL,
+            thumbnail_url TEXT,
+            title VARCHAR(255) NOT NULL DEFAULT 'How to Use Our Platform',
+            description TEXT,
+            uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    const result = await query(
+        'SELECT * FROM platform_video ORDER BY id DESC LIMIT 1'
+    );
+
+    if (result.rows.length === 0) {
+        return res.json({ success: true, data: null });
+    }
+
+    const v = result.rows[0];
+    res.json({
+        success: true,
+        data: {
+            id: v.id,
+            videoUrl: v.video_url,
+            thumbnailUrl: v.thumbnail_url,
+            title: v.title,
+            description: v.description,
+            uploadedBy: v.uploaded_by,
+            createdAt: v.created_at,
+            updatedAt: v.updated_at
+        }
+    });
+});
+
+/**
+ * @desc    Upload / replace the homepage platform intro video
+ * @route   POST /api/v1/admin/platform-video
+ * @access  Private/Admin
+ */
+const uploadPlatformVideo = asyncHandler(async (req, res) => {
+    const { videoUrl, thumbnailUrl, title, description } = req.body;
+
+    if (!videoUrl) {
+        throw new ApiError(400, 'videoUrl is required');
+    }
+
+    // Ensure the table exists (idempotent)
+    await query(`
+        CREATE TABLE IF NOT EXISTS platform_video (
+            id SERIAL PRIMARY KEY,
+            video_url TEXT NOT NULL,
+            thumbnail_url TEXT,
+            title VARCHAR(255) NOT NULL DEFAULT 'How to Use Our Platform',
+            description TEXT,
+            uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Check if a record already exists
+    const existing = await query('SELECT id FROM platform_video ORDER BY id ASC LIMIT 1');
+
+    let result;
+    if (existing.rows.length > 0) {
+        result = await query(
+            `UPDATE platform_video
+             SET video_url = $1,
+                 thumbnail_url = $2,
+                 title = $3,
+                 description = $4,
+                 uploaded_by = $5,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $6
+             RETURNING *`,
+            [videoUrl, thumbnailUrl || null, title || 'How to Use Our Platform', description || null, req.user.id, existing.rows[0].id]
+        );
+    } else {
+        result = await query(
+            `INSERT INTO platform_video (video_url, thumbnail_url, title, description, uploaded_by)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING *`,
+            [videoUrl, thumbnailUrl || null, title || 'How to Use Our Platform', description || null, req.user.id]
+        );
+    }
+
+    const v = result.rows[0];
+    res.json({
+        success: true,
+        message: 'Platform video updated successfully',
+        data: {
+            id: v.id,
+            videoUrl: v.video_url,
+            thumbnailUrl: v.thumbnail_url,
+            title: v.title,
+            description: v.description,
+            uploadedBy: v.uploaded_by,
+            createdAt: v.created_at,
+            updatedAt: v.updated_at
+        }
+    });
+});
+
 module.exports = {
     // Users
     getAdminUsers,
@@ -1078,5 +1195,9 @@ module.exports = {
     markNotificationsRead,
 
     // Instructors
-    getInstructors
+    getInstructors,
+
+    // Platform Video
+    getPlatformVideo,
+    uploadPlatformVideo
 };

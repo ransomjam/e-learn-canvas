@@ -31,7 +31,11 @@ const {
     markNotificationsRead,
 
     // Instructors
-    getInstructors
+    getInstructors,
+
+    // Platform Video
+    getPlatformVideo,
+    uploadPlatformVideo
 } = require('../controllers/admin.controller');
 
 const {
@@ -43,7 +47,18 @@ const {
 
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 
-// All admin routes require authentication and admin role
+// =====================
+// PUBLIC ROUTES (no auth required)
+// =====================
+
+/**
+ * @route   GET /api/v1/admin/platform-video
+ * @desc    Get homepage platform intro video
+ * @access  Public
+ */
+router.get('/platform-video', getPlatformVideo);
+
+// All remaining admin routes require authentication
 router.use(authenticate);
 
 // =====================
@@ -225,6 +240,17 @@ router.delete('/enrollment-codes/:id', deleteEnrollmentCode);
  * @access  Private/Admin
  */
 router.get('/users/enrollments', getUsersWithEnrollments);
+
+// =====================
+// PLATFORM VIDEO
+// =====================
+
+/**
+ * @route   POST /api/v1/admin/platform-video
+ * @desc    Upload / replace the homepage platform intro video
+ * @access  Private/Admin
+ */
+router.post('/platform-video', uploadPlatformVideo);
 
 module.exports = router;
 

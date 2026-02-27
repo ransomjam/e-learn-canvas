@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, PlayCircle, Video as VideoIcon } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import CourseCard from '@/components/courses/CourseCard';
 import { Button } from '@/components/ui/button';
 import { coursesService } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
+import { adminService } from '@/services/admin.service';
+import { resolveMediaUrl } from '@/lib/media';
 import { useAuth } from '@/contexts/AuthContext';
 import TechBackground from '@/components/ui/TechBackground';
 
@@ -23,6 +25,12 @@ const Index = () => {
     queryKey: ['myEnrollments'],
     queryFn: () => enrollmentsService.getMyEnrollments(),
     enabled: isAuthenticated,
+  });
+
+  // Fetch platform video
+  const { data: platformVideo, isLoading: videoLoading } = useQuery({
+    queryKey: ['platformVideoView'],
+    queryFn: () => adminService.getPlatformVideo(),
   });
 
   const courses = coursesData?.data || [];
@@ -63,6 +71,49 @@ const Index = () => {
                 </Button>
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works / Platform Video Section */}
+      <section className="py-12 sm:py-16 md:py-20 lg:py-24">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="font-display text-3xl font-bold text-foreground sm:text-4xl md:text-5xl">
+              {platformVideo?.title || 'How to Use Our Platform'}
+            </h2>
+            <p className="mt-4 text-base text-muted-foreground sm:text-lg max-w-2xl mx-auto">
+              {platformVideo?.description || 'Watch this quick video to learn how to navigate the platform, discover courses, and start learning effectively.'}
+            </p>
+          </div>
+
+          <div className="relative mx-auto aspect-video max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+            {videoLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-secondary/30">
+                <div className="animate-pulse flex flex-col items-center">
+                  <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+                    <PlayCircle className="h-8 w-8 text-primary/50" />
+                  </div>
+                  <div className="h-4 w-32 bg-secondary rounded" />
+                </div>
+              </div>
+            ) : platformVideo?.videoUrl ? (
+              <video
+                src={resolveMediaUrl(platformVideo.videoUrl)}
+                poster={resolveMediaUrl(platformVideo.thumbnailUrl) || undefined}
+                controls
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary/30 text-center p-6 border-2 border-dashed border-border/50">
+                <VideoIcon className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                <h3 className="text-lg font-semibold text-foreground">Coming Soon</h3>
+                <p className="text-sm text-muted-foreground mt-2 max-w-md">
+                  We are currently preparing an introductory video.
+                  Admins can upload the video from the Admin Dashboard &gt; Platform Video section.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>

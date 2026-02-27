@@ -41,6 +41,17 @@ export interface UserWithEnrollments {
     }>;
 }
 
+export interface PlatformVideo {
+    id: number;
+    videoUrl: string;
+    thumbnailUrl?: string;
+    title: string;
+    description?: string;
+    uploadedBy?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export const adminService = {
     // Enrollment Codes
     async generateEnrollmentCodes(courseId: string, count: number = 1, expiresAt?: string): Promise<{
@@ -91,4 +102,21 @@ export const adminService = {
         const response = await api.get('/admin/courses');
         return response.data.data.courses || [];
     },
+
+    // Platform Video
+    async getPlatformVideo(): Promise<PlatformVideo | null> {
+        const response = await api.get('/admin/platform-video');
+        return response.data.data;
+    },
+
+    async uploadPlatformVideo(data: {
+        videoUrl: string;
+        thumbnailUrl?: string;
+        title?: string;
+        description?: string;
+    }): Promise<PlatformVideo> {
+        const response = await api.post('/admin/platform-video', data);
+        return response.data.data;
+    },
 };
+

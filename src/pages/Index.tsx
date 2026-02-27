@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, PlayCircle, Video as VideoIcon } from 'lucide-react';
+import { ArrowRight, PlayCircle, Video as VideoIcon, X } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import CourseCard from '@/components/courses/CourseCard';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,28 @@ import TechBackground from '@/components/ui/TechBackground';
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const modalVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!videoModalOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setVideoModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [videoModalOpen]);
+
+  // Pause modal video when closed
+  useEffect(() => {
+    if (!videoModalOpen && modalVideoRef.current) {
+      modalVideoRef.current.pause();
+    }
+    if (videoModalOpen && modalVideoRef.current) {
+      modalVideoRef.current.play().catch(() => {});
+    }
+  }, [videoModalOpen]);
 
   const { data: coursesData } = useQuery({
     queryKey: ['courses', { limit: 8 }],
@@ -105,12 +127,56 @@ const Index = () => {
                 </div>
               </div>
             ) : platformVideo?.videoUrl ? (
-              <video
-                src={resolveMediaUrl(platformVideo.videoUrl)}
-                poster={resolveMediaUrl(platformVideo.thumbnailUrl) || undefined}
-                controls
-                className="h-full w-full object-cover"
-              />
+              <>
+                {/* Thumbnail / poster placeholder with play button overlay */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center cursor-pointer group"
+                  onClick={() => setVideoModalOpen(true)}
+                >
+                  {platformVideo.thumbnailUrl ? (
+                    <img
+                      src={resolveMediaUrl(platformVideo.thumbnailUrl)}
+                      alt="Video thumbnail"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-secondary/40" />
+                  )}
+                  {/* Play button overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                    <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                      <PlayCircle className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fullscreen modal */}
+                {videoModalOpen && (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-0"
+                    onClick={(e) => { if (e.target === e.currentTarget) setVideoModalOpen(false); }}
+                  >
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <button
+                        onClick={() => setVideoModalOpen(false)}
+                        className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
+                        aria-label="Close video"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                      <video
+                        ref={modalVideoRef}
+                        src={resolveMediaUrl(platformVideo.videoUrl)}
+                        poster={resolveMediaUrl(platformVideo.thumbnailUrl) || undefined}
+                        controls
+                        autoPlay
+                        className="max-h-screen max-w-full w-full object-contain"
+                        style={{ maxHeight: '100dvh' }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary/30 text-center p-6 border-2 border-dashed border-border/50">
                 <VideoIcon className="h-16 w-16 text-muted-foreground/30 mb-4" />

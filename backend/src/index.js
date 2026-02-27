@@ -55,12 +55,11 @@ const startServer = async () => {
       console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
 
-    // Keep-alive tuning — prevents Safari "server stopped responding" errors.
-    // The keepAliveTimeout MUST exceed the reverse-proxy / load-balancer timeout
-    // (Render uses ~60 s) so Node never closes a connection the proxy thinks is
-    // still alive.  headersTimeout must be slightly larger than keepAliveTimeout.
-    server.keepAliveTimeout = 65000;   // 65 seconds
-    server.headersTimeout  = 66000;    // 66 seconds
+    // Keep-alive tuning — prevents Safari "server stopped responding" errors
+    // INCREASED for large video file uploads which take a long time to buffer to Cloudinary
+    server.keepAliveTimeout = 1800000;  // 30 minutes
+    server.headersTimeout = 1801000;   // 30 minutes + 1s
+    server.setTimeout(1805000);         // 30 minutes + 5s
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
     process.exit(1);

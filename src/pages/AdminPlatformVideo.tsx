@@ -20,6 +20,7 @@ async function uploadFileToServer(file: File): Promise<string> {
     formData.append('file', file);
     const res = await api.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0, // Disable the 30s default timeout for large file uploads
     });
     return res.data.data.url as string;
 }

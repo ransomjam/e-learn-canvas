@@ -31,7 +31,9 @@ const getCloudinaryResourceType = (fileType) => {
     return 'raw'; // PDFs, docs, etc.
 };
 
-// ── Storage: local disk (fallback / dev) ─────────────────────────────────────
+// ── Storage: local disk ────────────────────────────────────────────────────────
+// Always use local disk storage temporarily to prevent Node.js Out of Memory
+// crashes on large video uploads. We stream the file to disk first.
 const localStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = path.join(__dirname, '../../uploads');
@@ -46,19 +48,15 @@ const localStorage = multer.diskStorage({
     }
 });
 
-// ── Storage: memory buffer (used when uploading to Cloudinary) ───────────────
-const memoryStorage = multer.memoryStorage();
-
-// Pick storage engine based on whether Cloudinary is configured
 const upload = multer({
-    storage: cloudinaryEnabled ? memoryStorage : localStorage,
+    storage: localStorage,
     limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
     fileFilter: (req, file, cb) => cb(null, true),
 });
 
 // Re-export a second multer instance for project uploads (same config)
 const projectUpload = multer({
-    storage: cloudinaryEnabled ? memoryStorage : localStorage,
+    storage: localStorage,
     limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
     fileFilter: (req, file, cb) => cb(null, true),
 });
@@ -77,47 +75,43 @@ const handleMulterError = (multerMiddleware) => (req, res, next) => {
 };
 
 // ── Upload a file to Cloudinary (returns { url, publicId }) ──────────────────
-const uploadToCloudinary = (fileBuffer, originalname) => {
+const uploadToCloudinary = async (filePath, originalname) => {
     const fileType = detectFileType(originalname);
     const resourceType = getCloudinaryResourceType(fileType);
     const folder = `cradema/${fileType === 'image' ? 'images' : fileType === 'video' ? 'videos' : 'files'}`;
 
-    console.log(`☁️  Uploading to Cloudinary: ${originalname} (${resourceType}, ${(fileBuffer.length / 1024).toFixed(1)} KB)`);
+    console.log(`☁️  Uploading to Cloudinary: ${originalname} (${resourceType})`);
 
-    return new Promise((resolve, reject) => {
-        const uploadOptions = {
-            resource_type: resourceType,
-            folder,
-            // Keep original extension for raw files so download links work
-            ...(resourceType === 'raw' ? { use_filename: true, unique_filename: true } : {}),
-        };
+    const uploadOptions = {
+        resource_type: resourceType,
+        folder,
+        // Keep original extension for raw files so download links work
+        ...(resourceType === 'raw' ? { use_filename: true, unique_filename: true } : {}),
+    };
 
-        // For videos, force transcoding to H.264/MP4 for universal mobile compatibility.
-        // Many mobile browsers cannot play AVI, MOV, MKV, or HEVC-encoded files.
-        // Note: streaming_profile (adaptive bitrate) is a paid Cloudinary feature — do NOT use it here.
-        if (resourceType === 'video') {
-            uploadOptions.format = 'mp4';
-            // No eager transforms needed — Cloudinary converts on-the-fly via the format option above.
+    // For videos, force transcoding to H.264/MP4 for universal mobile compatibility.
+    // Also enable large file chunking logic natively supported by the Cloudinary SDK when passing a file path.
+    if (resourceType === 'video') {
+        uploadOptions.format = 'mp4';
+        uploadOptions.chunk_size = 6000000; // Chunk threshold (6 MB) for streaming large files
+    }
+
+    try {
+        // Upload from temp local path. The SDK handles large file chunks via upload_large automatically if over chunk_size
+        const uploaderFn = resourceType === 'video' ? cloudinary.uploader.upload_large : cloudinary.uploader.upload;
+        const result = await uploaderFn(filePath, uploadOptions);
+
+        let deliveryUrl = result.secure_url;
+        // Ensure the video URL ends with .mp4 for mobile compatibility
+        if (resourceType === 'video' && !deliveryUrl.endsWith('.mp4')) {
+            deliveryUrl = deliveryUrl.replace(/\.[^/.]+$/, '.mp4');
         }
-
-        const stream = cloudinary.uploader.upload_stream(
-            uploadOptions,
-            (error, result) => {
-                if (error) {
-                    console.error('❌ Cloudinary upload failed:', error.message || error);
-                    return reject(new Error(`Cloudinary upload failed: ${error.message || 'Unknown error'}`));
-                }
-                let deliveryUrl = result.secure_url;
-                // Ensure the video URL ends with .mp4 for mobile compatibility
-                if (resourceType === 'video' && !deliveryUrl.endsWith('.mp4')) {
-                    deliveryUrl = deliveryUrl.replace(/\.[^/.]+$/, '.mp4');
-                }
-                console.log(`✅ Cloudinary upload success: ${deliveryUrl}`);
-                resolve({ url: deliveryUrl, publicId: result.public_id });
-            }
-        );
-        stream.end(fileBuffer);
-    });
+        console.log(`✅ Cloudinary upload success: ${deliveryUrl}`);
+        return { url: deliveryUrl, publicId: result.public_id };
+    } catch (error) {
+        console.error('❌ Cloudinary upload failed:', error.message || error);
+        throw new Error(`Cloudinary upload failed: ${error.message || 'Unknown error'}`);
+    }
 };
 
 // ── Route handler: POST /api/v1/upload ───────────────────────────────────────
@@ -130,21 +124,30 @@ const uploadFile = asyncHandler(async (req, res) => {
     let fileUrl;
 
     if (cloudinaryEnabled) {
-        // Upload buffer to Cloudinary
+        // Upload temporary disk file to Cloudinary
         try {
-            const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+            const result = await uploadToCloudinary(req.file.path, req.file.originalname);
             fileUrl = result.url; // full https://res.cloudinary.com/... URL
+
+            // Clean up the temporary local file on success
+            fs.unlink(req.file.path, (err) => {
+                if (err) console.error('Tidying local file failed:', err.message);
+            });
         } catch (err) {
             console.error('❌ Cloudinary upload failed for', req.file.originalname, err.message);
+            // Clean up the temporary local file on failure
+            fs.unlink(req.file.path, (unlinkErr) => {
+                if (unlinkErr) console.error('Tidying local file failed:', unlinkErr.message);
+            });
             throw new ApiError(500, 'File upload failed. Please try again later.');
         }
     } else if (process.env.NODE_ENV === 'production') {
-        // In production without Cloudinary, reject the upload immediately.
-        // Render's ephemeral filesystem means local files will be lost on redeploy.
+        // In production without Cloudinary, reject the upload because Render's local disk erases on deploy
+        fs.unlink(req.file.path, () => { });
         console.error('❌ Upload rejected: Cloudinary not configured in production');
         throw new ApiError(503, 'File uploads are temporarily unavailable. Cloud storage is not configured.');
     } else {
-        // Local disk — file already saved by multer diskStorage (dev only)
+        // Local disk — file was kept saved by multer diskStorage (dev only fallback)
         fileUrl = `/uploads/${req.file.filename}`;
     }
 

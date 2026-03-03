@@ -1,4 +1,5 @@
-import { API_BASE_URL } from './api';
+import api, { API_BASE_URL } from './api';
+import { resolveMediaUrl } from './media';
 
 /**
  * Resolve a file URL for display/download.
@@ -6,11 +7,16 @@ import { API_BASE_URL } from './api';
  */
 export function resolveFileUrl(url: string): string {
   if (!url) return '';
-  // Already an absolute URL (Cloudinary, etc.) — use as-is
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  // Local path — prepend the API root
+
+  // Reuse the shared media normalizer so legacy values like:
+  // - "1771260062503-235614758.png"
+  // - "uploads/file.pdf"
+  // - "/api/v1/uploads/file.pdf"
+  // all resolve correctly to a public /uploads URL.
+  const resolved = resolveMediaUrl(url);
+  if (resolved) return resolved;
+
+  // Fallback safety (should rarely be hit)
   const apiRoot = API_BASE_URL.replace('/api/v1', '');
   return `${apiRoot}${url.startsWith('/') ? '' : '/'}${url}`;
 }
@@ -29,19 +35,16 @@ export function downloadProjectFile(
   // Resolve to absolute URL for the proxy
   const absoluteUrl = resolveFileUrl(fileUrl);
 
-  const proxyUrl = `${API_BASE_URL}/upload/download?url=${encodeURIComponent(absoluteUrl)}&filename=${encodeURIComponent(fileName)}`;
 
   onStart?.();
 
-  const token = localStorage.getItem('accessToken');
-  fetch(proxyUrl, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-    .then((r) => {
-      if (!r.ok) throw new Error('Download failed');
-      return r.blob();
+  api
+    .get('/upload/download', {
+      params: { url: absoluteUrl, filename: fileName },
+      responseType: 'blob',
     })
-    .then((blob) => {
+    .then((response) => {
+      const blob = response.data as Blob;
       const blobUrl = URL.createObjectURL(blob);
       const isIOS =
         /iPad|iPhone|iPod/.test(navigator.userAgent) ||

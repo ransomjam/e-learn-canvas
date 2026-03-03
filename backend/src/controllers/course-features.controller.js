@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { signCloudinaryUrl } = require('./upload.controller');
 
 // =====================
 // RESOURCES CONTROLLERS
@@ -45,7 +46,7 @@ const getResources = asyncHandler(async (req, res) => {
         courseId: r.course_id,
         title: r.title,
         description: r.description,
-        url: r.url,
+        url: signCloudinaryUrl(r.url),
         type: r.type,
         originalName: r.original_name || null,
         createdAt: r.created_at,

@@ -137,6 +137,33 @@ const uploadToCloudinary = async (filePath, originalname) => {
   }
 };
 
+// ── Helper: sign a Cloudinary URL so restricted raw resources are accessible ─
+// Cloudinary accounts with "Restrict unsigned raw resource delivery" return 401
+// for unsigned /raw/upload/ URLs. This function re-generates the URL using the
+// SDK with `sign_url: true` so a valid signature is appended.
+const signCloudinaryUrl = (url) => {
+  if (!url || !cloudinaryEnabled) return url;
+
+  // Only sign res.cloudinary.com URLs
+  const match = url.match(
+    /res\.cloudinary\.com\/([^/]+)\/(image|video|raw)\/upload\/(?:v\d+\/)?(.+)/
+  );
+  if (!match) return url; // not a Cloudinary upload URL
+
+  const [, , resourceType, publicIdWithExt] = match;
+
+  // cloudinary.url() expects public_id without the file extension for image/video,
+  // but raw resources MUST include the extension.
+  const signed = cloudinary.url(publicIdWithExt, {
+    resource_type: resourceType,
+    sign_url: true,
+    type: 'upload',
+    secure: true,
+  });
+
+  return signed;
+};
+
 // ── Route handler: POST /api/v1/upload ───────────────────────────────────────
 const uploadFile = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -239,13 +266,15 @@ const downloadFile = asyncHandler(async (req, res) => {
   }
 
   // --- Remote URL (Cloudinary, etc.) ---
-  // Use dynamic import for node-fetch or native https
+  // Sign Cloudinary URLs to bypass raw resource access restrictions
+  const fetchUrl = signCloudinaryUrl(url);
+
   const https = require("https");
   const http = require("http");
-  const protocol = url.startsWith("https") ? https : http;
+  const protocol = fetchUrl.startsWith("https") ? https : http;
 
   protocol
-    .get(url, (proxyRes) => {
+    .get(fetchUrl, (proxyRes) => {
       if (
         proxyRes.statusCode >= 300 &&
         proxyRes.statusCode < 400 &&
@@ -371,4 +400,5 @@ module.exports = {
   cloudinaryEnabled,
   handleMulterError,
   getUploadSignature,
+  signCloudinaryUrl,
 };

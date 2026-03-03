@@ -342,30 +342,86 @@ function streamResponse(proxyRes, res, downloadName, originalUrl) {
     return;
   }
 
-  // Build the final filename: make sure it keeps the right extension.
-  // Prefer the filename query param; fall back to extracting from the Cloudinary URL path.
+  // ── Step 1: Determine the correct file extension ────────────────────────────
+  // Priority order:
+  //   1. Extension already in downloadName (e.g. "Report.pdf")
+  //   2. Extension from CDN URL path (strips s-- signature first)
+  //   3. Extension from `public_id` query param (private_download_url format)
+  //   4. Extension from Cloudinary's own Content-Disposition header
   let finalName = downloadName;
+
   if (!path.extname(finalName)) {
-    // Try to get extension from the original URL path (before any query string)
+    let ext = '';
+
     try {
-      const urlPath = new URL(originalUrl).pathname;
-      // Strip Cloudinary signature token if present (s--...-- segment)
-      const cleanPath = urlPath.replace(/\/s--[^/]+--/, '');
-      const ext = path.extname(cleanPath);
-      if (ext) finalName = finalName + ext;
-    } catch { /* ignore */ }
+      const parsed = new URL(originalUrl);
+
+      // (a) CDN path: strip any s--...-- signature token first
+      const cleanPath = parsed.pathname.replace(/\/s--[A-Za-z0-9_-]+--/, '');
+      ext = path.extname(cleanPath);
+
+      // (b) For private_download_url (api.cloudinary.com), the public_id is in a query param
+      if (!ext) {
+        const publicId = parsed.searchParams.get('public_id');
+        if (publicId) {
+          ext = path.extname(decodeURIComponent(publicId));
+        }
+      }
+    } catch { /* URL parse failed, ignore */ }
+
+    // (c) Fall back to Cloudinary's own Content-Disposition if it has an extension
+    if (!ext) {
+      const upstreamDisp = proxyRes.headers['content-disposition'];
+      if (upstreamDisp) {
+        const m = upstreamDisp.match(/filename[^;=\n]*=["']?([^"';\n]+)/i);
+        if (m) ext = path.extname(m[1].trim());
+      }
+    }
+
+    if (ext && ext !== '.') finalName = finalName + ext;
   }
 
-  // Forward key content headers
-  const contentType = proxyRes.headers["content-type"];
-  if (contentType) res.setHeader("Content-Type", contentType);
+  // ── Step 2: Determine Content-Type from extension, NOT from Cloudinary ──────
+  // Cloudinary's private_download_url sometimes returns `application/pdf` for
+  // ALL raw resources regardless of format. If we forward it blindly, the browser
+  // appends ".pdf" to the filename even when the file is a .pptx or .xlsx.
+  const MIME = {
+    '.pdf':  'application/pdf',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.ppt':  'application/vnd.ms-powerpoint',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc':  'application/msword',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.xls':  'application/vnd.ms-excel',
+    '.csv':  'text/csv',
+    '.mp4':  'video/mp4',
+    '.webm': 'video/webm',
+    '.mp3':  'audio/mpeg',
+    '.jpg':  'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png':  'image/png',
+    '.gif':  'image/gif',
+    '.webp': 'image/webp',
+    '.zip':  'application/zip',
+    '.txt':  'text/plain',
+    '.json': 'application/json',
+  };
+
+  const detectedExt = path.extname(finalName).toLowerCase();
+  const contentType = MIME[detectedExt]
+    || proxyRes.headers['content-type']   // fall back to upstream if extension unknown
+    || 'application/octet-stream';        // safest fallback — forces download
+
+  res.setHeader("Content-Type", contentType);
   if (proxyRes.headers["content-length"]) {
     res.setHeader("Content-Length", proxyRes.headers["content-length"]);
   }
 
-  // Force download with the correct filename
-  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`);
-  // Allow frontend to read this header
+  // Force browser to save with the correct name (RFC 5987 UTF-8 encoded form)
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`
+  );
   res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
 
   proxyRes.pipe(res);

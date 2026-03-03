@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { signCloudinaryUrl } = require('./upload.controller');
 
 /**
  * @desc    Get all users (admin only)
@@ -56,7 +57,7 @@ const getUsers = asyncHandler(async (req, res) => {
                 firstName: user.first_name,
                 lastName: user.last_name,
                 role: user.role,
-                avatarUrl: user.avatar_url,
+                avatarUrl: signCloudinaryUrl(user.avatar_url),
                 bio: user.bio,
                 isActive: user.is_active,
                 isVerified: user.is_verified,
@@ -123,7 +124,7 @@ const getUserById = asyncHandler(async (req, res) => {
             firstName: user.first_name,
             lastName: user.last_name,
             role: user.role,
-            avatarUrl: user.avatar_url,
+            avatarUrl: signCloudinaryUrl(user.avatar_url),
             bio: user.bio,
             phone: user.phone,
             isActive: user.is_active,
@@ -201,7 +202,7 @@ const updateUser = asyncHandler(async (req, res) => {
             firstName: user.first_name,
             lastName: user.last_name,
             role: user.role,
-            avatarUrl: user.avatar_url,
+            avatarUrl: signCloudinaryUrl(user.avatar_url),
             bio: user.bio,
             phone: user.phone
         }
@@ -356,7 +357,7 @@ const getInstructors = asyncHandler(async (req, res) => {
                 id: instructor.id,
                 firstName: instructor.first_name,
                 lastName: instructor.last_name,
-                avatarUrl: instructor.avatar_url,
+                avatarUrl: signCloudinaryUrl(instructor.avatar_url),
                 bio: instructor.bio,
                 courseCount: parseInt(instructor.course_count),
                 studentCount: parseInt(instructor.student_count),

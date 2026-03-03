@@ -1,5 +1,6 @@
 const { query, transaction } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { signCloudinaryUrl } = require('./upload.controller');
 
 /**
  * Generate URL-friendly slug from title
@@ -130,7 +131,7 @@ const getCourses = asyncHandler(async (req, res) => {
                 title: course.title,
                 slug: course.slug,
                 shortDescription: course.short_description,
-                thumbnailUrl: course.thumbnail_url,
+                thumbnailUrl: signCloudinaryUrl(course.thumbnail_url),
                 price: parseFloat(course.price),
                 discountPrice: course.discount_price ? parseFloat(course.discount_price) : null,
                 currency: course.currency,
@@ -150,7 +151,7 @@ const getCourses = asyncHandler(async (req, res) => {
                     id: course.instructor_id,
                     firstName: course.instructor_first_name,
                     lastName: course.instructor_last_name,
-                    avatarUrl: course.instructor_avatar
+                    avatarUrl: signCloudinaryUrl(course.instructor_avatar)
                 },
                 category: course.category_id ? {
                     id: course.category_id,
@@ -252,10 +253,11 @@ const getCourseById = asyncHandler(async (req, res) => {
             title: course.title,
             slug: course.slug,
             description: course.description,
+            categoryId: course.category_id,
             shortDescription: course.short_description,
-            thumbnailUrl: course.thumbnail_url,
-            previewVideoUrl: course.preview_video_url,
-            price: parseFloat(course.price),
+            thumbnailUrl: signCloudinaryUrl(course.thumbnail_url),
+            previewVideoUrl: signCloudinaryUrl(course.preview_video_url),
+            price: parseFloat(course.price || 0),
             discountPrice: course.discount_price ? parseFloat(course.discount_price) : null,
             currency: course.currency,
             level: course.level,
@@ -277,7 +279,7 @@ const getCourseById = asyncHandler(async (req, res) => {
                 id: course.instructor_id,
                 firstName: course.instructor_first_name,
                 lastName: course.instructor_last_name,
-                avatarUrl: course.instructor_avatar,
+                avatarUrl: signCloudinaryUrl(course.instructor_avatar),
                 bio: course.instructor_bio
             },
             category: course.category_id ? {
@@ -660,7 +662,7 @@ const getInstructorCourses = asyncHandler(async (req, res) => {
                 id: course.id,
                 title: course.title,
                 slug: course.slug,
-                thumbnailUrl: course.thumbnail_url,
+                thumbnailUrl: signCloudinaryUrl(course.thumbnail_url),
                 status: course.status,
                 price: parseFloat(course.price),
                 ratingAvg: parseFloat(course.rating_avg),
@@ -793,7 +795,7 @@ const getAllCoursesAdmin = asyncHandler(async (req, res) => {
                 title: course.title,
                 slug: course.slug,
                 shortDescription: course.short_description,
-                thumbnailUrl: course.thumbnail_url,
+                thumbnailUrl: signCloudinaryUrl(course.thumbnail_url),
                 price: parseFloat(course.price),
                 discountPrice: course.discount_price ? parseFloat(course.discount_price) : null,
                 currency: course.currency,
@@ -813,7 +815,7 @@ const getAllCoursesAdmin = asyncHandler(async (req, res) => {
                     id: course.instructor_id,
                     firstName: course.instructor_first_name,
                     lastName: course.instructor_last_name,
-                    avatarUrl: course.instructor_avatar
+                    avatarUrl: signCloudinaryUrl(course.instructor_avatar)
                 },
                 category: course.category_id ? {
                     id: course.category_id,

@@ -1,6 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
-const { projectUpload, uploadToCloudinary, cloudinaryEnabled } = require('./upload.controller');
+const { projectUpload, uploadToCloudinary, cloudinaryEnabled, signCloudinaryUrl } = require('./upload.controller');
 
 /**
  * @desc    Create a project for a course
@@ -45,9 +45,14 @@ const createProject = asyncHandler(async (req, res) => {
         [courseId, title, description, instructions, dueDate || null, maxFileSize || 10485760, allowedFileTypes || null, attachmentUrl, attachmentName]
     );
 
+    const projectData = result.rows[0];
+    if (projectData.attachment_url) {
+        projectData.attachment_url = signCloudinaryUrl(projectData.attachment_url);
+    }
+
     res.status(201).json({
         success: true,
-        data: result.rows[0]
+        data: projectData
     });
 });
 
@@ -70,9 +75,16 @@ const getCourseProjects = asyncHandler(async (req, res) => {
         [courseId]
     );
 
+    const projects = result.rows.map(p => {
+        if (p.attachment_url) {
+            p.attachment_url = signCloudinaryUrl(p.attachment_url);
+        }
+        return p;
+    });
+
     res.json({
         success: true,
-        data: result.rows
+        data: projects
     });
 });
 
@@ -102,11 +114,20 @@ const getProject = asyncHandler(async (req, res) => {
         [projectId, userId]
     );
 
+    if (project.attachment_url) {
+        project.attachment_url = signCloudinaryUrl(project.attachment_url);
+    }
+
+    const submission = submissionResult.rows[0] || null;
+    if (submission && submission.submission_url) {
+        submission.submission_url = signCloudinaryUrl(submission.submission_url);
+    }
+
     res.json({
         success: true,
         data: {
             project,
-            submission: submissionResult.rows[0] || null
+            submission
         }
     });
 });
@@ -173,9 +194,14 @@ const submitProject = asyncHandler(async (req, res) => {
         [projectId, userId, submissionUrl, submissionText, fileName, fileSize]
     );
 
+    const submissionData = result.rows[0];
+    if (submissionData.submission_url) {
+        submissionData.submission_url = signCloudinaryUrl(submissionData.submission_url);
+    }
+
     res.json({
         success: true,
-        data: result.rows[0]
+        data: submissionData
     });
 });
 
@@ -217,9 +243,16 @@ const getProjectSubmissions = asyncHandler(async (req, res) => {
         [projectId]
     );
 
+    const submissions = result.rows.map(s => {
+        if (s.submission_url) {
+            s.submission_url = signCloudinaryUrl(s.submission_url);
+        }
+        return s;
+    });
+
     res.json({
         success: true,
-        data: result.rows
+        data: submissions
     });
 });
 
@@ -316,10 +349,17 @@ const getInstructorAllSubmissions = asyncHandler(async (req, res) => {
         [...params, parseInt(limit), parseInt(offset)]
     );
 
+    const submissions = result.rows.map(s => {
+        if (s.submission_url) {
+            s.submission_url = signCloudinaryUrl(s.submission_url);
+        }
+        return s;
+    });
+
     res.json({
         success: true,
         data: {
-            submissions: result.rows,
+            submissions,
             pagination: {
                 page: parseInt(page),
                 limit: parseInt(limit),
@@ -371,9 +411,14 @@ const gradeSubmission = asyncHandler(async (req, res) => {
         [grade, feedback, req.user.id, submissionId]
     );
 
+    const submissionData = result.rows[0];
+    if (submissionData.submission_url) {
+        submissionData.submission_url = signCloudinaryUrl(submissionData.submission_url);
+    }
+
     res.json({
         success: true,
-        data: result.rows[0]
+        data: submissionData
     });
 });
 
@@ -432,9 +477,14 @@ const updateProject = asyncHandler(async (req, res) => {
         [title, description, instructions, dueDate, maxFileSize, allowedFileTypes, attachmentUrl, attachmentName, projectId]
     );
 
+    const projectData = result.rows[0];
+    if (projectData.attachment_url) {
+        projectData.attachment_url = signCloudinaryUrl(projectData.attachment_url);
+    }
+
     res.json({
         success: true,
-        data: result.rows[0]
+        data: projectData
     });
 });
 

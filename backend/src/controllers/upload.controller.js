@@ -123,8 +123,17 @@ const uploadToCloudinary = async (filePath, originalname) => {
     const result = await uploaderFn(filePath, uploadOptions);
 
     let deliveryUrl = result.secure_url;
-    // Ensure the video URL ends with .mp4 for mobile compatibility
-    if (resourceType === "video" && !deliveryUrl.endsWith(".mp4")) {
+    // For raw files restricted by 'Restrict unsigned access to raw resources', sign the URL immediately
+    if (resourceType === "raw") {
+      deliveryUrl = cloudinary.url(result.public_id + (path.extname(originalname) || ''), {
+        resource_type: "raw",
+        sign_url: true,
+        type: 'upload',
+        secure: true,
+        expires_at: Math.floor(Date.now() / 1000) + 31536000 // 1 year expiry
+      });
+    } else if (resourceType === "video" && !deliveryUrl.endsWith(".mp4")) {
+      // Ensure the video URL ends with .mp4 for mobile compatibility
       deliveryUrl = deliveryUrl.replace(/\.[^/.]+$/, ".mp4");
     }
     console.log(`✅ Cloudinary upload success: ${deliveryUrl}`);
@@ -162,6 +171,7 @@ const signCloudinaryUrl = (url) => {
       sign_url: true,
       type: 'upload',
       secure: true,
+      expires_at: Math.floor(Date.now() / 1000) + 31536000 // 1 year expiry
     });
     return signed;
   } catch (err) {

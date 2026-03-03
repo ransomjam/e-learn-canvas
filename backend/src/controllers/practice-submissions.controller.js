@@ -1,6 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
-const { projectUpload, uploadToCloudinary, cloudinaryEnabled } = require('./upload.controller');
+const { projectUpload, uploadToCloudinary, cloudinaryEnabled, signCloudinaryUrl } = require('./upload.controller');
 
 /**
  * @desc    Submit a custom practice file for a lesson
@@ -62,9 +62,14 @@ const submitPracticeFile = asyncHandler(async (req, res) => {
         [lessonId, courseId, userId, fileUrl, fileName, fileSize, notes || null]
     );
 
+    const submissionData = result.rows[0];
+    if (submissionData.file_url) {
+        submissionData.file_url = signCloudinaryUrl(submissionData.file_url);
+    }
+
     res.status(201).json({
         success: true,
-        data: result.rows[0]
+        data: submissionData
     });
 });
 
@@ -97,9 +102,16 @@ const getMyPracticeSubmissions = asyncHandler(async (req, res) => {
         params
     );
 
+    const submissions = result.rows.map(s => {
+        if (s.file_url) {
+            s.file_url = signCloudinaryUrl(s.file_url);
+        }
+        return s;
+    });
+
     res.json({
         success: true,
-        data: result.rows
+        data: submissions
     });
 });
 
@@ -155,10 +167,17 @@ const getInstructorPracticeSubmissions = asyncHandler(async (req, res) => {
         [...params, parseInt(limit), parseInt(offset)]
     );
 
+    const submissions = result.rows.map(s => {
+        if (s.file_url) {
+            s.file_url = signCloudinaryUrl(s.file_url);
+        }
+        return s;
+    });
+
     res.json({
         success: true,
         data: {
-            submissions: result.rows,
+            submissions,
             pagination: {
                 page: parseInt(page),
                 limit: parseInt(limit),

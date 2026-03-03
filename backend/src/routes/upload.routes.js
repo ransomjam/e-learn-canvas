@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { upload, uploadFile, downloadFile, handleMulterError, getUploadSignature } = require('../controllers/upload.controller');
-const { authenticate } = require('../middleware/auth.middleware');
+const { authenticate, optionalAuth } = require('../middleware/auth.middleware');
 
 /**
  * @route   GET /api/v1/upload/sign
@@ -20,8 +20,8 @@ router.post('/', authenticate, handleMulterError(upload.single('file')), uploadF
  *          streams it to the client with the correct Content-Disposition header.
  * @query   url      — the absolute file URL
  * @query   filename — the desired download filename (optional)
- * @access  Private
+ * @access  Public (optionalAuth — no sensitive data, just proxies public URLs)
  */
-router.get('/download', authenticate, downloadFile);
+router.get('/download', optionalAuth, downloadFile);
 
 module.exports = router;

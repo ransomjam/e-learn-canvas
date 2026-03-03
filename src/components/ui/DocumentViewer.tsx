@@ -83,21 +83,49 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
             setError(null);
             setPdfDoc(null);
             setPageNum(1);
-            const loadingTask = pdfjsLib.getDocument(resolvedUrl);
 
-            loadingTask.promise
-                .then((doc) => {
-                    setPdfDoc(doc);
-                    setNumPages(doc.numPages);
-                    setLoading(false);
-                })
-                .catch((err) => {
-                    console.error('Error loading PDF:', err);
-                    setError('Failed to load PDF document.');
-                    setLoading(false);
-                });
+            const isCloudinary = resolvedUrl.includes('res.cloudinary.com');
+
+            if (isCloudinary) {
+                // Cloudinary raw uploads don't serve CORS headers, so pdf.js
+                // can't fetch them directly. Route through the backend proxy.
+                api
+                    .get('/upload/download', {
+                        params: { url: resolvedUrl, filename: title || 'document.pdf' },
+                        responseType: 'arraybuffer',
+                    })
+                    .then((response) => {
+                        const data = new Uint8Array(response.data);
+                        const loadingTask = pdfjsLib.getDocument({ data });
+                        return loadingTask.promise;
+                    })
+                    .then((doc) => {
+                        setPdfDoc(doc);
+                        setNumPages(doc.numPages);
+                        setLoading(false);
+                    })
+                    .catch((err) => {
+                        console.error('Error loading PDF via proxy:', err);
+                        setError('Failed to load PDF document.');
+                        setLoading(false);
+                    });
+            } else {
+                // Non-Cloudinary (local/same-origin) — load directly
+                const loadingTask = pdfjsLib.getDocument(resolvedUrl);
+                loadingTask.promise
+                    .then((doc) => {
+                        setPdfDoc(doc);
+                        setNumPages(doc.numPages);
+                        setLoading(false);
+                    })
+                    .catch((err) => {
+                        console.error('Error loading PDF:', err);
+                        setError('Failed to load PDF document.');
+                        setLoading(false);
+                    });
+            }
         }
-    }, [resolvedUrl, type]);
+    }, [resolvedUrl, type, title]);
 
     // Compute a scale that fits the PDF page width into the container
     const computeFitScale = useCallback(async () => {

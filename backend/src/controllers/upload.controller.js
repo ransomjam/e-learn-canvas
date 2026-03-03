@@ -144,7 +144,11 @@ const uploadToCloudinary = async (filePath, originalname) => {
 const signCloudinaryUrl = (url) => {
   if (!url || !cloudinaryEnabled) return url;
 
-  // Only sign res.cloudinary.com URLs
+  // Skip URLs that are already signed (contain Cloudinary signature token s--...--)
+  // Re-signing an already-signed URL corrupts it and causes 404.
+  if (url.includes('/s--') && url.includes('--/')) return url;
+
+  // Only sign res.cloudinary.com URLs; skip others (external links, local paths)
   const match = url.match(
     /res\.cloudinary\.com\/([^/]+)\/(image|video|raw)\/upload\/(?:v\d+\/)?(.+)/
   );
@@ -152,16 +156,18 @@ const signCloudinaryUrl = (url) => {
 
   const [, , resourceType, publicIdWithExt] = match;
 
-  // cloudinary.url() expects public_id without the file extension for image/video,
-  // but raw resources MUST include the extension.
-  const signed = cloudinary.url(publicIdWithExt, {
-    resource_type: resourceType,
-    sign_url: true,
-    type: 'upload',
-    secure: true,
-  });
-
-  return signed;
+  try {
+    const signed = cloudinary.url(publicIdWithExt, {
+      resource_type: resourceType,
+      sign_url: true,
+      type: 'upload',
+      secure: true,
+    });
+    return signed;
+  } catch (err) {
+    console.error('signCloudinaryUrl failed:', err.message);
+    return url; // fall back to original URL on error
+  }
 };
 
 // ── Route handler: POST /api/v1/upload ───────────────────────────────────────
@@ -235,7 +241,16 @@ const downloadFile = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Missing "url" query parameter');
   }
 
-  const downloadName = filename || "download";
+  // Determine the best filename. `filename` query param is authoritative.
+  // Fall back to extracting from the URL path if not provided.
+  let downloadName = filename || '';
+  if (!downloadName) {
+    try {
+      downloadName = decodeURIComponent(path.basename(new URL(url).pathname));
+    } catch {
+      downloadName = 'download';
+    }
+  }
 
   // --- Local uploads (served from /uploads/) ---
   if (url.startsWith("/uploads/") || url.startsWith("uploads/")) {
@@ -253,21 +268,21 @@ const downloadFile = asyncHandler(async (req, res) => {
       throw new ApiError(404, "File not found");
     }
 
-    // Set headers for download
+    // Ensure the filename has the correct extension
     const ext = path.extname(downloadName) || path.extname(resolved);
-    const finalName = downloadName.endsWith(ext)
-      ? downloadName
-      : downloadName + ext;
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${encodeURIComponent(finalName)}"`,
-    );
+    const finalName = path.extname(downloadName) ? downloadName : downloadName + ext;
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(finalName)}"`);
+    res.setHeader("Content-Type", "application/octet-stream");
     return fs.createReadStream(resolved).pipe(res);
   }
 
   // --- Remote URL (Cloudinary, etc.) ---
-  // Sign Cloudinary URLs to bypass raw resource access restrictions
+  // Sign Cloudinary URLs that are NOT already signed to bypass access restrictions.
+  // Already-signed URLs (containing s--...--) must NOT be re-signed: double-signing
+  // corrupts the public_id extraction and produces a 404 from Cloudinary.
   const fetchUrl = signCloudinaryUrl(url);
+
+  console.log(`📥 Download proxy: ${fetchUrl.substring(0, 80)}...`);
 
   const https = require("https");
   const http = require("http");
@@ -275,24 +290,16 @@ const downloadFile = asyncHandler(async (req, res) => {
 
   protocol
     .get(fetchUrl, (proxyRes) => {
-      if (
-        proxyRes.statusCode >= 300 &&
-        proxyRes.statusCode < 400 &&
-        proxyRes.headers.location
-      ) {
-        // Follow redirect once
-        const redirectProtocol = proxyRes.headers.location.startsWith("https")
-          ? https
-          : http;
+      // Handle redirects (follow once)
+      if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+        const redirectProtocol = proxyRes.headers.location.startsWith("https") ? https : http;
         redirectProtocol
           .get(proxyRes.headers.location, (redirectRes) => {
             streamResponse(redirectRes, res, downloadName, url);
           })
           .on("error", (err) => {
             console.error("Download redirect error:", err.message);
-            res
-              .status(502)
-              .json({ success: false, message: "Failed to download file" });
+            res.status(502).json({ success: false, message: "Failed to download file" });
           });
         return;
       }
@@ -300,44 +307,42 @@ const downloadFile = asyncHandler(async (req, res) => {
     })
     .on("error", (err) => {
       console.error("Download proxy error:", err.message);
-      res
-        .status(502)
-        .json({ success: false, message: "Failed to download file" });
+      res.status(502).json({ success: false, message: "Failed to download file" });
     });
 });
 
 function streamResponse(proxyRes, res, downloadName, originalUrl) {
   if (proxyRes.statusCode !== 200) {
-    res
-      .status(proxyRes.statusCode || 502)
-      .json({ success: false, message: "File not available" });
+    console.error(`Download proxy: upstream returned ${proxyRes.statusCode} for ${originalUrl}`);
+    res.status(proxyRes.statusCode || 502).json({ success: false, message: "File not available" });
     return;
   }
 
-  // Determine extension from the original URL if the download name doesn't have one
-  let ext = path.extname(downloadName);
-  if (!ext) {
+  // Build the final filename: make sure it keeps the right extension.
+  // Prefer the filename query param; fall back to extracting from the Cloudinary URL path.
+  let finalName = downloadName;
+  if (!path.extname(finalName)) {
+    // Try to get extension from the original URL path (before any query string)
     try {
       const urlPath = new URL(originalUrl).pathname;
-      ext = path.extname(urlPath) || "";
-    } catch {
-      /* ignore */
-    }
+      // Strip Cloudinary signature token if present (s--...-- segment)
+      const cleanPath = urlPath.replace(/\/s--[^/]+--/, '');
+      const ext = path.extname(cleanPath);
+      if (ext) finalName = finalName + ext;
+    } catch { /* ignore */ }
   }
-  const finalName =
-    ext && !downloadName.endsWith(ext) ? downloadName + ext : downloadName;
 
-  // Forward content headers
-  if (proxyRes.headers["content-type"]) {
-    res.setHeader("Content-Type", proxyRes.headers["content-type"]);
-  }
+  // Forward key content headers
+  const contentType = proxyRes.headers["content-type"];
+  if (contentType) res.setHeader("Content-Type", contentType);
   if (proxyRes.headers["content-length"]) {
     res.setHeader("Content-Length", proxyRes.headers["content-length"]);
   }
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${encodeURIComponent(finalName)}"`,
-  );
+
+  // Force download with the correct filename
+  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`);
+  // Allow frontend to read this header
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
 
   proxyRes.pipe(res);
 }

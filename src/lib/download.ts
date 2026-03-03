@@ -38,10 +38,17 @@ export function downloadProjectFile(
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
     .then((r) => {
+      // 401 = token expired or not logged in → open the file directly
+      if (r.status === 401) {
+        window.open(absoluteUrl, '_blank');
+        onEnd?.();
+        return null;
+      }
       if (!r.ok) throw new Error('Download failed');
       return r.blob();
     })
     .then((blob) => {
+      if (!blob) return;
       const blobUrl = URL.createObjectURL(blob);
       const isIOS =
         /iPad|iPhone|iPod/.test(navigator.userAgent) ||

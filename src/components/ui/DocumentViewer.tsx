@@ -24,10 +24,16 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
             headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
             .then(r => {
+                // 401 = token expired or not logged in → open directly
+                if (r.status === 401) {
+                    window.open(url, '_blank');
+                    return null;
+                }
                 if (!r.ok) throw new Error('Download failed');
                 return r.blob();
             })
             .then(blob => {
+                if (!blob) return;
                 const blobUrl = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = blobUrl;

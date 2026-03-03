@@ -153,17 +153,23 @@ const uploadToCloudinary = async (filePath, originalname) => {
 const signCloudinaryUrl = (url) => {
   if (!url || !cloudinaryEnabled) return url;
 
-  // Skip URLs that are already signed (contain Cloudinary signature token s--...--)
-  // Re-signing an already-signed URL corrupts it and causes 404.
-  if (url.includes('/s--') && url.includes('--/')) return url;
+  // Only handle res.cloudinary.com URLs
+  if (!url.includes('res.cloudinary.com')) return url;
 
-  // Only sign res.cloudinary.com URLs; skip others (external links, local paths)
-  const match = url.match(
+  // Strip any existing signature (s--...--) before re-signing
+  // This handles both unsigned URLs and previously-signed (now expired) URLs
+  const strippedUrl = url.replace(/\/s--[A-Za-z0-9_-]+--/, '');
+
+  const match = strippedUrl.match(
     /res\.cloudinary\.com\/([^/]+)\/(image|video|raw)\/upload\/(?:v\d+\/)?(.+)/
   );
-  if (!match) return url; // not a Cloudinary upload URL
+  if (!match) return url;
 
   const [, , resourceType, publicIdWithExt] = match;
+
+  // Extract version if present
+  const versionMatch = strippedUrl.match(/\/upload\/(v\d+)\//);
+  const version = versionMatch ? versionMatch[1] : undefined;
 
   try {
     const signed = cloudinary.url(publicIdWithExt, {
@@ -171,12 +177,14 @@ const signCloudinaryUrl = (url) => {
       sign_url: true,
       type: 'upload',
       secure: true,
+      ...(version ? { version } : {}),
       expires_at: Math.floor(Date.now() / 1000) + 31536000 // 1 year expiry
     });
+    // console.log(`🔏 Re-signed URL: ${signed.substring(0, 80)}...`);
     return signed;
   } catch (err) {
     console.error('signCloudinaryUrl failed:', err.message);
-    return url; // fall back to original URL on error
+    return url;
   }
 };
 

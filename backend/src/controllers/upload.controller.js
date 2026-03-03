@@ -123,16 +123,9 @@ const uploadToCloudinary = async (filePath, originalname) => {
     const result = await uploaderFn(filePath, uploadOptions);
 
     let deliveryUrl = result.secure_url;
-    // For raw files restricted by 'Restrict unsigned access to raw resources', sign the URL immediately
-    if (resourceType === "raw") {
-      deliveryUrl = cloudinary.url(result.public_id + (path.extname(originalname) || ''), {
-        resource_type: "raw",
-        sign_url: true,
-        type: 'upload',
-        secure: true,
-        expires_at: Math.floor(Date.now() / 1000) + 31536000 // 1 year expiry
-      });
-    } else if (resourceType === "video" && !deliveryUrl.endsWith(".mp4")) {
+    // Just save unsigned URLs natively into the database. 
+    // They will be dynamically signed by `signCloudinaryUrl()` upon retrieval.
+    if (resourceType === "video" && !deliveryUrl.endsWith(".mp4")) {
       // Ensure the video URL ends with .mp4 for mobile compatibility
       deliveryUrl = deliveryUrl.replace(/\.[^/.]+$/, ".mp4");
     }
@@ -172,6 +165,20 @@ const signCloudinaryUrl = (url) => {
   const version = versionMatch ? versionMatch[1] : undefined;
 
   try {
+    // For raw resources blocked by "Restrict unsigned access", res.cloudinary.com CDN URLs 
+    // strictly return 401 even with an `s--` signature unless they were uploaded explicitly as
+    // `type: "authenticated"`. To download an existing "upload" raw asset, we MUST use the
+    // Cloudinary Management API via private_download_url.
+    if (resourceType === 'raw') {
+      const signed = cloudinary.utils.private_download_url(publicIdWithExt, '', {
+        resource_type: resourceType,
+        type: 'upload',
+        expires_at: Math.floor(Date.now() / 1000) + 3153600 // Expiry for API download link
+      });
+      return signed;
+    }
+
+    // For images/videos, standard URL signing works perfectly.
     const signed = cloudinary.url(publicIdWithExt, {
       resource_type: resourceType,
       sign_url: true,
@@ -180,7 +187,6 @@ const signCloudinaryUrl = (url) => {
       ...(version ? { version } : {}),
       expires_at: Math.floor(Date.now() / 1000) + 31536000 // 1 year expiry
     });
-    // console.log(`🔏 Re-signed URL: ${signed.substring(0, 80)}...`);
     return signed;
   } catch (err) {
     console.error('signCloudinaryUrl failed:', err.message);

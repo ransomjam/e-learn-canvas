@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './api';
 import api from './api';
+import { resolveMediaUrl } from './media';
 
 /**
  * Resolve a file URL for display/download.

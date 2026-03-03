@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { coursesService, Section, Lesson } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
 import { resolveMediaUrl, toDirectVideoUrl } from '@/lib/media';
+import { resolveFileUrl } from '@/lib/download';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';

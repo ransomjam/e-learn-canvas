@@ -3,6 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Loader2, Maximize, Minimize, RotateCw, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import api from '@/lib/api';
 
 // Set worker source
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
@@ -18,16 +19,13 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     // Download helper — routes through backend proxy for reliable cross-origin downloads
     const triggerDownload = () => {
         const downloadName = title || 'download';
-        const proxyUrl = `/api/v1/upload/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(downloadName)}`;
-        const token = localStorage.getItem('accessToken');
-        fetch(proxyUrl, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-            .then(r => {
-                if (!r.ok) throw new Error('Download failed');
-                return r.blob();
+        api
+            .get('/upload/download', {
+                params: { url, filename: downloadName },
+                responseType: 'blob',
             })
-            .then(blob => {
+            .then((response) => {
+                const blob = response.data as Blob;
                 const blobUrl = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = blobUrl;

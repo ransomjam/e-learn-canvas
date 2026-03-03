@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './api';
+import api from './api';
 
 /**
  * Resolve a file URL for display/download.
@@ -29,19 +30,16 @@ export function downloadProjectFile(
   // Resolve to absolute URL for the proxy
   const absoluteUrl = resolveFileUrl(fileUrl);
 
-  const proxyUrl = `${API_BASE_URL}/upload/download?url=${encodeURIComponent(absoluteUrl)}&filename=${encodeURIComponent(fileName)}`;
 
   onStart?.();
 
-  const token = localStorage.getItem('accessToken');
-  fetch(proxyUrl, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-    .then((r) => {
-      if (!r.ok) throw new Error('Download failed');
-      return r.blob();
+  api
+    .get('/upload/download', {
+      params: { url: absoluteUrl, filename: fileName },
+      responseType: 'blob',
     })
-    .then((blob) => {
+    .then((response) => {
+      const blob = response.data as Blob;
       const blobUrl = URL.createObjectURL(blob);
       const isIOS =
         /iPad|iPhone|iPod/.test(navigator.userAgent) ||

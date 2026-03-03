@@ -1,5 +1,5 @@
-import api, { API_BASE_URL } from './api';
-import { resolveMediaUrl } from './media';
+import { API_BASE_URL } from './api';
+import api from './api';
 
 /**
  * Resolve a file URL for display/download.

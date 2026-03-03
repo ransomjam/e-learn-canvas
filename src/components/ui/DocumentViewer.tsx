@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Loader2, Maximize
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
-import { resolveFileUrl } from '@/lib/download';
 
 // Set worker source
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
@@ -24,7 +23,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
         const downloadName = title || 'download';
         api
             .get('/upload/download', {
-                params: { url: resolvedUrl, filename: downloadName },
+                params: { url, filename: downloadName },
                 responseType: 'blob',
             })
             .then((response) => {

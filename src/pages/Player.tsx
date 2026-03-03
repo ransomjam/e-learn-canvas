@@ -21,7 +21,6 @@ import { enrollmentsService } from '@/services/enrollments.service';
 import { resolveMediaUrl, toDirectVideoUrl } from '@/lib/media';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
-import { resolveFileUrl } from '@/lib/download';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -1005,7 +1004,7 @@ const Player = () => {
                         // Cloudinary raw files, and sets Content-Disposition correctly.
                         api
                           .get('/upload/download', {
-                            params: { url: resolvedResourceUrl, filename: downloadName },
+                            params: { url: res.url, filename: downloadName },
                             responseType: 'blob',
                           })
                           .then((response) => {

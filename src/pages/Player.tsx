@@ -20,6 +20,7 @@ import { coursesService, Section, Lesson } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
 import { resolveMediaUrl, toDirectVideoUrl } from '@/lib/media';
 import { cn } from '@/lib/utils';
+import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -987,6 +988,7 @@ const Player = () => {
 
                       const itemId = res.id || String(idx);
                       const isDownloading = downloadingId === itemId;
+                      const resolvedResourceUrl = resolveFileUrl(res.url || '');
 
                       const handleDownload = (e: React.MouseEvent) => {
                         // For plain links, let the browser handle navigation
@@ -1001,24 +1003,13 @@ const Player = () => {
 
                         // Use the backend proxy for downloads — it handles CORS,
                         // Cloudinary raw files, and sets Content-Disposition correctly.
-                        const proxyUrl = `/api/v1/upload/download?url=${encodeURIComponent(res.url)}&filename=${encodeURIComponent(downloadName)}`;
-
-                        // Use fetch with auth token to go through the proxy
-                        const token = localStorage.getItem('accessToken');
-                        fetch(proxyUrl, {
-                          headers: token ? { Authorization: `Bearer ${token}` } : {},
-                        })
-                          .then(r => {
-                            // 401 = token expired or not logged in → open directly
-                            if (r.status === 401) {
-                              window.open(res.url, '_blank');
-                              return null;
-                            }
-                            if (!r.ok) throw new Error('Download failed');
-                            return r.blob();
+                        api
+                          .get('/upload/download', {
+                            params: { url: res.url, filename: downloadName },
+                            responseType: 'blob',
                           })
-                          .then(blob => {
-                            if (!blob) return;
+                          .then((response) => {
+                            const blob = response.data as Blob;
                             const blobUrl = URL.createObjectURL(blob);
                             // Check if iOS/iPhone — use window.open fallback for iOS Safari
                             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1049,7 +1040,7 @@ const Player = () => {
                           })
                           .catch(() => {
                             // Fallback: open the original URL in a new tab
-                            window.open(res.url, '_blank');
+                            window.open(resolvedResourceUrl, '_blank');
                           })
                           .finally(() => {
                             setDownloadingId(null);
@@ -1059,7 +1050,7 @@ const Player = () => {
                       return (
                         <a
                           key={res.id || idx}
-                          href={res.url}
+                          href={isLink ? res.url : resolvedResourceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={handleDownload}

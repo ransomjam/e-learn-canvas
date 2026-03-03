@@ -3,6 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Loader2, Maximize, Minimize, RotateCw, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import api from '@/lib/api';
 
 // Set worker source
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
@@ -15,25 +16,18 @@ interface DocumentViewerProps {
 }
 
 const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) => {
+    const resolvedUrl = resolveFileUrl(url);
+
     // Download helper — routes through backend proxy for reliable cross-origin downloads
     const triggerDownload = () => {
         const downloadName = title || 'download';
-        const proxyUrl = `/api/v1/upload/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(downloadName)}`;
-        const token = localStorage.getItem('accessToken');
-        fetch(proxyUrl, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-            .then(r => {
-                // 401 = token expired or not logged in → open directly
-                if (r.status === 401) {
-                    window.open(url, '_blank');
-                    return null;
-                }
-                if (!r.ok) throw new Error('Download failed');
-                return r.blob();
+        api
+            .get('/upload/download', {
+                params: { url, filename: downloadName },
+                responseType: 'blob',
             })
-            .then(blob => {
-                if (!blob) return;
+            .then((response) => {
+                const blob = response.data as Blob;
                 const blobUrl = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = blobUrl;
@@ -43,7 +37,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                 document.body.removeChild(a);
                 URL.revokeObjectURL(blobUrl);
             })
-            .catch(() => window.open(url, '_blank'));
+            .catch(() => window.open(resolvedUrl, '_blank'));
     };
     // PDF State
     const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
@@ -88,7 +82,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
             setError(null);
             setPdfDoc(null);
             setPageNum(1);
-            const loadingTask = pdfjsLib.getDocument(url);
+            const loadingTask = pdfjsLib.getDocument(resolvedUrl);
 
             loadingTask.promise
                 .then((doc) => {
@@ -102,7 +96,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     setLoading(false);
                 });
         }
-    }, [url, type]);
+    }, [resolvedUrl, type]);
 
     // Compute a scale that fits the PDF page width into the container
     const computeFitScale = useCallback(async () => {
@@ -276,7 +270,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     if (type === 'ppt' || type === 'doc' || type === 'pptx' || type === 'docx') {
         // Use Google Docs Viewer for Office files (works with publicly accessible URLs)
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+        const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(resolvedUrl)}&embedded=true`;
 
         const content = (
             <div

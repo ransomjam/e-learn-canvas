@@ -173,7 +173,8 @@ const signCloudinaryUrl = (url) => {
       const signed = cloudinary.utils.private_download_url(publicIdWithExt, '', {
         resource_type: resourceType,
         type: 'upload',
-        expires_at: Math.floor(Date.now() / 1000) + 3153600 // Expiry for API download link
+        attachment: true,  // tells Cloudinary to set Content-Disposition: attachment
+        expires_at: Math.floor(Date.now() / 1000) + 3153600
       });
       return signed;
     }
@@ -316,33 +317,39 @@ const downloadFile = asyncHandler(async (req, res) => {
   // corrupts the public_id extraction and produces a 404 from Cloudinary.
   const fetchUrl = signCloudinaryUrl(url);
 
-  console.log(`📥 Download proxy: ${fetchUrl.substring(0, 80)}...`);
+  console.log(`📥 Download proxy → ${fetchUrl.substring(0, 100)}...`);
 
   const https = require("https");
   const http = require("http");
-  const protocol = fetchUrl.startsWith("https") ? https : http;
 
-  protocol
-    .get(fetchUrl, (proxyRes) => {
-      // Handle redirects (follow once)
-      if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
-        const redirectProtocol = proxyRes.headers.location.startsWith("https") ? https : http;
-        redirectProtocol
-          .get(proxyRes.headers.location, (redirectRes) => {
-            streamResponse(redirectRes, res, downloadName, url);
-          })
-          .on("error", (err) => {
-            console.error("Download redirect error:", err.message);
-            res.status(502).json({ success: false, message: "Failed to download file" });
-          });
-        return;
-      }
-      streamResponse(proxyRes, res, downloadName, url);
-    })
-    .on("error", (err) => {
-      console.error("Download proxy error:", err.message);
-      res.status(502).json({ success: false, message: "Failed to download file" });
-    });
+  // Follow up to 3 redirects (Cloudinary management API can chain through multiple hops)
+  function followRedirects(targetUrl, hopsLeft, callback) {
+    const protocol = targetUrl.startsWith("https") ? https : http;
+    protocol
+      .get(targetUrl, (resp) => {
+        if (
+          hopsLeft > 0 &&
+          resp.statusCode >= 300 && resp.statusCode < 400 &&
+          resp.headers.location
+        ) {
+          resp.resume(); // drain the redirect body before following
+          followRedirects(resp.headers.location, hopsLeft - 1, callback);
+        } else {
+          callback(resp);
+        }
+      })
+      .on("error", (err) => {
+        console.error(`Download proxy fetch error: ${err.message} | url=${targetUrl.substring(0, 120)}`);
+        res.status(502).json({ success: false, message: "Failed to download file" });
+      });
+  }
+
+  followRedirects(fetchUrl, 3, (finalRes) => {
+    if (finalRes.statusCode !== 200) {
+      console.error(`Download proxy ${finalRes.statusCode}: fetchUrl=${fetchUrl.substring(0, 120)} | originalUrl=${url.substring(0, 120)}`);
+    }
+    streamResponse(finalRes, res, downloadName, url);
+  });
 });
 
 function streamResponse(proxyRes, res, downloadName, originalUrl) {
@@ -386,6 +393,32 @@ function streamResponse(proxyRes, res, downloadName, originalUrl) {
         const m = upstreamDisp.match(/filename[^;=\n]*=["']?([^"';\n]+)/i);
         if (m) ext = path.extname(m[1].trim());
       }
+    }
+
+    // (d) LAST RESORT: derive extension from upstream Content-Type.
+    // We use it ONLY to guess a file extension, never to set the outgoing Content-Type.
+    // Note: Cloudinary returns `application/pdf` for many raw assets regardless of format.
+    // But for xlsx/docx/pptx Cloudinary typically does return the correct MIME type, so
+    // this helps for those files while still being wrong for old PDF-identified non-PDFs.
+    if (!ext) {
+      const MIME_TO_EXT = {
+        'application/pdf': '.pdf',
+        'application/vnd.ms-powerpoint': '.ppt',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+        'application/msword': '.doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+        'application/vnd.ms-excel': '.xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+        'text/csv': '.csv',
+        'application/zip': '.zip',
+        'text/plain': '.txt',
+        'video/mp4': '.mp4',
+        'audio/mpeg': '.mp3',
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+      };
+      const upstreamContentType = (proxyRes.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      ext = MIME_TO_EXT[upstreamContentType] || '';
     }
 
     if (ext && ext !== '.') finalName = finalName + ext;

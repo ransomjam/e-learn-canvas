@@ -167,8 +167,8 @@ const signCloudinaryUrl = (url) => {
 
   const [, , resourceType, publicIdWithExt] = match;
 
-  // Extract version if present
-  const versionMatch = strippedUrl.match(/\/upload\/(v\d+)\//);
+  // Extract version if present (just the digits, avoiding 'vv123' bug)
+  const versionMatch = strippedUrl.match(/\/upload\/v(\d+)\//);
   const version = versionMatch ? versionMatch[1] : undefined;
 
   try {

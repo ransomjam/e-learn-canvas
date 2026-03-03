@@ -1,5 +1,26 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { signCloudinaryUrl } = require('./upload.controller');
+
+// Helper to deeply sign Cloudinary URLs in JSON arrays (like resources or practice_files)
+const signJsonResources = (resourcesData) => {
+    if (!resourcesData) return resourcesData;
+    let parsed = resourcesData;
+    let isString = false;
+    if (typeof resourcesData === 'string') {
+        try {
+            parsed = JSON.parse(resourcesData);
+            isString = true;
+        } catch {
+            return resourcesData;
+        }
+    }
+    if (Array.isArray(parsed)) {
+        const signed = parsed.map(r => ({ ...r, url: signCloudinaryUrl(r.url) }));
+        return isString ? JSON.stringify(signed) : signed;
+    }
+    return resourcesData;
+};
 
 /**
  * Generate URL-friendly slug from title
@@ -254,9 +275,9 @@ const getCourseLessons = asyncHandler(async (req, res) => {
             // Always include content for enrolled/admin users or free lessons
             if (hasFullAccess || row.is_free) {
                 lesson.content = row.content;
-                lesson.videoUrl = row.video_url;
-                lesson.resources = row.resources;
-                lesson.practiceFiles = row.practice_files;
+                lesson.videoUrl = signCloudinaryUrl(row.video_url);
+                lesson.resources = signJsonResources(row.resources);
+                lesson.practiceFiles = signJsonResources(row.practice_files);
                 lesson.quizData = row.quiz_data;
             }
 
@@ -321,14 +342,15 @@ const getLessonById = asyncHandler(async (req, res) => {
                 description: lesson.description,
                 content: lesson.content,
                 type: lesson.type,
-                videoUrl: lesson.video_url,
+                videoUrl: signCloudinaryUrl(lesson.video_url),
                 videoDuration: lesson.video_duration,
                 orderIndex: lesson.order_index,
                 isFree: lesson.is_free,
                 isPublished: lesson.is_published,
                 isMandatory: lesson.is_mandatory,
                 quizData: lesson.quiz_data,
-                resources: lesson.resources,
+                resources: signJsonResources(lesson.resources),
+                practiceFiles: signJsonResources(lesson.practice_files),
                 createdAt: lesson.created_at
             }
         });
@@ -380,14 +402,15 @@ const getLessonById = asyncHandler(async (req, res) => {
             description: lesson.description,
             content: lesson.content,
             type: lesson.type,
-            videoUrl: lesson.video_url,
+            videoUrl: signCloudinaryUrl(lesson.video_url),
             videoDuration: lesson.video_duration,
             orderIndex: lesson.order_index,
             isFree: lesson.is_free,
             isPublished: lesson.is_published,
             isMandatory: lesson.is_mandatory,
             quizData: lesson.quiz_data,
-            resources: lesson.resources,
+            resources: signJsonResources(lesson.resources),
+            practiceFiles: signJsonResources(lesson.practice_files),
             section: {
                 id: lesson.section_id,
                 title: lesson.section_title

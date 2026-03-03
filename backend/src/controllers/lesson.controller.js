@@ -3,6 +3,8 @@ const { asyncHandler, ApiError } = require('../middleware/error.middleware');
 const { signCloudinaryUrl } = require('./upload.controller');
 
 // Helper to deeply sign Cloudinary URLs in JSON arrays (like resources or practice_files)
+// Also injects `originalName` from the URL path so the frontend download handler always
+// has a filename with the correct extension.
 const signJsonResources = (resourcesData) => {
     if (!resourcesData) return resourcesData;
     let parsed = resourcesData;
@@ -16,7 +18,23 @@ const signJsonResources = (resourcesData) => {
         }
     }
     if (Array.isArray(parsed)) {
-        const signed = parsed.map(r => ({ ...r, url: signCloudinaryUrl(r.url) }));
+        const signed = parsed.map(r => {
+            const signedUrl = signCloudinaryUrl(r.url);
+
+            // Derive originalName from the URL path if not already set.
+            // Strip any s--...-- signature token first, then grab the basename.
+            let originalName = r.originalName || r.original_name || '';
+            if (!originalName && r.url) {
+                try {
+                    const urlPath = new URL(r.url).pathname.replace(/\/s--[A-Za-z0-9_-]+--/, '');
+                    const base = decodeURIComponent(require('path').basename(urlPath));
+                    // Only use it if it looks like a filename (has an extension or meaningful name)
+                    if (base && base !== 'download') originalName = base;
+                } catch { /* ignore */ }
+            }
+
+            return { ...r, url: signedUrl, ...(originalName ? { originalName } : {}) };
+        });
         return isString ? JSON.stringify(signed) : signed;
     }
     return resourcesData;

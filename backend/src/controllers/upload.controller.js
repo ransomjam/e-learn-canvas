@@ -276,6 +276,16 @@ const downloadFile = asyncHandler(async (req, res) => {
     }
   }
 
+  // If downloadName has no extension, try to extract one from the raw URL path
+  // BEFORE the URL gets signed (private_download_url loses the CDN path extension).
+  if (!path.extname(downloadName)) {
+    try {
+      const urlPath = new URL(url).pathname.replace(/\/s--[A-Za-z0-9_-]+--/, '');
+      const ext = path.extname(urlPath);
+      if (ext && ext !== '.') downloadName = downloadName + ext;
+    } catch { /* ignore */ }
+  }
+
   // --- Local uploads (served from /uploads/) ---
   if (url.startsWith("/uploads/") || url.startsWith("uploads/")) {
     const safePath = path.normalize(url.replace(/^\//, ""));
@@ -386,31 +396,37 @@ function streamResponse(proxyRes, res, downloadName, originalUrl) {
   // ALL raw resources regardless of format. If we forward it blindly, the browser
   // appends ".pdf" to the filename even when the file is a .pptx or .xlsx.
   const MIME = {
-    '.pdf':  'application/pdf',
+    '.pdf': 'application/pdf',
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    '.ppt':  'application/vnd.ms-powerpoint',
+    '.ppt': 'application/vnd.ms-powerpoint',
     '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    '.doc':  'application/msword',
+    '.doc': 'application/msword',
     '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    '.xls':  'application/vnd.ms-excel',
-    '.csv':  'text/csv',
-    '.mp4':  'video/mp4',
+    '.xls': 'application/vnd.ms-excel',
+    '.csv': 'text/csv',
+    '.mp4': 'video/mp4',
     '.webm': 'video/webm',
-    '.mp3':  'audio/mpeg',
-    '.jpg':  'image/jpeg',
+    '.mp3': 'audio/mpeg',
+    '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
-    '.png':  'image/png',
-    '.gif':  'image/gif',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
     '.webp': 'image/webp',
-    '.zip':  'application/zip',
-    '.txt':  'text/plain',
+    '.zip': 'application/zip',
+    '.txt': 'text/plain',
     '.json': 'application/json',
   };
 
   const detectedExt = path.extname(finalName).toLowerCase();
-  const contentType = MIME[detectedExt]
-    || proxyRes.headers['content-type']   // fall back to upstream if extension unknown
-    || 'application/octet-stream';        // safest fallback — forces download
+  // IMPORTANT: never fall back to Cloudinary's upstream Content-Type.
+  // Cloudinary's private_download_url returns `application/pdf` for ALL raw
+  // resources regardless of the actual file format. Using it would cause browsers
+  // to append ".pdf" even to .pptx/.xlsx files.
+  // If we know the extension, use the correct MIME type. Otherwise force
+  // `application/octet-stream` which triggers a clean download with no extra extension.
+  const contentType = (detectedExt && MIME[detectedExt])
+    ? MIME[detectedExt]
+    : 'application/octet-stream';
 
   res.setHeader("Content-Type", contentType);
   if (proxyRes.headers["content-length"]) {

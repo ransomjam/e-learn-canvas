@@ -16,6 +16,8 @@ interface DocumentViewerProps {
 }
 
 const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) => {
+    const resolvedUrl = resolveFileUrl(url);
+
     // Download helper — routes through backend proxy for reliable cross-origin downloads
     const triggerDownload = () => {
         const downloadName = title || 'download';
@@ -35,7 +37,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                 document.body.removeChild(a);
                 URL.revokeObjectURL(blobUrl);
             })
-            .catch(() => window.open(url, '_blank'));
+            .catch(() => window.open(resolvedUrl, '_blank'));
     };
     // PDF State
     const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
@@ -80,7 +82,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
             setError(null);
             setPdfDoc(null);
             setPageNum(1);
-            const loadingTask = pdfjsLib.getDocument(url);
+            const loadingTask = pdfjsLib.getDocument(resolvedUrl);
 
             loadingTask.promise
                 .then((doc) => {
@@ -94,7 +96,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
                     setLoading(false);
                 });
         }
-    }, [url, type]);
+    }, [resolvedUrl, type]);
 
     // Compute a scale that fits the PDF page width into the container
     const computeFitScale = useCallback(async () => {
@@ -268,7 +270,7 @@ const DocumentViewer = ({ url, type, title, className }: DocumentViewerProps) =>
     if (type === 'ppt' || type === 'doc' || type === 'pptx' || type === 'docx') {
         // Use Google Docs Viewer for Office files (works with publicly accessible URLs)
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+        const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(resolvedUrl)}&embedded=true`;
 
         const content = (
             <div

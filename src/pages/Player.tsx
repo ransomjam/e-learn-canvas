@@ -987,6 +987,7 @@ const Player = () => {
 
                       const itemId = res.id || String(idx);
                       const isDownloading = downloadingId === itemId;
+                      const resolvedResourceUrl = resolveFileUrl(res.url || '');
 
                       const handleDownload = (e: React.MouseEvent) => {
                         // For plain links, let the browser handle navigation
@@ -1038,7 +1039,7 @@ const Player = () => {
                           })
                           .catch(() => {
                             // Fallback: open the original URL in a new tab
-                            window.open(res.url, '_blank');
+                            window.open(resolvedResourceUrl, '_blank');
                           })
                           .finally(() => {
                             setDownloadingId(null);
@@ -1048,7 +1049,7 @@ const Player = () => {
                       return (
                         <a
                           key={res.id || idx}
-                          href={res.url}
+                          href={isLink ? res.url : resolvedResourceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={handleDownload}

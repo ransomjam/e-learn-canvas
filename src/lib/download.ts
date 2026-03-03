@@ -7,11 +7,16 @@ import api from './api';
  */
 export function resolveFileUrl(url: string): string {
   if (!url) return '';
-  // Already an absolute URL (Cloudinary, etc.) — use as-is
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  // Local path — prepend the API root
+
+  // Reuse the shared media normalizer so legacy values like:
+  // - "1771260062503-235614758.png"
+  // - "uploads/file.pdf"
+  // - "/api/v1/uploads/file.pdf"
+  // all resolve correctly to a public /uploads URL.
+  const resolved = resolveMediaUrl(url);
+  if (resolved) return resolved;
+
+  // Fallback safety (should rarely be hit)
   const apiRoot = API_BASE_URL.replace('/api/v1', '');
   return `${apiRoot}${url.startsWith('/') ? '' : '/'}${url}`;
 }

@@ -534,138 +534,138 @@ const Player = () => {
           <div className="flex-shrink-0">
             <div className="max-w-5xl mx-auto p-5 space-y-4">
               {/* Lesson title and metadata */}
-              <div>
-                <h1 className="text-2xl font-bold text-foreground mb-1">
-                  {currentLesson?.title || 'Select a lesson'}
-                </h1>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground mb-3 font-medium">
-                  <span>{((course?.enrollmentCount || 0) * 4) + (likesData?.likesCount || 0) * 2 + 156} plays</span>
-                  <span>&bull;</span>
-                  <span>{course?.enrollmentCount || 0} student{(course?.enrollmentCount === 1) ? '' : 's'}</span>
-                  {currentLesson?.duration && (
-                    <>
-                      <span>&bull;</span>
-                      <span className="flex items-center gap-1">
+              {/* Lesson title and metadata */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-1">
+                <div className="flex-1">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground mb-3 drop-shadow-sm tracking-tight leading-tight">
+                    {currentLesson?.title || 'Select a lesson'}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-xs sm:text-sm text-foreground/80 font-medium">
+                    <span className="bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40 shadow-sm">{((course?.enrollmentCount || 0) * 4) + (likesData?.likesCount || 0) * 2 + 156} plays</span>
+                    <span className="bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40 shadow-sm">{course?.enrollmentCount || 0} student{(course?.enrollmentCount === 1) ? '' : 's'}</span>
+                    {currentLesson?.duration && (
+                      <span className="flex items-center gap-1.5 bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40 shadow-sm">
                         <Clock className="h-3.5 w-3.5" />
                         {currentLesson.duration} mins
                       </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rating Button Moved Here */}
+                <div className="relative flex-shrink-0 pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowRating(!showRating)}
+                    disabled={!progress}
+                    className="gap-2 h-9 px-4 text-sm font-semibold rounded-full border-border/60 hover:border-yellow-500/40 hover:bg-yellow-500/5 transition-all duration-300 shadow-sm hover:shadow-md group"
+                  >
+                    <Star className={`h-4 w-4 transition-transform group-hover:scale-110 ${userReview?.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                    <span>Rate: {userReview?.rating || course?.ratingAvg?.toFixed(1) || '0.0'}</span>
+                  </Button>
+
+                  {/* Rating dropdown */}
+                  {showRating && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowRating(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-2 z-50 bg-card border border-border/50 rounded-2xl shadow-2xl p-4 min-w-[220px] animate-in fade-in slide-in-from-top-2 duration-300 backdrop-blur-xl">
+                        <p className="text-sm font-bold text-foreground mb-3 text-center">Rate Course</p>
+                        <div className="flex justify-center gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              className="p-1.5 hover:scale-125 hover:-translate-y-1 transition-all duration-200"
+                              onMouseEnter={() => setHoverRating(star)}
+                              onMouseLeave={() => setHoverRating(0)}
+                              onClick={() => ratingMutation.mutate(star)}
+                              disabled={ratingMutation.isPending}
+                            >
+                              <Star
+                                className={`h-6 w-6 transition-colors ${star <= (hoverRating || userReview?.rating || 0)
+                                  ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]'
+                                  : 'text-muted-foreground/30'
+                                  }`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                        {ratingMutation.isPending && (
+                          <div className="flex justify-center mt-3">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
               </div>
 
               {/* Action buttons row - YouTube style */}
-              <div className="flex items-center justify-between gap-1.5 sm:gap-3 py-2 sm:py-3 border-y border-border">
-                <div className="flex items-center gap-1 sm:gap-3">
+              {/* Action buttons row - YouTube style */}
+              <div className="flex items-center justify-between gap-1.5 sm:gap-3 py-3 sm:py-4 border-y border-border/40">
+                <div className="flex items-center gap-2 sm:gap-3">
                   {/* Like button */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => currentLessonId && toggleLikeMutation.mutate(currentLessonId)}
                     disabled={!currentLessonId || toggleLikeMutation.isPending}
-                    className="gap-1 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                    className="gap-2 h-9 px-4 text-sm font-semibold rounded-full border-border/60 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 shadow-sm group"
                   >
-                    <ThumbsUp className={`h-3 w-3 sm:h-4 sm:w-4 ${likesData?.liked ? 'fill-primary text-primary' : ''}`} />
+                    <ThumbsUp className={`h-4 w-4 transition-transform group-hover:-translate-y-0.5 ${likesData?.liked ? 'fill-primary text-primary' : ''}`} />
                     <span>{likesData?.likesCount || 0}</span>
                   </Button>
-
-                  {/* Rating button */}
-                  <div className="relative">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowRating(!showRating)}
-                      disabled={!progress}
-                      className="gap-1 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                    >
-                      <Star className={`h-3 w-3 sm:h-4 sm:w-4 ${userReview?.rating ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                      <span>{userReview?.rating || course?.ratingAvg?.toFixed(1) || '0.0'}</span>
-                    </Button>
-
-                    {/* Rating dropdown */}
-                    {showRating && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowRating(false)}
-                        />
-                        <div className="absolute left-0 top-full mt-2 z-50 bg-card border border-border rounded-lg shadow-xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                          <p className="text-xs text-muted-foreground mb-2 text-center">Rate this course</p>
-                          <div className="flex gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <button
-                                key={star}
-                                type="button"
-                                className="p-1 hover:scale-110 transition-transform"
-                                onMouseEnter={() => setHoverRating(star)}
-                                onMouseLeave={() => setHoverRating(0)}
-                                onClick={() => ratingMutation.mutate(star)}
-                                disabled={ratingMutation.isPending}
-                              >
-                                <Star
-                                  className={`h-6 w-6 transition-colors ${star <= (hoverRating || userReview?.rating || 0)
-                                    ? 'fill-yellow-400 text-yellow-400'
-                                    : 'text-muted-foreground'
-                                    }`}
-                                />
-                              </button>
-                            ))}
-                          </div>
-                          {ratingMutation.isPending && (
-                            <div className="flex justify-center mt-2">
-                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
 
                   {/* Complete button */}
                   {currentLesson && !currentLesson.isCompleted && (
                     <Button
                       size="sm"
-                      variant="outline"
                       onClick={() => currentLessonId && completeLessonMutation.mutate(currentLessonId)}
                       disabled={completeLessonMutation.isPending}
-                      className="gap-1 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                      className="gap-2 h-9 px-4 text-sm font-semibold rounded-full shadow-[0_0_12px_hsla(var(--primary)/0.2)] hover:shadow-[0_0_20px_hsla(var(--primary)/0.4)] hover:-translate-y-0.5 transition-all duration-300 bg-primary/95 hover:bg-primary text-primary-foreground group"
                     >
                       {completeLessonMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <CheckCircle className="h-4 w-4 transition-transform group-hover:scale-110" />
                       )}
-                      <span className="hidden sm:inline">Mark as</span> Complete
+                      <span className="hidden sm:inline tracking-tight">Mark as Complete</span>
+                      <span className="sm:hidden tracking-tight">Complete</span>
                     </Button>
                   )}
                   {currentLesson?.isCompleted && (
-                    <span className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-accent font-medium px-2 sm:px-3 py-1 sm:py-1.5 bg-accent/10 rounded-full">
-                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Completed</span><span className="sm:hidden">Done</span>
+                    <span className="flex items-center gap-2 text-sm text-emerald-500 font-bold px-4 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-sm">
+                      <CheckCircle className="h-4 w-4" /> <span className="hidden sm:inline">Completed</span><span className="sm:hidden">Done</span>
                     </span>
                   )}
                 </div>
 
                 {/* Navigation buttons */}
-                <div className="flex gap-1 sm:gap-2 flex-shrink-0">
+                <div className="flex gap-2 flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => goToLesson('prev')}
                     disabled={currentIndex <= 0}
-                    className="h-7 sm:h-8 px-2 sm:px-3"
+                    className="h-9 px-3 sm:px-4 rounded-full border-border/60 hover:border-foreground/30 hover:bg-secondary/50 transition-all duration-300 hover:-translate-x-0.5 group"
                   >
-                    <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Previous</span>
+                    <ChevronLeft className="h-4 w-4 sm:mr-1 transition-transform group-hover:-translate-x-0.5" />
+                    <span className="hidden sm:inline font-medium tracking-tight">Previous</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => goToLesson('next')}
                     disabled={currentIndex >= allLessons.length - 1}
-                    className="h-7 sm:h-8 px-2 sm:px-3"
+                    className="h-9 px-3 sm:px-4 rounded-full border-border/60 hover:border-foreground/30 hover:bg-secondary/50 transition-all duration-300 hover:translate-x-0.5 group"
                   >
-                    <span className="hidden sm:inline">Next</span>
-                    <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 sm:ml-1" />
+                    <span className="hidden sm:inline font-medium tracking-tight">Next</span>
+                    <ChevronRight className="h-4 w-4 sm:ml-1 transition-transform group-hover:translate-x-0.5" />
                   </Button>
                 </div>
               </div>
@@ -845,7 +845,7 @@ const Player = () => {
           />
         )}
         <div
-          className={`flex flex-col min-h-0 border-l border-border bg-card shadow-2xl overflow-hidden
+          className={`flex flex-col min-h-0 border-l border-border/60 bg-gradient-to-b from-card to-card/95 shadow-2xl overflow-hidden
             ${isMobile ? (
               isSidebarOpen
                 ? 'fixed left-0 right-0 top-14 bottom-0 z-20 w-full'
@@ -854,20 +854,20 @@ const Player = () => {
               'lg:shadow-none static w-96'
             )}`}
         >
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="font-semibold text-foreground">Course Content</h2>
+          <div className="flex items-center justify-between border-b border-border/40 bg-card/50 px-5 py-4">
+            <h2 className="font-bold text-foreground tracking-tight">Course Content</h2>
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(false)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1 overflow-hidden">
-            <div className="border-b border-border px-2 py-1.5">
-              <TabsList className="grid w-full grid-cols-4 h-auto gap-1">
-                <TabsTrigger value="content" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Lessons</TabsTrigger>
-                <TabsTrigger value="resources" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Resources</TabsTrigger>
-                <TabsTrigger value="projects" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Projects</TabsTrigger>
-                <TabsTrigger value="assessment" className="text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">Quiz</TabsTrigger>
+            <div className="border-b border-border/40 bg-muted/20 px-3 py-2.5">
+              <TabsList className="grid w-full grid-cols-4 h-auto gap-1 bg-background/60 backdrop-blur-md p-1 rounded-xl border border-border/50 shadow-inner">
+                <TabsTrigger value="content" className="rounded-lg text-[11px] sm:text-xs font-medium px-1 sm:px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Lessons</TabsTrigger>
+                <TabsTrigger value="resources" className="rounded-lg text-[11px] sm:text-xs font-medium px-1 sm:px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Resources</TabsTrigger>
+                <TabsTrigger value="projects" className="rounded-lg text-[11px] sm:text-xs font-medium px-1 sm:px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Projects</TabsTrigger>
+                <TabsTrigger value="assessment" className="rounded-lg text-[11px] sm:text-xs font-medium px-1 sm:px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Quiz</TabsTrigger>
               </TabsList>
             </div>
 
@@ -879,11 +879,11 @@ const Player = () => {
             >
               <ScrollArea className="h-full w-full">
                 {(!sections || sections.length === 0) ? (
-                  <div className="flex h-96 items-center justify-center p-4 text-center text-sm text-muted-foreground">
+                  <div className="flex h-96 items-center justify-center p-4 text-center text-sm text-muted-foreground animate-sweep-up">
                     <p>No lessons available</p>
                   </div>
                 ) : (
-                  <div className="p-3 space-y-3">
+                  <div className="p-3 space-y-3 animate-sweep-up" style={{ animationFillMode: 'both' }}>
                     {sections.map((section, si) => (
                       <div key={section.id} className="space-y-1.5">
                         <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-foreground/60">
@@ -906,12 +906,12 @@ const Player = () => {
                                     setIsSidebarOpen(false);
                                   }
                                 }}
-                                className={`group w-full flex items-start gap-3 rounded-md px-2.5 py-2.5 text-left transition-all text-xs sm:text-sm ${isActive
-                                  ? 'bg-primary/15 text-primary font-semibold'
-                                  : 'text-foreground/85 hover:bg-accent/40'
+                                className={`group w-full flex items-start gap-3.5 rounded-xl px-3 py-3 text-left transition-all duration-300 text-xs sm:text-sm border ${isActive
+                                  ? 'bg-primary/5 border-primary/30 shadow-sm translate-x-1'
+                                  : 'bg-card border-transparent hover:border-border/60 hover:bg-accent/10 hover:shadow-md hover:-translate-y-1'
                                   }`}
                               >
-                                <div className={"flex-shrink-0 w-20 h-12 rounded-md overflow-hidden relative flex items-center justify-center border border-border/50 " + (lesson.type === 'quiz' ? 'bg-blue-50' : 'bg-muted')}>
+                                <div className={`flex-shrink-0 w-24 h-14 rounded-lg overflow-hidden relative flex items-center justify-center border transition-all duration-300 ${isActive ? 'border-primary/60 shadow-[0_0_12px_rgba(59,130,246,0.3)]' : 'border-border/50 group-hover:border-primary/40 group-hover:shadow-md'} ` + (lesson.type === 'quiz' ? 'bg-blue-50/50' : 'bg-muted')}>
                                   {lesson.type !== 'quiz' && (
                                     <img
                                       src={
@@ -975,7 +975,7 @@ const Player = () => {
               style={{ display: activeTab === 'resources' ? 'flex' : 'none', flexDirection: 'column' }}
             >
               <ScrollArea className="h-full w-full">
-                <div className="p-3 space-y-2">
+                <div className="p-3 space-y-2 animate-sweep-up" style={{ animationFillMode: 'both' }}>
                   {allResources.length === 0 ? (
                     <div className="py-12 text-center">
                       <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
@@ -1055,9 +1055,9 @@ const Player = () => {
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={handleDownload}
-                          className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-secondary group cursor-pointer"
+                          className="flex items-center gap-3.5 rounded-xl border border-border/60 bg-card p-3.5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-primary/40 group cursor-pointer"
                         >
-                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-transform duration-300 group-hover:scale-110">
                             {fileType === 'pdf' ? (
                               <FileText className="h-4 w-4 text-red-400" />
                             ) : fileType === 'ppt' || fileType === 'pptx' ? (
@@ -1103,7 +1103,7 @@ const Player = () => {
               style={{ display: activeTab === 'projects' ? 'flex' : 'none', flexDirection: 'column' }}
             >
               <ScrollArea className="flex-1">
-                <div className="p-3 space-y-3">
+                <div className="p-3 space-y-3 animate-sweep-up" style={{ animationFillMode: 'both' }}>
                   {projects.length === 0 ? (
                     <div className="py-8 text-center">
                       <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
@@ -1117,11 +1117,11 @@ const Player = () => {
                       return (
                         <div
                           key={project.id}
-                          className="group rounded-xl border border-border bg-card hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-md p-5 flex flex-col gap-4"
+                          className="group rounded-xl border border-border/60 bg-card hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1 p-5 flex flex-col gap-4"
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3">
-                              <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <div className="flex items-start gap-4">
+                              <div className="mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
                                 <FileText className="h-4 w-4 text-primary" />
                               </div>
                               <div>
@@ -1416,7 +1416,7 @@ const Player = () => {
               style={{ display: activeTab === 'assessment' ? 'flex' : 'none', flexDirection: 'column' }}
             >
               <ScrollArea className="flex-1 min-h-0 p-3">
-                <div className="space-y-3">
+                <div className="space-y-3 animate-sweep-up" style={{ animationFillMode: 'both' }}>
                   {allLessons.filter(l => l.type === 'quiz').length === 0 ? (
                     <div className="py-12 text-center">
                       <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
@@ -1428,11 +1428,11 @@ const Player = () => {
                     allLessons.filter(l => l.type === 'quiz').map((quiz) => (
                       <div
                         key={quiz.id}
-                        className="group rounded-xl border border-border bg-card hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-md p-5 flex flex-col gap-4"
+                        className="group rounded-xl border border-border/60 bg-card hover:border-primary/40 transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1 p-5 flex flex-col gap-4"
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <div className="flex items-start gap-4">
+                            <div className="mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
                               <CheckCircle className="h-4 w-4 text-primary" />
                             </div>
                             <div>

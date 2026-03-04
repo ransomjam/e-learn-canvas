@@ -266,14 +266,14 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 </div>
             )}
 
-            {/* Giant center play button when paused */}
+            {/* Central play button when paused */}
             {!isPlaying && (
                 <div
-                    className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/20"
+                    className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/20 group/play"
                     onClick={handlePlayPause}
                 >
-                    <div className="bg-primary/80 text-primary-foreground p-5 rounded-full shadow-lg backdrop-blur-sm transform transition-transform hover:scale-105">
-                        <Play className="h-10 w-10 ml-1" />
+                    <div className="bg-primary/90 text-primary-foreground p-3 sm:p-4 rounded-full shadow-[0_0_20px_hsla(var(--primary)/0.4)] backdrop-blur-md transform transition-all duration-300 group-hover/play:scale-110 group-hover/play:bg-primary group-hover/play:shadow-[0_0_30px_hsla(var(--primary)/0.6)]">
+                        <Play className="h-6 w-6 sm:h-8 sm:w-8 ml-1" />
                     </div>
                 </div>
             )}

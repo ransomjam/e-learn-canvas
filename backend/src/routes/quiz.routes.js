@@ -1,13 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth.middleware');
-const { generateQuiz, submitQuiz, getQuizResults, getAvailableQuizzes } = require('../controllers/quiz.controller');
+const { generateQuiz, submitQuiz, getQuizResults, getAvailableQuizzes, getInstructorQuizAttempts, getQuizAttemptDetail } = require('../controllers/quiz.controller');
 
 // Generate quiz (Instructor only)
 router.post('/generate', authenticate, authorize('instructor', 'admin'), generateQuiz);
 
 // Get available quizzes for logged in user
 router.get('/available', authenticate, getAvailableQuizzes);
+
+// Instructor/Admin: get all quiz attempts across their courses
+router.get('/instructor/attempts', authenticate, authorize('instructor', 'admin'), getInstructorQuizAttempts);
+
+// Instructor/Admin: get detailed quiz attempt
+router.get('/instructor/attempts/:attemptId', authenticate, authorize('instructor', 'admin'), getQuizAttemptDetail);
 
 // Get results for a specific quiz
 router.get('/:lessonId/results', authenticate, getQuizResults);

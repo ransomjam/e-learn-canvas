@@ -58,6 +58,70 @@ export interface InstructorNotification {
     createdAt: string;
 }
 
+export interface QuizAttempt {
+    id: string;
+    score: number;
+    totalQuestions: number;
+    passed: boolean;
+    attemptedAt: string;
+    student: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        avatarUrl?: string;
+    };
+    quiz: {
+        id: string;
+        title: string;
+    };
+    course: {
+        id: string;
+        title: string;
+    };
+}
+
+export interface QuizAttemptDetail {
+    id: string;
+    score: number;
+    totalQuestions: number;
+    passed: boolean;
+    answers: Array<{
+        question: string;
+        userAnswer: number;
+        correctAnswer: number;
+        isCorrect: boolean;
+    }>;
+    attemptedAt: string;
+    student: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        avatarUrl?: string;
+    };
+    quiz: {
+        title: string;
+        questions: Array<{
+            question: string;
+            options: string[];
+            correctAnswer: number;
+            explanation?: string;
+        }>;
+    };
+    course: {
+        id: string;
+        title: string;
+    };
+}
+
+export interface QuizStats {
+    totalStudents: number;
+    totalAttempts: number;
+    avgScore: number;
+    passedCount: number;
+    failedCount: number;
+}
+
 export const instructorService = {
     async getDashboard(): Promise<InstructorDashboard> {
         const response = await api.get('/instructor/dashboard');
@@ -102,6 +166,22 @@ export const instructorService = {
         pagination: { page: number; limit: number; total: number; pages: number };
     }> {
         const response = await api.get('/instructor/submissions', { params });
+        return response.data.data;
+    },
+
+    // Quiz Attempts
+    async getQuizAttempts(params?: { page?: number; limit?: number; courseId?: string; search?: string }): Promise<{
+        attempts: QuizAttempt[];
+        stats: QuizStats;
+        courses: Array<{ id: string; title: string }>;
+        pagination: { page: number; limit: number; total: number; pages: number };
+    }> {
+        const response = await api.get('/quiz/instructor/attempts', { params });
+        return response.data.data;
+    },
+
+    async getQuizAttemptDetail(attemptId: string): Promise<QuizAttemptDetail> {
+        const response = await api.get(`/quiz/instructor/attempts/${attemptId}`);
         return response.data.data;
     },
 

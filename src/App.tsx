@@ -43,6 +43,7 @@ const CourseEditor = lazyRetry(() => import("./pages/CourseEditor"));
 const MyCourses = lazyRetry(() => import("./pages/MyCourses"));
 const InstructorCourses = lazyRetry(() => import("./pages/InstructorCourses"));
 const InstructorSubmissions = lazyRetry(() => import("./pages/InstructorSubmissions"));
+const InstructorQuizResults = lazyRetry(() => import("./pages/InstructorQuizResults"));
 const AddLesson = lazyRetry(() => import("./pages/AddLesson"));
 const AdminEnrollmentCodes = lazyRetry(() => import("./pages/AdminEnrollmentCodes"));
 const AdminStudents = lazyRetry(() => import("./pages/AdminStudents"));
@@ -180,6 +181,14 @@ const App = () => (
                       element={
                         <ProtectedRoute requiredRoles={['instructor', 'admin']}>
                           <InstructorSubmissions />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/instructor/quiz-results"
+                      element={
+                        <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                          <InstructorQuizResults />
                         </ProtectedRoute>
                       }
                     />

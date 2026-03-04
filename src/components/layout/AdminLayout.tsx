@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, User, LogOut, Menu, X, ChevronLeft, Ticket, Users, FileText, Settings, ShieldCheck, BarChart3, Video } from 'lucide-react';
+import { LayoutDashboard, BookOpen, User, LogOut, Menu, X, ChevronLeft, Ticket, Users, FileText, Settings, ShieldCheck, BarChart3, Video, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,6 +24,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         { icon: LayoutDashboard, label: 'Overview', path: '/instructor' },
         { icon: BookOpen, label: 'My Courses', path: '/instructor/courses' },
         { icon: FileText, label: 'Submissions', path: '/instructor/submissions' },
+        { icon: ClipboardList, label: 'Quiz Results', path: '/instructor/quiz-results' },
         ...(isAdmin ? [
             { icon: ShieldCheck, label: 'All Courses', path: '/instructor/admin-courses' },
             { icon: Users, label: 'Instructors', path: '/instructor/instructors' },

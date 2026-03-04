@@ -1325,25 +1325,23 @@ const Player = () => {
                               <span className="text-foreground font-semibold mr-1">{project.submissionCount || project.submission_count || 0}</span> submission{(project.submissionCount || project.submission_count || 0) !== 1 ? 's' : ''}
                             </span>
                             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                              {user?.role !== 'instructor' && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    if (isExpanded) {
-                                      setExpandedProjectId(null);
-                                      setProjectSubmissionText('');
-                                      setProjectSubmissionFile(null);
-                                      if (projectFileInputRef.current) projectFileInputRef.current.value = '';
-                                    } else {
-                                      setExpandedProjectId(project.id);
-                                    }
-                                  }}
-                                  className={`h-9 shadow-sm transition-all flex-1 sm:flex-none ${isExpanded ? 'bg-secondary text-foreground hover:bg-secondary/80' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
-                                >
-                                  {isExpanded ? <X className="mr-1.5 h-4 w-4" /> : <Upload className="mr-1.5 h-4 w-4" />}
-                                  {isExpanded ? 'Cancel' : 'Submit Project'}
-                                </Button>
-                              )}
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  if (isExpanded) {
+                                    setExpandedProjectId(null);
+                                    setProjectSubmissionText('');
+                                    setProjectSubmissionFile(null);
+                                    if (projectFileInputRef.current) projectFileInputRef.current.value = '';
+                                  } else {
+                                    setExpandedProjectId(project.id);
+                                  }
+                                }}
+                                className={`h-9 shadow-sm transition-all flex-1 sm:flex-none ${isExpanded ? 'bg-secondary text-foreground hover:bg-secondary/80' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+                              >
+                                {isExpanded ? <X className="mr-1.5 h-4 w-4" /> : <Upload className="mr-1.5 h-4 w-4" />}
+                                {isExpanded ? 'Cancel' : 'Submit Project'}
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1358,7 +1356,7 @@ const Player = () => {
                           </div>
 
                           {/* Inline submit form */}
-                          {isExpanded && user?.role !== 'instructor' && (
+                          {isExpanded && (
                             <form
                               className="space-y-3 pt-3 border-t border-border"
                               onSubmit={(e) => {

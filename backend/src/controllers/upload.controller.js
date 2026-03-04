@@ -287,6 +287,40 @@ const downloadFile = asyncHandler(async (req, res) => {
     } catch { /* ignore */ }
   }
 
+  // ── Cloudinary Admin API fallback ──────────────────────────────────────────
+  // If we STILL have no extension (old files uploaded without use_filename:true
+  // have a random public_id with no extension in the URL), call the Cloudinary
+  // Admin API to get the format stored at upload time (e.g. 'xlsx', 'pdf').
+  // A simple Map cache prevents repeated API calls for the same public_id.
+  if (!path.extname(downloadName) && cloudinaryEnabled && url.includes('res.cloudinary.com')) {
+    try {
+      const strippedPath = new URL(url).pathname.replace(/\/s--[A-Za-z0-9_-]+--/, '');
+      const rawMatch = strippedPath.match(/\/(image|video|raw)\/upload\/(?:v\d+\/)?(.+)$/);
+      if (rawMatch && rawMatch[1] === 'raw' && !path.extname(rawMatch[2])) {
+        const publicId = rawMatch[2];
+        // Check simple LRU cache first
+        if (!downloadFile._formatCache) downloadFile._formatCache = new Map();
+        let fmt = downloadFile._formatCache.get(publicId);
+        if (!fmt) {
+          const info = await cloudinary.api.resource(publicId, { resource_type: 'raw' }).catch(() => null);
+          fmt = info && info.format ? info.format : '';
+          if (fmt) {
+            // Cap cache at 500 entries
+            if (downloadFile._formatCache.size >= 500) {
+              const firstKey = downloadFile._formatCache.keys().next().value;
+              downloadFile._formatCache.delete(firstKey);
+            }
+            downloadFile._formatCache.set(publicId, fmt);
+          }
+        }
+        if (fmt) {
+          downloadName = downloadName + '.' + fmt;
+          console.log(`ℹ️  Admin API format lookup: ${publicId} → .${fmt}`);
+        }
+      }
+    } catch { /* Admin API failed — keep going without extension */ }
+  }
+
   // --- Local uploads (served from /uploads/) ---
   if (url.startsWith("/uploads/") || url.startsWith("uploads/")) {
     const safePath = path.normalize(url.replace(/^\//, ""));

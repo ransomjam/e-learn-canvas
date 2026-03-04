@@ -128,7 +128,7 @@ const InstructorSubmissions = () => {
                             : 'border-transparent text-muted-foreground hover:text-foreground'
                             }`}
                     >
-                        Practice Uploads
+                        Custom Projects
                     </button>
                 </div>
 

@@ -14,7 +14,8 @@ const {
     deleteCourse,
     getInstructorCourses,
     getCategories,
-    getAllCoursesAdmin
+    getAllCoursesAdmin,
+    getCourseLeaderboard
 } = require('../controllers/course.controller');
 
 const { getCourseLikes } = require('../controllers/likes.controller');
@@ -129,6 +130,13 @@ router.get('/', optionalAuth, listCoursesValidation, validate, getCourses);
  * @access  Public
  */
 router.get('/:id', optionalAuth, getCourseById);
+
+/**
+ * @route   GET /api/v1/courses/:id/leaderboard
+ * @desc    Get top students leaderboard for course
+ * @access  Public
+ */
+router.get('/:id/leaderboard', optionalAuth, getCourseLeaderboard);
 
 /**
  * @route   POST /api/v1/courses/:id/sections

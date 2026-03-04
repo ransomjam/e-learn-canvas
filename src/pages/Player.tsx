@@ -5,7 +5,7 @@ import {
   Play, ChevronLeft, CheckCircle, Menu, X, FileText, Clock,
   Send, Download, ChevronRight, Lock, ThumbsUp, Paperclip, Upload, Calendar, Star,
   Trash2, Reply, CornerDownRight, Loader2,
-  ClipboardCheck // icon for quiz thumbnails
+  ClipboardCheck, Trophy // icon for quiz thumbnails
 } from 'lucide-react';
 import ParticleLoader from '@/components/ui/ParticleLoader';
 import Logo from '@/components/common/Logo';
@@ -129,6 +129,12 @@ const Player = () => {
     queryKey: ['userReview', id],
     queryFn: () => coursesService.getUserReview(id!),
     enabled: !!id && !!progress,
+  });
+
+  const { data: leaderboard = [] } = useQuery({
+    queryKey: ['courseLeaderboard', id],
+    queryFn: () => coursesService.getCourseLeaderboard(id!),
+    enabled: !!id,
   });
 
   // Mutations
@@ -326,10 +332,17 @@ const Player = () => {
 
   if (user?.role !== 'instructor' && user?.role !== 'admin') {
     const completedLessonsList = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
+    const submissionSet = new Set(myPracticeSubmissions.map((s: any) => s.lessonId || s.lesson_id));
+
     allLessons.forEach(l => {
       processedLessonsLookup.set(l.id, isSubsequentLocked);
       const isCompleted = completedLessonsList.includes(l.id);
+      const hasSubmitted = submissionSet.has(l.id);
+
       if (l.type === 'quiz' && l.isMandatory && !isCompleted) {
+        isSubsequentLocked = true;
+      }
+      if (l.hasSubmission && l.submissionIsMandatory && !hasSubmitted) {
         isSubsequentLocked = true;
       }
     });
@@ -355,7 +368,7 @@ const Player = () => {
       if (!processedLessonsLookup.get(nextId)) {
         setCurrentLessonId(nextId);
       } else {
-        toast({ title: 'Lesson Locked', description: 'Please complete the mandatory quiz first.', variant: 'destructive' });
+        toast({ title: 'Lesson Locked', description: 'Please complete mandatory quizzes or submissions first.', variant: 'destructive' });
       }
     }
   };
@@ -679,6 +692,125 @@ const Player = () => {
                 </div>
               )}
 
+              {/* ─── Custom Project Submission for this Lesson ─── */}
+              {currentLesson?.hasSubmission && user?.role !== 'instructor' && user?.role !== 'admin' && (
+                <div className="mt-6 pt-4 border-t border-border/40">
+                  <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-5 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shadow-sm border border-primary/20">
+                        <Upload className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-base text-foreground leading-tight">Custom Project Submission</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">Please submit the required file or notes for this lesson</p>
+                      </div>
+                    </div>
+
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!currentLessonId) return;
+                        if (!customUploadFile && !customUploadNotes.trim()) {
+                          toast({ title: 'Please upload a file or add notes', variant: 'destructive' });
+                          return;
+                        }
+                        submitCustomUploadMutation.mutate({
+                          lessonId: currentLessonId,
+                          notes: customUploadNotes || undefined,
+                          file: customUploadFile || undefined,
+                        });
+                      }}
+                      className="space-y-4"
+                    >
+                      {/* File picker */}
+                      <div>
+                        <label className="text-sm font-semibold mb-1.5 block text-foreground">Upload File</label>
+                        <div className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:bg-muted/30 transition-colors bg-background">
+                          <input
+                            ref={customUploadFileRef}
+                            type="file"
+                            onChange={(e) => setCustomUploadFile(e.target.files?.[0] || null)}
+                            className="hidden"
+                            id="custom-exercise-file"
+                          />
+                          <label htmlFor="custom-exercise-file" className="cursor-pointer block">
+                            {customUploadFile ? (
+                              <div className="flex flex-col items-center justify-center gap-2 text-sm text-primary">
+                                <Paperclip className="h-6 w-6" />
+                                <span className="font-medium">{customUploadFile.name}</span>
+                                <span className="text-muted-foreground text-xs">
+                                  ({(customUploadFile.size / 1024 / 1024).toFixed(2)} MB)
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <Upload className="h-8 w-8 mx-auto text-muted-foreground/60" />
+                                <p className="text-sm text-muted-foreground font-medium">Click to select a file</p>
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <label className="text-sm font-semibold mb-1.5 block text-foreground">Submission Notes <span className="font-normal text-muted-foreground">(Optional)</span></label>
+                        <Textarea
+                          value={customUploadNotes}
+                          onChange={(e) => setCustomUploadNotes(e.target.value)}
+                          placeholder="Describe what you built or add any relevant links..."
+                          rows={3}
+                          className="bg-background"
+                        />
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full h-10 font-semibold shadow-sm"
+                        disabled={submitCustomUploadMutation.isPending}
+                      >
+                        {submitCustomUploadMutation.isPending ? (
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</>
+                        ) : (
+                          <><Send className="mr-2 h-4 w-4" />Submit Project</>
+                        )}
+                      </Button>
+                    </form>
+
+                    {/* My previous submissions for this lesson */}
+                    {myPracticeSubmissions.filter((s: any) => s.lessonId === currentLessonId || s.lesson_id === currentLessonId).length > 0 && (
+                      <div className="pt-4 mt-2 border-t border-border/50">
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Your Submissions</p>
+                        <div className="space-y-2">
+                          {myPracticeSubmissions.filter((s: any) => s.lessonId === currentLessonId || s.lesson_id === currentLessonId).map((sub: PracticeSubmission) => (
+                            <div
+                              key={sub.id}
+                              className="rounded-lg bg-background border border-border/60 px-4 py-3 shadow-sm flex items-center justify-between"
+                            >
+                              <div className="flex-1 min-w-0">
+                                {(sub.file_name || sub.fileName) && (
+                                  <div className="flex items-center gap-2 text-sm text-primary font-medium">
+                                    <Paperclip className="h-4 w-4 flex-shrink-0" />
+                                    <span className="truncate">{sub.file_name || sub.fileName}</span>
+                                  </div>
+                                )}
+                                {sub.notes && (
+                                  <p className="text-xs text-muted-foreground mt-1 truncate">{sub.notes}</p>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground/80 flex-shrink-0 ml-3">
+                                <CheckCircle className="h-4 w-4 text-emerald-500 inline mr-1" />
+                                Submitted
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Chats section - YouTube style comments */}
               <div className="pt-4">
                 <h3 className="text-lg font-semibold mb-4">
@@ -863,11 +995,12 @@ const Player = () => {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1 overflow-hidden">
             <div className="border-b border-border/40 bg-muted/20 px-3 py-2.5">
-              <TabsList className="grid w-full grid-cols-4 h-auto gap-1 bg-background/60 backdrop-blur-md p-1 rounded-xl border border-border/50 shadow-inner">
-                <TabsTrigger value="content" className="rounded-lg text-[11px] sm:text-xs font-medium px-1 sm:px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Lessons</TabsTrigger>
-                <TabsTrigger value="resources" className="rounded-lg text-[11px] sm:text-xs font-medium px-1 sm:px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Resources</TabsTrigger>
-                <TabsTrigger value="projects" className="rounded-lg text-[11px] sm:text-xs font-medium px-1 sm:px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Projects</TabsTrigger>
-                <TabsTrigger value="assessment" className="rounded-lg text-[11px] sm:text-xs font-medium px-1 sm:px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Quiz</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-5 h-auto gap-1 bg-background/60 backdrop-blur-md p-1 rounded-xl border border-border/50 shadow-inner">
+                <TabsTrigger value="content" className="rounded-lg text-[10px] sm:text-[11px] font-medium px-1 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Lessons</TabsTrigger>
+                <TabsTrigger value="resources" className="rounded-lg text-[10px] sm:text-[11px] font-medium px-1 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Resources</TabsTrigger>
+                <TabsTrigger value="projects" className="rounded-lg text-[10px] sm:text-[11px] font-medium px-1 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Projects</TabsTrigger>
+                <TabsTrigger value="assessment" className="rounded-lg text-[10px] sm:text-[11px] font-medium px-1 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Quiz</TabsTrigger>
+                <TabsTrigger value="leaderboard" className="rounded-lg text-[10px] sm:text-[11px] font-medium px-1 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">Top 10</TabsTrigger>
               </TabsList>
             </div>
 
@@ -906,12 +1039,24 @@ const Player = () => {
                                     setIsSidebarOpen(false);
                                   }
                                 }}
-                                className={`group w-full flex items-start gap-3.5 rounded-xl px-3 py-3 text-left transition-all duration-300 text-xs sm:text-sm border ${isActive
-                                  ? 'bg-primary/5 border-primary/30 shadow-sm translate-x-1'
-                                  : 'bg-card border-transparent hover:border-border/60 hover:bg-accent/10 hover:shadow-md hover:-translate-y-1'
+                                className={`group w-full flex items-start gap-3.5 rounded-xl px-3 py-3 text-left transition-all duration-400 text-xs sm:text-sm border relative overflow-hidden backdrop-blur-md
+                                  ${isActive
+                                    ? 'bg-gradient-to-r from-primary/10 to-primary/5 border-primary/50 shadow-[0_8px_16px_-6px_rgba(var(--primary),0.4),inset_0_2px_0_rgba(255,255,255,0.2),inset_0_-3px_0_rgba(0,0,0,0.3)] translate-x-1'
+                                    : 'bg-gradient-to-br from-card/90 to-card/50 border-border/50 shadow-[0_6px_15px_-5px_rgba(0,0,0,0.5),inset_0_2px_0_rgba(255,255,255,0.1),inset_0_-3px_0_rgba(0,0,0,0.4)] hover:shadow-[0_12px_25px_-8px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.15),inset_0_-4px_0_rgba(0,0,0,0.5)] hover:border-primary/40 hover:-translate-y-1 hover:scale-[1.01]'
                                   }`}
                               >
-                                <div className={`flex-shrink-0 w-24 h-14 rounded-lg overflow-hidden relative flex items-center justify-center border transition-all duration-300 ${isActive ? 'border-primary/60 shadow-[0_0_12px_rgba(59,130,246,0.3)]' : 'border-border/50 group-hover:border-primary/40 group-hover:shadow-md'} ` + (lesson.type === 'quiz' ? 'bg-blue-50/50' : 'bg-muted')}>
+                                {/* Subtle inner glow for active state glow */}
+                                {isActive && <div className="absolute inset-0 rounded-xl shadow-[inset_0_0_15px_rgba(var(--primary),0.2)] pointer-events-none" />}
+
+                                <div className={`flex-shrink-0 w-24 h-14 rounded-lg overflow-hidden relative flex items-center justify-center border transition-all duration-400 z-10 
+                                  ${isActive
+                                    ? 'border-primary/60 shadow-[0_6px_12px_rgba(59,130,246,0.4),inset_0_2px_0_rgba(255,255,255,0.3),inset_0_-2px_0_rgba(0,0,0,0.3)] bg-primary/20'
+                                    : 'border-border/60 shadow-[0_4px_10px_rgba(0,0,0,0.4),inset_0_2px_0_rgba(255,255,255,0.2),inset_0_-2px_0_rgba(0,0,0,0.3)] group-hover:border-primary/40 group-hover:shadow-[0_8px_16px_rgba(0,0,0,0.5),inset_0_2px_0_rgba(255,255,255,0.25),inset_0_-2px_0_rgba(0,0,0,0.4)] bg-muted/80'} 
+                                  ` + (lesson.type === 'quiz' ? (lesson.isCompleted ? 'bg-gradient-to-br from-yellow-500/20 to-amber-600/30 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-gradient-to-br from-blue-500/20 to-indigo-600/20') : '')}>
+
+                                  {/* Glossy image overlay */}
+                                  <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-black/60 pointer-events-none z-10" />
+
                                   {lesson.type !== 'quiz' && (
                                     <img
                                       src={
@@ -926,21 +1071,24 @@ const Player = () => {
                                   )}
 
                                   {lesson.type === 'quiz' && (
-                                    <ClipboardCheck className="h-6 w-6 text-blue-500" />
+                                    <div className="relative transform hover:scale-110 transition-all duration-500 z-20 flex flex-col items-center justify-center w-full h-full">
+                                      <div className={`absolute inset-0 ${lesson.isCompleted ? 'bg-yellow-500/40 animate-pulse' : 'bg-blue-500/30'} blur-xl rounded-full`} />
+                                      <span className="relative text-3xl drop-shadow-[0_5px_15px_rgba(0,0,0,0.6)] group-hover:rotate-12 transition-transform duration-300" role="img" aria-label="3D Trophy">
+                                        {lesson.isCompleted ? '🏆' : '🏆'}
+                                      </span>
+                                    </div>
                                   )}
 
                                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                    {lesson.isCompleted ? (
-                                      <div className="bg-background/90 rounded-full p-0.5">
-                                        <CheckCircle className="h-4 w-4 text-primary" />
+                                    {lesson.type === 'quiz' ? (
+                                      isLocked && <div className="bg-background/90 backdrop-blur-md rounded-full p-1.5 shadow-sm border border-border/50"><Lock className="h-3 w-3 text-foreground" /></div>
+                                    ) : lesson.isCompleted ? (
+                                      <div className="bg-background/90 rounded-full p-0.5 shadow-[0_0_10px_rgba(16,185,129,0.3)] border border-emerald-500/20">
+                                        <CheckCircle className="h-4 w-4 text-emerald-500" />
                                       </div>
                                     ) : lesson.type === 'video' ? (
                                       <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
                                         <Play className="h-3 w-3 text-foreground ml-0.5" />
-                                      </div>
-                                    ) : lesson.type === 'quiz' ? (
-                                      <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
-                                        {isLocked ? <Lock className="h-3 w-3 text-foreground" /> : <CheckCircle className="h-3 w-3 text-emerald-500" />}
                                       </div>
                                     ) : (
                                       <div className="bg-background/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
@@ -975,7 +1123,7 @@ const Player = () => {
               style={{ display: activeTab === 'resources' ? 'flex' : 'none', flexDirection: 'column' }}
             >
               <ScrollArea className="h-full w-full">
-                <div className="p-3 space-y-2 animate-sweep-up" style={{ animationFillMode: 'both' }}>
+                <div className="p-3 space-y-2 animate-sweep-up w-full overflow-hidden" style={{ animationFillMode: 'both' }}>
                   {allResources.length === 0 ? (
                     <div className="py-12 text-center">
                       <FileText className="h-8 w-8 text-muted-foreground/20 mx-auto" />
@@ -1055,9 +1203,12 @@ const Player = () => {
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={handleDownload}
-                          className="flex items-center gap-3.5 rounded-xl border border-border/60 bg-card p-3.5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-primary/40 group cursor-pointer"
+                          className="flex items-center gap-2 sm:gap-3 rounded-xl border border-border/60 bg-card p-3 relative overflow-hidden w-full max-w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-primary/40 group cursor-pointer"
                         >
-                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-transform duration-300 group-hover:scale-110">
+                          {isDownloading && (
+                            <div className="absolute inset-0 bg-primary/10 animate-pulse pointer-events-none z-0" />
+                          )}
+                          <div className="relative z-10 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-transform duration-300 group-hover:scale-110">
                             {fileType === 'pdf' ? (
                               <FileText className="h-4 w-4 text-red-400" />
                             ) : fileType === 'ppt' || fileType === 'pptx' ? (
@@ -1074,20 +1225,26 @@ const Player = () => {
                               <Paperclip className="h-4 w-4 text-primary" />
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{res.title || 'Resource'}</p>
+                          <div className="relative z-10 flex-1 min-w-0 pr-1">
+                            <p className="text-sm font-medium text-foreground truncate block">{res.title || 'Resource'}</p>
                             {res.description && (
-                              <p className="text-xs text-muted-foreground truncate">{res.description}</p>
+                              <p className="text-xs text-muted-foreground truncate block">{res.description}</p>
                             )}
                             {res.lessonTitle && (
-                              <p className="text-xs text-primary/70 truncate">Lesson: {res.lessonTitle}</p>
+                              <p className="text-[10px] text-primary/70 truncate block mt-0.5">Lesson: {res.lessonTitle}</p>
                             )}
                           </div>
-                          {isDownloading ? (
-                            <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
-                          ) : (
-                            <Download className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          )}
+                          <div className="relative z-10 flex-shrink-0 flex items-center justify-center">
+                            {isDownloading ? (
+                              <div className="rounded-full bg-primary/20 p-1.5 shadow-[0_0_10px_rgba(var(--primary),0.3)]">
+                                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                              </div>
+                            ) : (
+                              <div className="rounded-full bg-secondary/80 p-1.5 transition-colors duration-300 group-hover:bg-primary/10">
+                                <Download className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                              </div>
+                            )}
+                          </div>
                         </a>
                       );
                     })
@@ -1259,152 +1416,6 @@ const Player = () => {
                       );
                     })
                   )}
-
-                  {/* ─── Upload Custom Exercise ─── */}
-                  {user?.role !== 'instructor' && user?.role !== 'admin' && (
-                    <div className="mt-2">
-                      {/* Divider with label */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="h-px flex-1 bg-border" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Upload Custom Exercise</span>
-                        <div className="h-px flex-1 bg-border" />
-                      </div>
-
-                      <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-                            <Upload className="h-3.5 w-3.5 text-primary" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-sm text-foreground leading-tight">Upload Custom Exercise</h4>
-                            <p className="text-[11px] text-muted-foreground">Share a practice file you worked on during a lesson</p>
-                          </div>
-                        </div>
-
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            if (!customUploadLessonId) {
-                              toast({ title: 'Please select a lesson', variant: 'destructive' });
-                              return;
-                            }
-                            if (!customUploadFile && !customUploadNotes.trim()) {
-                              toast({ title: 'Please upload a file or add notes', variant: 'destructive' });
-                              return;
-                            }
-                            submitCustomUploadMutation.mutate({
-                              lessonId: customUploadLessonId,
-                              notes: customUploadNotes || undefined,
-                              file: customUploadFile || undefined,
-                            });
-                          }}
-                          className="space-y-3"
-                        >
-                          {/* Lesson selector */}
-                          <div>
-                            <label className="text-xs font-medium mb-1 block text-foreground">Lesson</label>
-                            <select
-                              value={customUploadLessonId}
-                              onChange={(e) => setCustomUploadLessonId(e.target.value)}
-                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                            >
-                              <option value="">-- Select a lesson --</option>
-                              {sections.map((section) =>
-                                section.lessons.map((lesson) => (
-                                  <option key={lesson.id} value={lesson.id}>
-                                    {section.title}: {lesson.title}
-                                  </option>
-                                ))
-                              )}
-                            </select>
-                          </div>
-
-                          {/* File picker */}
-                          <div>
-                            <label className="text-xs font-medium mb-1 block text-foreground">File</label>
-                            <div className="border-2 border-dashed border-border rounded-lg p-3 text-center hover:bg-muted/20 transition-colors">
-                              <input
-                                ref={customUploadFileRef}
-                                type="file"
-                                onChange={(e) => setCustomUploadFile(e.target.files?.[0] || null)}
-                                className="hidden"
-                                id="custom-exercise-file"
-                              />
-                              <label htmlFor="custom-exercise-file" className="cursor-pointer block">
-                                {customUploadFile ? (
-                                  <div className="flex items-center justify-center gap-2 text-xs text-primary">
-                                    <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
-                                    <span className="truncate max-w-[140px]">{customUploadFile.name}</span>
-                                    <span className="text-muted-foreground flex-shrink-0">
-                                      ({(customUploadFile.size / 1024 / 1024).toFixed(1)} MB)
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div className="space-y-1 py-1">
-                                    <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
-                                    <p className="text-xs text-muted-foreground">Click to select file</p>
-                                  </div>
-                                )}
-                              </label>
-                            </div>
-                          </div>
-
-                          {/* Notes */}
-                          <div>
-                            <label className="text-xs font-medium mb-1 block text-foreground">Notes <span className="font-normal text-muted-foreground">(Optional)</span></label>
-                            <Textarea
-                              value={customUploadNotes}
-                              onChange={(e) => setCustomUploadNotes(e.target.value)}
-                              placeholder="Describe what you built or practiced..."
-                              rows={2}
-                              className="text-xs"
-                            />
-                          </div>
-
-                          <Button
-                            type="submit"
-                            size="sm"
-                            className="w-full"
-                            disabled={submitCustomUploadMutation.isPending}
-                          >
-                            {submitCustomUploadMutation.isPending ? (
-                              <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Uploading...</>
-                            ) : (
-                              <><Send className="mr-2 h-3.5 w-3.5" />Submit Exercise</>
-                            )}
-                          </Button>
-                        </form>
-
-                        {/* My previous uploads */}
-                        {myPracticeSubmissions.length > 0 && (
-                          <div className="pt-2 border-t border-border/50">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">My Submissions</p>
-                            <div className="space-y-2">
-                              {myPracticeSubmissions.slice(0, 3).map((sub: PracticeSubmission) => (
-                                <div
-                                  key={sub.id}
-                                  className="rounded-lg bg-background border border-border/60 px-3 py-2 space-y-0.5"
-                                >
-                                  <p className="text-[11px] font-medium text-foreground truncate">
-                                    {sub.lesson_title || sub.lessonTitle}
-                                  </p>
-                                  {(sub.file_name || sub.fileName) && (
-                                    <div className="flex items-center gap-1 text-[11px] text-primary">
-                                      <Paperclip className="h-2.5 w-2.5 flex-shrink-0" />
-                                      <span className="truncate">{sub.file_name || sub.fileName}</span>
-                                    </div>
-                                  )}
-                                  <p className="text-[10px] text-muted-foreground/60">
-                                    {new Date(sub.submitted_at || sub.submittedAt || '').toLocaleDateString()}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
@@ -1432,8 +1443,11 @@ const Player = () => {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-4">
-                            <div className="mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
-                              <CheckCircle className="h-4 w-4 text-primary" />
+                            <div className={`mt-1 flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl transition-transform duration-500 group-hover:scale-110 relative ${quiz.isCompleted ? 'bg-gradient-to-br from-yellow-500/20 to-amber-600/30 border border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-border/50'}`}>
+                              <div className={`absolute inset-0 ${quiz.isCompleted ? 'bg-yellow-500/40 animate-pulse' : 'bg-blue-500/30'} blur-xl rounded-full`} />
+                              <span className="relative text-3xl drop-shadow-[0_5px_15px_rgba(0,0,0,0.6)] group-hover:rotate-12 transition-transform duration-300" role="img" aria-label="3D Trophy">
+                                🏆
+                              </span>
                             </div>
                             <div>
                               <h4 className="font-bold text-base text-foreground leading-tight">{quiz.title}</h4>
@@ -1461,6 +1475,85 @@ const Player = () => {
                         </div>
                       </div>
                     ))
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Leaderboard tab */}
+            <TabsContent
+              value="leaderboard"
+              className="mt-0 min-h-0 flex-1 overflow-hidden p-0"
+              style={{ display: activeTab === 'leaderboard' ? 'flex' : 'none', flexDirection: 'column' }}
+            >
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-4 animate-sweep-up" style={{ animationFillMode: 'both' }}>
+                  <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-primary/10 to-transparent rounded-2xl border border-primary/20 mb-2">
+                    <Trophy className="w-12 h-12 text-yellow-500 mb-2 drop-shadow-sm" />
+                    <h3 className="text-lg font-bold text-foreground">Top Students</h3>
+                    <p className="text-xs text-muted-foreground text-center max-w-[250px] mt-1">Based on points earned from completing modules and project submissions.</p>
+                  </div>
+
+                  {leaderboard.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No students on the leaderboard yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {leaderboard.map((student: any, idx: number) => {
+                        const isTop3 = idx < 3;
+                        return (
+                          <div
+                            key={student.id}
+                            className={`flex items-center gap-3 p-3 rounded-xl border relative overflow-hidden transition-all duration-300 ${isTop3 ? 'bg-gradient-to-r from-card to-card/50 shadow-sm border-primary/30' : 'bg-card/50 border-border/50 hover:bg-card'}`}
+                          >
+                            {/* Rank Indicator */}
+                            <div className="flex flex-col items-center justify-center w-6 z-10 font-bold shrink-0">
+                              {idx === 0 ? <span className="text-xl drop-shadow-md">🥇</span> :
+                                idx === 1 ? <span className="text-xl drop-shadow-md">🥈</span> :
+                                  idx === 2 ? <span className="text-xl drop-shadow-md">🥉</span> :
+                                    <span className="text-sm text-muted-foreground/80">#{idx + 1}</span>}
+                            </div>
+
+                            {/* Avatar */}
+                            <Avatar className={`h-10 w-10 border-2 shrink-0 z-10 ${idx === 0 ? 'border-yellow-400/80 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : idx === 1 ? 'border-gray-300/80' : idx === 2 ? 'border-amber-600/80' : 'border-transparent'}`}>
+                              <AvatarImage src={student.avatarUrl} alt={student.firstName || 'Student'} className="object-cover" />
+                              <AvatarFallback className="bg-primary/10 font-medium text-primary">
+                                {(student.firstName?.[0] || 'S').toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            {/* Student Info */}
+                            <div className="flex-1 min-w-0 z-10">
+                              <p className={`text-sm truncate font-bold leading-tight ${isTop3 ? 'text-foreground' : 'text-foreground/80'}`}>
+                                {student.firstName} {student.lastName}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                  <CheckCircle className="w-2.5 h-2.5 text-primary/70" />
+                                  {student.completedModules}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                  <FileText className="w-2.5 h-2.5 text-primary/70" />
+                                  {student.submissionsCount}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Points */}
+                            <div className="flex flex-col items-end z-10 shrink-0">
+                              <span className={`font-black text-lg ${idx === 0 ? 'text-yellow-500 drop-shadow-sm' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-600' : 'text-primary/70'}`}>
+                                {student.points}
+                              </span>
+                              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Pts</span>
+                            </div>
+
+                            {/* Glow effect for top 1 */}
+                            {idx === 0 && <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-2xl -mr-10 -mt-10" />}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               </ScrollArea>

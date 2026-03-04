@@ -17,9 +17,17 @@ const CourseCard = ({ course, isEnrolled = false }: CourseCardProps) => {
 
   return (
     <Link to={isEnrolled ? `/player/${course.id}` : `/course/${course.id}`} className="group block">
-      <div className={`overflow-hidden rounded-xl border bg-card transition-all duration-300 hover:shadow-lg ${isEnrolled ? 'border-emerald-500/40 hover:border-emerald-500/60 hover:shadow-emerald-500/5' : 'border-border hover:border-primary/40 hover:shadow-primary/5'}`}>
+      <div className={`relative overflow-hidden rounded-2xl border transition-all duration-500 ease-out 
+        bg-gradient-to-br from-card/95 via-card/90 to-background/90 backdrop-blur-md
+        shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6),inset_0_2px_0_rgba(255,255,255,0.15),inset_0_-3px_0_rgba(0,0,0,0.4)]
+        hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.7),inset_0_2px_0_rgba(255,255,255,0.25),inset_0_-4px_0_rgba(0,0,0,0.5)]
+        hover:-translate-y-2
+        ${isEnrolled ? 'border-emerald-500/50 hover:border-emerald-400/70' : 'border-border/60 hover:border-primary/50'}`}>
         {/* Thumbnail */}
         <div className="relative aspect-video overflow-hidden bg-secondary">
+          {/* Glossy overlay effect to enhance 3D feel */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/60 z-10 pointer-events-none" />
+
           {thumbnail && !imageError ? (
             <img
               src={thumbnail}

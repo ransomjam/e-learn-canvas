@@ -559,6 +559,11 @@ const allMigrations = [
         CREATE INDEX IF NOT EXISTS idx_practice_submissions_course_id ON practice_submissions(course_id);
         CREATE INDEX IF NOT EXISTS idx_practice_submissions_user_id ON practice_submissions(user_id);
     `},
+    {
+        name: '036_add_lesson_submission_fields', up: `
+        ALTER TABLE lessons ADD COLUMN IF NOT EXISTS has_submission BOOLEAN DEFAULT false;
+        ALTER TABLE lessons ADD COLUMN IF NOT EXISTS submission_is_mandatory BOOLEAN DEFAULT false;
+    `}
 ];
 
 // ─── runner ─────────────────────────────────────────────────────────────────

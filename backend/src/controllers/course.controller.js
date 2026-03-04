@@ -301,6 +301,71 @@ const getCourseById = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get course leaderboard
+ * @route   GET /api/v1/courses/:id/leaderboard
+ * @access  Public
+ */
+const getCourseLeaderboard = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const result = await query(
+        `SELECT 
+            u.id as user_id, 
+            u.first_name, 
+            u.last_name, 
+            u.avatar_url,
+            e.progress_percentage,
+            CASE 
+                WHEN jsonb_typeof(e.completed_lessons) = 'array' THEN jsonb_array_length(e.completed_lessons)
+                ELSE 0
+            END as completed_modules,
+            (
+                SELECT COUNT(*) 
+                FROM project_submissions ps 
+                JOIN projects p ON ps.project_id = p.id 
+                WHERE ps.student_id = u.id AND p.course_id = $1
+            ) + (
+                SELECT COUNT(*)
+                FROM practice_submissions prs
+                WHERE prs.user_id = u.id AND prs.course_id = $1
+            ) as submissions_count,
+            (
+               (CASE 
+                    WHEN jsonb_typeof(e.completed_lessons) = 'array' THEN jsonb_array_length(e.completed_lessons)
+                    ELSE 0
+                END * 10) +
+               ((SELECT COUNT(*) 
+                FROM project_submissions ps 
+                JOIN projects p ON ps.project_id = p.id 
+                WHERE ps.student_id = u.id AND p.course_id = $1) * 50) +
+               ((SELECT COUNT(*)
+                FROM practice_submissions prs
+                WHERE prs.user_id = u.id AND prs.course_id = $1) * 30)
+            ) as points
+         FROM enrollments e
+         JOIN users u ON e.user_id = u.id
+         WHERE e.course_id = $1
+         ORDER BY points DESC, e.progress_percentage DESC
+         LIMIT 10`,
+        [id]
+    );
+
+    res.json({
+        success: true,
+        data: result.rows.map(row => ({
+            id: row.user_id,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            avatarUrl: signCloudinaryUrl(row.avatar_url),
+            progressPercentage: parseFloat(row.progress_percentage || 0),
+            completedModules: parseInt(row.completed_modules || 0),
+            submissionsCount: parseInt(row.submissions_count || 0),
+            points: parseInt(row.points || 0)
+        }))
+    });
+});
+
+/**
  * @desc    Create a new course
  * @route   POST /api/v1/courses
  * @access  Private/Instructor
@@ -845,5 +910,6 @@ module.exports = {
     deleteCourse,
     getInstructorCourses,
     getCategories,
-    getAllCoursesAdmin
+    getAllCoursesAdmin,
+    getCourseLeaderboard
 };

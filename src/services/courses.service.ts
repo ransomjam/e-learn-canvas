@@ -66,6 +66,8 @@ export interface Lesson {
     resources?: any;
     practiceFiles?: any;
     isMandatory?: boolean;
+    hasSubmission?: boolean;
+    submissionIsMandatory?: boolean;
     quizData?: any;
 }
 
@@ -225,5 +227,11 @@ export const coursesService = {
 
     async unpublishCourse(id: string): Promise<void> {
         await api.put(`/courses/${id}/unpublish`);
+    },
+
+    // Leaderboard
+    async getCourseLeaderboard(courseId: string): Promise<any[]> {
+        const response = await api.get(`/courses/${courseId}/leaderboard`);
+        return response.data.data;
     },
 };

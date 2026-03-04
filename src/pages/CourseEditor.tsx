@@ -64,6 +64,8 @@ const CourseEditor = () => {
         resources: [] as any[],
         targetSectionId: '',
         isMandatory: false,
+        hasSubmission: false,
+        submissionIsMandatory: false,
         quizData: [] as any[],
         isGenerating: false,
         quizText: '',
@@ -328,6 +330,8 @@ const CourseEditor = () => {
             resources: [],
             targetSectionId: '',
             isMandatory: false,
+            hasSubmission: false,
+            submissionIsMandatory: false,
             quizData: [],
             isGenerating: false,
             quizText: '',
@@ -1061,6 +1065,8 @@ const CourseEditor = () => {
                                                                                                                         resources: Array.isArray(practiceFiles) ? practiceFiles : [],
                                                                                                                         targetSectionId: '',
                                                                                                                         isMandatory: lesson.isMandatory || false,
+                                                                                                                        hasSubmission: lesson.hasSubmission || false,
+                                                                                                                        submissionIsMandatory: lesson.submissionIsMandatory || false,
                                                                                                                         quizData: typeof lesson.quizData === 'string' ? JSON.parse(lesson.quizData || '[]') : (lesson.quizData || []),
                                                                                                                         isGenerating: false,
                                                                                                                         quizText: '',
@@ -1256,6 +1262,41 @@ const CourseEditor = () => {
                                                                                         </div>
                                                                                     )}
 
+                                                                                    {/* Submissions */}
+                                                                                    <div className="space-y-4 pt-4 border-t border-border">
+                                                                                        <h3 className="text-sm font-semibold">Custom Project Submission</h3>
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                id="editHasSubmission"
+                                                                                                checked={lessonForm.hasSubmission}
+                                                                                                onChange={(e) => {
+                                                                                                    setLessonForm((p) => ({ ...p, hasSubmission: e.target.checked, submissionIsMandatory: e.target.checked ? p.submissionIsMandatory : false }))
+                                                                                                }}
+                                                                                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                                                                                            />
+                                                                                            <Label htmlFor="editHasSubmission" className="cursor-pointer font-medium">
+                                                                                                Request a custom project / file submission
+                                                                                            </Label>
+                                                                                        </div>
+                                                                                        {lessonForm.hasSubmission && (
+                                                                                            <div className="flex items-center gap-3 ml-7">
+                                                                                                <input
+                                                                                                    type="checkbox"
+                                                                                                    id="editSubmissionIsMandatory"
+                                                                                                    checked={lessonForm.submissionIsMandatory}
+                                                                                                    onChange={(e) => setLessonForm((p) => ({ ...p, submissionIsMandatory: e.target.checked }))}
+                                                                                                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                                                                                                />
+                                                                                                <Label htmlFor="editSubmissionIsMandatory" className="cursor-pointer text-sm">
+                                                                                                    Make submission mandatory to proceed
+                                                                                                </Label>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        <p className="text-xs text-muted-foreground ml-7">
+                                                                                            These submissions will appear under your "Custom Projects" tab.
+                                                                                        </p>
+                                                                                    </div>
                                                                                     {/* Resources */}
                                                                                     <div className="space-y-3 pt-4 border-t border-border">
                                                                                         <div className="flex items-center justify-between">
@@ -1328,6 +1369,8 @@ const CourseEditor = () => {
                                                                                                         practiceFiles: lessonForm.resources,
                                                                                                         resources: [],
                                                                                                         isMandatory: lessonForm.isMandatory,
+                                                                                                        hasSubmission: lessonForm.hasSubmission,
+                                                                                                        submissionIsMandatory: lessonForm.submissionIsMandatory,
                                                                                                         quizData: lessonForm.quizData,
                                                                                                     },
                                                                                                 })

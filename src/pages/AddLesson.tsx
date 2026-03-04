@@ -30,6 +30,8 @@ const AddLesson = () => {
         duration: 0,
         isFree: false,
         isMandatory: false,
+        hasSubmission: false,
+        submissionIsMandatory: false,
         quizData: [] as any[],
         resources: [] as any[],
         targetSectionId: '',
@@ -170,6 +172,8 @@ const AddLesson = () => {
             videoDuration: lessonForm.duration,
             isFree: lessonForm.isFree,
             isMandatory: lessonForm.isMandatory,
+            hasSubmission: lessonForm.hasSubmission,
+            submissionIsMandatory: lessonForm.submissionIsMandatory,
             quizData: lessonForm.type === 'quiz' ? lessonForm.quizData : undefined,
             resources: lessonForm.resources,
         });
@@ -459,6 +463,45 @@ const AddLesson = () => {
                             )}
                         </div>
                     )}
+
+                    {/* Submissions Section */}
+                    <div className="space-y-4 pt-4 border-t border-border">
+                        <div>
+                            <Label className="text-base font-semibold">Custom Project Submission</Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Ask learners to submit custom projects or files as part of this lesson.
+                            </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                id="hasSubmission"
+                                checked={lessonForm.hasSubmission}
+                                onChange={(e) => {
+                                    setLessonForm((p) => ({ ...p, hasSubmission: e.target.checked, submissionIsMandatory: e.target.checked ? p.submissionIsMandatory : false }))
+                                }}
+                                className="w-4 h-4 text-primary bg-secondary border-border rounded focus:ring-primary"
+                            />
+                            <Label htmlFor="hasSubmission" className="text-sm font-medium cursor-pointer">
+                                Enable Custom File/Project Submission
+                            </Label>
+                        </div>
+
+                        {lessonForm.hasSubmission && (
+                            <div className="flex items-center space-x-2 ml-6">
+                                <input
+                                    type="checkbox"
+                                    id="submissionIsMandatory"
+                                    checked={lessonForm.submissionIsMandatory}
+                                    onChange={(e) => setLessonForm(p => ({ ...p, submissionIsMandatory: e.target.checked }))}
+                                    className="w-4 h-4 text-primary bg-secondary border-border rounded focus:ring-primary"
+                                />
+                                <Label htmlFor="submissionIsMandatory" className="text-sm cursor-pointer">
+                                    Make submission mandatory (locks next lessons until submitted)
+                                </Label>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Practice Files Section */}
                     <div className="space-y-3 pt-4 border-t border-border">

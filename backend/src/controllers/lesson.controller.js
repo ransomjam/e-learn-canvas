@@ -366,6 +366,8 @@ const getLessonById = asyncHandler(async (req, res) => {
                 isFree: lesson.is_free,
                 isPublished: lesson.is_published,
                 isMandatory: lesson.is_mandatory,
+                hasSubmission: lesson.has_submission,
+                submissionIsMandatory: lesson.submission_is_mandatory,
                 quizData: lesson.quiz_data,
                 resources: signJsonResources(lesson.resources),
                 practiceFiles: signJsonResources(lesson.practice_files),
@@ -464,6 +466,8 @@ const createLesson = asyncHandler(async (req, res) => {
         isFree = false,
         isPublished = true,
         isMandatory = false,
+        hasSubmission = false,
+        submissionIsMandatory = false,
         quizData = [],
         resources = [],
         practiceFiles = []
@@ -510,12 +514,12 @@ const createLesson = asyncHandler(async (req, res) => {
     const result = await query(
         `INSERT INTO lessons (
       section_id, course_id, title, slug, description, content, type,
-      video_url, video_duration, order_index, is_free, is_published, is_mandatory, quiz_data, resources, practice_files
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      video_url, video_duration, order_index, is_free, is_published, is_mandatory, has_submission, submission_is_mandatory, quiz_data, resources, practice_files
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
         [
             sectionId, courseId, title, slug, description, content, type,
-            videoUrl, videoDuration, order, isFree, isPublished, isMandatory, JSON.stringify(quizData), JSON.stringify(resources), JSON.stringify(practiceFiles)
+            videoUrl, videoDuration, order, isFree, isPublished, isMandatory, hasSubmission, submissionIsMandatory, JSON.stringify(quizData), JSON.stringify(resources), JSON.stringify(practiceFiles)
         ]
     );
 
@@ -571,7 +575,7 @@ const updateLesson = asyncHandler(async (req, res) => {
 
     const allowedFields = [
         'title', 'description', 'content', 'type', 'videoUrl', 'videoDuration',
-        'orderIndex', 'isFree', 'isPublished', 'isMandatory', 'quizData', 'resources', 'practiceFiles'
+        'orderIndex', 'isFree', 'isPublished', 'isMandatory', 'hasSubmission', 'submissionIsMandatory', 'quizData', 'resources', 'practiceFiles'
     ];
 
     const fieldMapping = {
@@ -581,6 +585,8 @@ const updateLesson = asyncHandler(async (req, res) => {
         isFree: 'is_free',
         isPublished: 'is_published',
         isMandatory: 'is_mandatory',
+        hasSubmission: 'has_submission',
+        submissionIsMandatory: 'submission_is_mandatory',
         quizData: 'quiz_data'
     };
 

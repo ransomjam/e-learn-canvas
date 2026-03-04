@@ -386,6 +386,72 @@ const downloadFile = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Magic-bytes file type detection ──────────────────────────────────────────
+// Detects file format by reading the first bytes of the actual binary content.
+// This is the definitive fallback for old extensionless Cloudinary uploads.
+function detectExtFromMagicBytes(buf) {
+  if (!buf || buf.length < 4) return '';
+
+  // PDF: starts with %PDF
+  if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) {
+    return '.pdf';
+  }
+
+  // ZIP-based (PK\x03\x04) — could be .xlsx, .pptx, .docx, or plain .zip
+  if (buf[0] === 0x50 && buf[1] === 0x4B && buf[2] === 0x03 && buf[3] === 0x04) {
+    // Peek at internal filenames in the ZIP local file headers to distinguish Office formats.
+    // ZIP local header: offset 26 = filename length (2 bytes LE), offset 30+ = filename
+    const str = buf.toString('ascii', 0, Math.min(buf.length, 4096));
+    if (str.includes('xl/')) return '.xlsx';
+    if (str.includes('ppt/')) return '.pptx';
+    if (str.includes('word/')) return '.docx';
+    if (str.includes('[Content_Types].xml')) return '.xlsx'; // generic Office fallback
+    return '.zip';
+  }
+
+  // OLE Compound (D0 CF 11 E0) — .xls, .doc, .ppt (legacy Office)
+  if (buf[0] === 0xD0 && buf[1] === 0xCF && buf[2] === 0x11 && buf[3] === 0xE0) {
+    // Heuristic: check for Excel-specific strings in first 4KB
+    const str = buf.toString('ascii', 0, Math.min(buf.length, 4096));
+    if (str.includes('Workbook') || str.includes('Book')) return '.xls';
+    if (str.includes('PowerPoint')) return '.ppt';
+    if (str.includes('Word')) return '.doc';
+    return '.xls'; // most common legacy Office file
+  }
+
+  // PNG: 89 50 4E 47
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return '.png';
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return '.jpg';
+  // GIF: GIF8
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return '.gif';
+
+  return ''; // unknown
+}
+
+// MIME lookup table
+const EXT_TO_MIME = {
+  '.pdf': 'application/pdf',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.doc': 'application/msword',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.xls': 'application/vnd.ms-excel',
+  '.csv': 'text/csv',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mp3': 'audio/mpeg',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.zip': 'application/zip',
+  '.txt': 'text/plain',
+  '.json': 'application/json',
+};
+
 function streamResponse(proxyRes, res, downloadName, originalUrl) {
   if (proxyRes.statusCode !== 200) {
     console.error(`Download proxy: upstream returned ${proxyRes.statusCode} for ${originalUrl}`);
@@ -393,121 +459,105 @@ function streamResponse(proxyRes, res, downloadName, originalUrl) {
     return;
   }
 
-  // ── Step 1: Determine the correct file extension ────────────────────────────
-  // Priority order:
-  //   1. Extension already in downloadName (e.g. "Report.pdf")
-  //   2. Extension from CDN URL path (strips s-- signature first)
-  //   3. Extension from `public_id` query param (private_download_url format)
-  //   4. Extension from Cloudinary's own Content-Disposition header
-  let finalName = downloadName;
+  // ── Determine extension from metadata (fast, no buffering) ──────────────────
+  let ext = path.extname(downloadName);
 
-  if (!path.extname(finalName)) {
-    let ext = '';
-
+  if (!ext) {
     try {
       const parsed = new URL(originalUrl);
-
-      // (a) CDN path: strip any s--...-- signature token first
       const cleanPath = parsed.pathname.replace(/\/s--[A-Za-z0-9_-]+--/, '');
       ext = path.extname(cleanPath);
-
-      // (b) For private_download_url (api.cloudinary.com), the public_id is in a query param
       if (!ext) {
         const publicId = parsed.searchParams.get('public_id');
-        if (publicId) {
-          ext = path.extname(decodeURIComponent(publicId));
-        }
+        if (publicId) ext = path.extname(decodeURIComponent(publicId));
       }
-    } catch { /* URL parse failed, ignore */ }
-
-    // (c) Fall back to Cloudinary's own Content-Disposition if it has an extension
-    if (!ext) {
-      const upstreamDisp = proxyRes.headers['content-disposition'];
-      if (upstreamDisp) {
-        const m = upstreamDisp.match(/filename[^;=\n]*=["']?([^"';\n]+)/i);
-        if (m) ext = path.extname(m[1].trim());
-      }
-    }
-
-    // (d) LAST RESORT: derive extension from upstream Content-Type.
-    // We use it ONLY to guess a file extension, never to set the outgoing Content-Type.
-    // Note: Cloudinary returns `application/pdf` for many raw assets regardless of format.
-    // But for xlsx/docx/pptx Cloudinary typically does return the correct MIME type, so
-    // this helps for those files while still being wrong for old PDF-identified non-PDFs.
-    if (!ext) {
-      const MIME_TO_EXT = {
-        'application/pdf': '.pdf',
-        'application/vnd.ms-powerpoint': '.ppt',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
-        'application/msword': '.doc',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-        'application/vnd.ms-excel': '.xls',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
-        'text/csv': '.csv',
-        'application/zip': '.zip',
-        'text/plain': '.txt',
-        'video/mp4': '.mp4',
-        'audio/mpeg': '.mp3',
-        'image/jpeg': '.jpg',
-        'image/png': '.png',
-      };
-      const upstreamContentType = (proxyRes.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-      ext = MIME_TO_EXT[upstreamContentType] || '';
-    }
-
-    if (ext && ext !== '.') finalName = finalName + ext;
+    } catch { /* ignore */ }
   }
 
-  // ── Step 2: Determine Content-Type from extension, NOT from Cloudinary ──────
-  // Cloudinary's private_download_url sometimes returns `application/pdf` for
-  // ALL raw resources regardless of format. If we forward it blindly, the browser
-  // appends ".pdf" to the filename even when the file is a .pptx or .xlsx.
-  const MIME = {
-    '.pdf': 'application/pdf',
-    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    '.ppt': 'application/vnd.ms-powerpoint',
-    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    '.doc': 'application/msword',
-    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    '.xls': 'application/vnd.ms-excel',
-    '.csv': 'text/csv',
-    '.mp4': 'video/mp4',
-    '.webm': 'video/webm',
-    '.mp3': 'audio/mpeg',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp',
-    '.zip': 'application/zip',
-    '.txt': 'text/plain',
-    '.json': 'application/json',
-  };
-
-  const detectedExt = path.extname(finalName).toLowerCase();
-  // IMPORTANT: never fall back to Cloudinary's upstream Content-Type.
-  // Cloudinary's private_download_url returns `application/pdf` for ALL raw
-  // resources regardless of the actual file format. Using it would cause browsers
-  // to append ".pdf" even to .pptx/.xlsx files.
-  // If we know the extension, use the correct MIME type. Otherwise force
-  // `application/octet-stream` which triggers a clean download with no extra extension.
-  const contentType = (detectedExt && MIME[detectedExt])
-    ? MIME[detectedExt]
-    : 'application/octet-stream';
-
-  res.setHeader("Content-Type", contentType);
-  if (proxyRes.headers["content-length"]) {
-    res.setHeader("Content-Length", proxyRes.headers["content-length"]);
+  if (!ext) {
+    const upstreamDisp = proxyRes.headers['content-disposition'];
+    if (upstreamDisp) {
+      const m = upstreamDisp.match(/filename[^;=\n]*=["']?([^"';\n]+)/i);
+      if (m) ext = path.extname(m[1].trim());
+    }
   }
 
-  // Force browser to save with the correct name (RFC 5987 UTF-8 encoded form)
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`
-  );
-  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+  // If we already know the extension, send headers immediately and stream
+  if (ext && ext !== '.') {
+    sendWithExtension(ext);
+    proxyRes.pipe(res);
+    return;
+  }
 
-  proxyRes.pipe(res);
+  // ── Extension still unknown — buffer first 4KB and detect via magic bytes ───
+  const chunks = [];
+  let buffered = 0;
+  const PEEK_SIZE = 4096;
+
+  proxyRes.on('data', onData);
+  proxyRes.on('end', onEnd);
+  proxyRes.on('error', onError);
+
+  function onData(chunk) {
+    chunks.push(chunk);
+    buffered += chunk.length;
+
+    if (buffered >= PEEK_SIZE) {
+      // We have enough data to detect the file type
+      proxyRes.removeListener('data', onData);
+      proxyRes.removeListener('end', onEnd);
+      proxyRes.removeListener('error', onError);
+
+      const head = Buffer.concat(chunks);
+      const detected = detectExtFromMagicBytes(head);
+      if (detected) {
+        console.log(`🔍 Magic bytes detected: ${downloadName} → ${detected}`);
+      }
+      sendWithExtension(detected);
+      res.write(head);
+      proxyRes.pipe(res);
+    }
+  }
+
+  function onEnd() {
+    // File was smaller than PEEK_SIZE — still try to detect
+    const head = Buffer.concat(chunks);
+    const detected = detectExtFromMagicBytes(head);
+    if (detected) {
+      console.log(`🔍 Magic bytes detected (small file): ${downloadName} → ${detected}`);
+    }
+    sendWithExtension(detected);
+    res.end(head);
+  }
+
+  function onError(err) {
+    console.error(`Download proxy stream error: ${err.message}`);
+    if (!res.headersSent) {
+      res.status(502).json({ success: false, message: "Failed to download file" });
+    }
+  }
+
+  function sendWithExtension(detectedExt) {
+    let finalName = downloadName;
+    if (detectedExt && !path.extname(finalName)) {
+      finalName = finalName + detectedExt;
+    }
+
+    const fileExt = path.extname(finalName).toLowerCase();
+    const contentType = (fileExt && EXT_TO_MIME[fileExt])
+      ? EXT_TO_MIME[fileExt]
+      : 'application/octet-stream';
+
+    res.setHeader("Content-Type", contentType);
+    if (proxyRes.headers["content-length"]) {
+      res.setHeader("Content-Length", proxyRes.headers["content-length"]);
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`
+    );
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+  }
 }
 
 // ── Signed upload params for direct frontend-to-Cloudinary uploads ───────────

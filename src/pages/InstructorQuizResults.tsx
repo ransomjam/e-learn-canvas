@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
     Search, Loader2, ChevronLeft, ChevronRight, Trophy, Users,
     BarChart3, CheckCircle2, XCircle, Eye, X, Clock, Award,
-    TrendingUp, BookOpen, Filter
+    TrendingUp, BookOpen, Filter, Download
 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,52 @@ const InstructorQuizResults = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [selectedAttempt, setSelectedAttempt] = useState<string | null>(null);
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportCSV = async () => {
+        try {
+            setIsExporting(true);
+            const response = await instructorService.getQuizAttempts({
+                page: 1,
+                limit: 10000,
+                courseId: courseFilter || undefined,
+                search: debouncedSearch || undefined
+            });
+
+            if (!response.attempts || response.attempts.length === 0) return;
+
+            const headers = ['Student Name', 'Email', 'Course', 'Quiz Title', 'Score Percentage', 'Correct Questions', 'Total Questions', 'Status', 'Date'];
+
+            const rows = response.attempts.map(a => {
+                const correctCount = Math.round((a.score / 100) * a.totalQuestions);
+                return [
+                    `"${a.student.firstName} ${a.student.lastName}"`,
+                    `"${a.student.email}"`,
+                    `"${a.course.title.replace(/"/g, '""')}"`,
+                    `"${a.quiz.title.replace(/"/g, '""')}"`,
+                    `${a.score.toFixed(0)}%`,
+                    `${correctCount}`,
+                    `${a.totalQuestions}`,
+                    a.passed ? 'Passed' : 'Failed',
+                    `"${formatDate(a.attemptedAt)}"`
+                ].join(',');
+            });
+
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `quiz_results_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Failed to export CSV:', error);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // Debounce search
     const handleSearchChange = (value: string) => {
@@ -179,6 +225,15 @@ const InstructorQuizResults = () => {
                             ))}
                         </select>
                     </div>
+                    <Button
+                        variant="outline"
+                        onClick={handleExportCSV}
+                        disabled={isExporting || attempts.length === 0}
+                        className="w-full sm:w-auto flex items-center gap-2"
+                    >
+                        {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        Export CSV
+                    </Button>
                 </div>
 
                 {/* Results Table */}
@@ -233,10 +288,10 @@ const InstructorQuizResults = () => {
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
                                                     <span className={`font-display text-lg font-bold ${getScoreColor(attempt.score)}`}>
-                                                        {attempt.score.toFixed(0)}%
+                                                        {Math.round((attempt.score / 100) * attempt.totalQuestions)}/{attempt.totalQuestions}
                                                     </span>
-                                                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                        {attempt.totalQuestions} questions
+                                                    <p className="font-medium text-xs text-muted-foreground mt-0.5">
+                                                        ({attempt.score.toFixed(0)}%)
                                                     </p>
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
@@ -280,9 +335,12 @@ const InstructorQuizResults = () => {
                                                 </div>
                                             </div>
                                             <div className="text-right flex-shrink-0">
-                                                <span className={`font-display text-lg font-bold ${getScoreColor(attempt.score)}`}>
-                                                    {attempt.score.toFixed(0)}%
-                                                </span>
+                                                <div className="flex flex-col items-end">
+                                                    <span className={`font-display text-lg font-bold ${getScoreColor(attempt.score)}`}>
+                                                        {Math.round((attempt.score / 100) * attempt.totalQuestions)}/{attempt.totalQuestions}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground font-medium">({attempt.score.toFixed(0)}%)</span>
+                                                </div>
                                                 <div className="mt-0.5">
                                                     <Badge className={`text-[10px] ${attempt.passed ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
                                                         {attempt.passed ? 'Passed' : 'Failed'}
@@ -373,9 +431,12 @@ const InstructorQuizResults = () => {
                                             <div className={`rounded-xl border p-4 text-center ${getScoreBg(attemptDetail.score)}`}>
                                                 <Award className={`mx-auto h-6 w-6 mb-1 ${getScoreColor(attemptDetail.score)}`} />
                                                 <p className={`font-display text-2xl font-bold ${getScoreColor(attemptDetail.score)}`}>
-                                                    {attemptDetail.score.toFixed(0)}%
+                                                    {Math.round((attemptDetail.score / 100) * attemptDetail.totalQuestions)}/{attemptDetail.totalQuestions}
                                                 </p>
-                                                <p className="text-xs text-muted-foreground">Score</p>
+                                                <p className="text-xs font-semibold text-muted-foreground mt-1">
+                                                    ({attemptDetail.score.toFixed(0)}%)
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">Score</p>
                                             </div>
                                             <div className="rounded-xl border border-border bg-secondary/30 p-4 text-center">
                                                 <BookOpen className="mx-auto h-6 w-6 mb-1 text-blue-400" />
@@ -461,10 +522,10 @@ const InstructorQuizResults = () => {
                                                                             <div
                                                                                 key={oi}
                                                                                 className={`text-xs rounded px-2 py-1 ${oi === answer.correctAnswer
-                                                                                        ? 'bg-emerald-500/10 text-emerald-400 font-medium'
-                                                                                        : oi === answer.userAnswer && !answer.isCorrect
-                                                                                            ? 'bg-red-500/10 text-red-400 line-through'
-                                                                                            : 'text-muted-foreground'
+                                                                                    ? 'bg-emerald-500/10 text-emerald-400 font-medium'
+                                                                                    : oi === answer.userAnswer && !answer.isCorrect
+                                                                                        ? 'bg-red-500/10 text-red-400 line-through'
+                                                                                        : 'text-muted-foreground'
                                                                                     }`}
                                                                             >
                                                                                 {String.fromCharCode(65 + oi)}. {opt}

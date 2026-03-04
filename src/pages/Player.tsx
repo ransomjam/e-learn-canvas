@@ -693,7 +693,7 @@ const Player = () => {
               )}
 
               {/* ─── Custom Project Submission for this Lesson ─── */}
-              {currentLesson?.hasSubmission && user?.role !== 'instructor' && user?.role !== 'admin' && (
+              {currentLesson?.hasSubmission && (
                 <div className="mt-6 pt-4 border-t border-border/40">
                   <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-5 space-y-4">
                     <div className="flex items-center gap-3">

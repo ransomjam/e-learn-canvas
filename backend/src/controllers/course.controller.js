@@ -235,7 +235,9 @@ const getCourseById = asyncHandler(async (req, res) => {
                 'videoDuration', l.video_duration,
                 'orderIndex', l.order_index,
                 'isFree', l.is_free,
-                'isPublished', l.is_published
+                'isPublished', l.is_published,
+                'hasSubmission', l.has_submission,
+                'submissionIsMandatory', l.submission_is_mandatory
               ) ORDER BY l.order_index
             ) FILTER (WHERE l.id IS NOT NULL) as lessons
      FROM sections s

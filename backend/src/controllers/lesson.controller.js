@@ -431,6 +431,8 @@ const getLessonById = asyncHandler(async (req, res) => {
             isFree: lesson.is_free,
             isPublished: lesson.is_published,
             isMandatory: lesson.is_mandatory,
+            hasSubmission: lesson.has_submission,
+            submissionIsMandatory: lesson.submission_is_mandatory,
             quizData: lesson.quiz_data,
             resources: signJsonResources(lesson.resources),
             practiceFiles: signJsonResources(lesson.practice_files),

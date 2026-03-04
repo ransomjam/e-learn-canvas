@@ -562,6 +562,12 @@ const Player = () => {
                         {currentLesson.duration} mins
                       </span>
                     )}
+                    {currentLesson?.hasSubmission && (
+                      <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border shadow-sm ${currentLesson.submissionIsMandatory ? 'bg-primary/10 text-primary border-primary/20 font-bold' : 'bg-muted/50 text-muted-foreground border-border/50'}`}>
+                        <Upload className="h-3.5 w-3.5" />
+                        {currentLesson.submissionIsMandatory ? 'Submission Required' : 'Optional Project'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1099,11 +1105,19 @@ const Player = () => {
                                 </div>
                                 <div className="flex-1 min-w-0 mt-0.5">
                                   <p className="break-words line-clamp-2 leading-snug">{lesson.title}</p>
-                                  {lesson.duration && (
-                                    <span className="text-[9px] text-muted-foreground/70 block mt-0.5">
-                                      {lesson.duration}m
-                                    </span>
-                                  )}
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    {lesson.duration && (
+                                      <span className="text-[9px] text-muted-foreground/70 block">
+                                        {lesson.duration}m
+                                      </span>
+                                    )}
+                                    {lesson.hasSubmission && (
+                                      <span className={`text-[9px] flex items-center gap-1 px-1.5 py-0.5 rounded-sm font-semibold border ${lesson.submissionIsMandatory ? 'text-primary bg-primary/10 border-primary/20' : 'text-muted-foreground bg-muted/50 border-border/50'}`}>
+                                        <Upload className="h-2.5 w-2.5" />
+                                        {lesson.submissionIsMandatory ? 'Required' : 'Optional Project'}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </button>
                             );

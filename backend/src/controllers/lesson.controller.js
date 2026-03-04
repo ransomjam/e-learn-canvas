@@ -254,6 +254,7 @@ const getCourseLessons = asyncHandler(async (req, res) => {
             l.id, l.title, l.slug, l.description, l.type, l.video_duration,
             l.order_index, l.is_free, l.is_published, l.is_mandatory, l.quiz_data,
             l.content, l.video_url, l.resources, l.practice_files,
+            l.has_submission, l.submission_is_mandatory,
             l.created_at
      FROM sections s
      LEFT JOIN lessons l ON s.id = l.section_id ${!hasFullAccess ? 'AND l.is_published = true' : ''}
@@ -287,6 +288,8 @@ const getCourseLessons = asyncHandler(async (req, res) => {
                 isFree: row.is_free,
                 isPublished: row.is_published,
                 isMandatory: row.is_mandatory,
+                hasSubmission: row.has_submission || false,
+                submissionIsMandatory: row.submission_is_mandatory || false,
                 createdAt: row.created_at
             };
 

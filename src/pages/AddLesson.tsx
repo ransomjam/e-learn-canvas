@@ -468,9 +468,14 @@ const AddLesson = () => {
                     <div className="space-y-4 pt-4 border-t border-border">
                         <div>
                             <Label className="text-base font-semibold">Custom Project Submission</Label>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                Ask learners to submit custom projects or files as part of this lesson.
-                            </p>
+                            <div className="space-y-1 mt-0.5">
+                                <p className="text-xs text-muted-foreground">
+                                    This will add a submission form directly inside this lesson (at the bottom of the page) for students.
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Submitted files will appear in your "Custom Projects" tab.
+                                </p>
+                            </div>
                         </div>
                         <div className="flex items-center space-x-2">
                             <input

@@ -330,23 +330,23 @@ const Player = () => {
   let isSubsequentLocked = false;
   const processedLessonsLookup = new Map<string, boolean>();
 
-  if (user?.role !== 'instructor' && user?.role !== 'admin') {
-    const completedLessonsList = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
-    const submissionSet = new Set(myPracticeSubmissions.map((s: any) => s.lessonId || s.lesson_id));
+  const completedLessonsList = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
+  const submissionSet = new Set(myPracticeSubmissions.map((s: any) => s.lessonId || s.lesson_id));
 
-    allLessons.forEach(l => {
-      processedLessonsLookup.set(l.id, isSubsequentLocked);
-      const isCompleted = completedLessonsList.includes(l.id);
-      const hasSubmitted = submissionSet.has(l.id);
+  allLessons.forEach(l => {
+    processedLessonsLookup.set(l.id, isSubsequentLocked);
+    const isCompleted = completedLessonsList.includes(l.id);
+    const hasSubmitted = submissionSet.has(l.id);
 
-      if (l.type === 'quiz' && l.isMandatory && !isCompleted) {
-        isSubsequentLocked = true;
-      }
-      if (l.hasSubmission && l.submissionIsMandatory && !hasSubmitted) {
-        isSubsequentLocked = true;
-      }
-    });
-  }
+    if (l.type === 'quiz' && l.isMandatory && !isCompleted) {
+      isSubsequentLocked = true;
+    }
+    if (l.hasSubmission && l.submissionIsMandatory && !hasSubmitted) {
+      isSubsequentLocked = true;
+    }
+  });
+
+  const isPrivileged = user?.role === 'instructor' || user?.role === 'admin';
 
   const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
   const totalLessons = allLessons.length;
@@ -365,10 +365,13 @@ const Player = () => {
     const idx = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
     if (idx >= 0 && idx < allLessons.length) {
       const nextId = allLessons[idx].id;
-      if (!processedLessonsLookup.get(nextId)) {
+      if (!processedLessonsLookup.get(nextId) || isPrivileged) {
         setCurrentLessonId(nextId);
+        if (processedLessonsLookup.get(nextId) && isPrivileged) {
+          toast({ title: 'Bypassing Lock', description: 'This lesson is locked for students, but accessible to you as an instructor.', variant: 'default' });
+        }
       } else {
-        toast({ title: 'Lesson Locked', description: 'Please complete mandatory quizzes or submissions first.', variant: 'destructive' });
+        toast({ title: 'Lesson Locked', description: 'Please complete mandatory quizzes or submissions first to proceed.', variant: 'destructive' });
       }
     }
   };
@@ -1037,8 +1040,12 @@ const Player = () => {
                                 key={lesson.id}
                                 onClick={() => {
                                   if (isLocked) {
-                                    toast({ title: 'Lesson Locked', description: 'Please complete previous mandatory quizzes.', variant: 'destructive' });
-                                    return;
+                                    if (!isPrivileged) {
+                                      toast({ title: 'Lesson Locked', description: 'Please complete previous mandatory quizzes or submissions first to proceed.', variant: 'destructive' });
+                                      return;
+                                    } else {
+                                      toast({ title: 'Bypassing Lock', description: 'This lesson is locked for students, but accessible to you as an instructor.', variant: 'default' });
+                                    }
                                   }
                                   setCurrentLessonId(lesson.id);
                                   if (isMobile) {

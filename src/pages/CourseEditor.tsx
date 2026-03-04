@@ -1293,9 +1293,14 @@ const CourseEditor = () => {
                                                                                                 </Label>
                                                                                             </div>
                                                                                         )}
-                                                                                        <p className="text-xs text-muted-foreground ml-7">
-                                                                                            These submissions will appear under your "Custom Projects" tab.
-                                                                                        </p>
+                                                                                        <div className="space-y-1 ml-7 mt-2">
+                                                                                            <p className="text-xs text-muted-foreground">
+                                                                                                This will add a submission form directly inside this lesson (at the bottom of the page) for students.
+                                                                                            </p>
+                                                                                            <p className="text-xs text-muted-foreground">
+                                                                                                Submitted files will appear in your "Custom Projects" tab.
+                                                                                            </p>
+                                                                                        </div>
                                                                                     </div>
                                                                                     {/* Resources */}
                                                                                     <div className="space-y-3 pt-4 border-t border-border">

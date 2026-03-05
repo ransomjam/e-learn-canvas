@@ -226,31 +226,61 @@ const updatePracticeSubmissionApproval = asyncHandler(async (req, res) => {
          FROM information_schema.columns
          WHERE table_schema = 'public'
            AND table_name = 'practice_submissions'
-           AND column_name IN ('approved_by', 'approved_at')`
+           AND column_name IN ('status', 'instructor_feedback', 'approved_by', 'approved_at', 'updated_at')`
     );
 
     const availableColumns = new Set(columnMetadata.rows.map((row) => row.column_name));
-    const updateFields = [
-        'status = $1',
-        'instructor_feedback = $2',
-        'updated_at = CURRENT_TIMESTAMP',
-    ];
+
+    // Build SET clauses and params dynamically to avoid parameter index gaps
+    const updateFields = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (availableColumns.has('status')) {
+        updateFields.push(`status = $${paramIndex}`);
+        params.push(status);
+        paramIndex++;
+    }
+
+    if (availableColumns.has('instructor_feedback')) {
+        updateFields.push(`instructor_feedback = $${paramIndex}`);
+        params.push(feedback || null);
+        paramIndex++;
+    }
+
+    if (availableColumns.has('updated_at')) {
+        updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    }
 
     if (availableColumns.has('approved_by')) {
-        updateFields.push("approved_by = CASE WHEN $1 = 'approved' THEN $3 ELSE NULL END");
+        updateFields.push(`approved_by = $${paramIndex}`);
+        params.push(status === 'approved' ? req.user.id : null);
+        paramIndex++;
     }
 
     if (availableColumns.has('approved_at')) {
-        updateFields.push("approved_at = CASE WHEN $1 = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END");
+        updateFields.push(`approved_at = ${status === 'approved' ? 'CURRENT_TIMESTAMP' : 'NULL'}`);
     }
+
+    if (updateFields.length === 0) {
+        throw new ApiError(500, 'Database schema missing required columns for practice submissions');
+    }
+
+    // WHERE clause uses the next param index
+    const whereParam = `$${paramIndex}`;
+    params.push(id);
 
     const result = await query(
         `UPDATE practice_submissions
          SET ${updateFields.join(', ')}
-         WHERE id = $4
+         WHERE id = ${whereParam}
          RETURNING *`,
-        [status, feedback || null, req.user.id, id]
+        params
     );
+
+    if (result.rows.length === 0) {
+        throw new ApiError(404, 'Submission not found or update failed');
+    }
 
     const updated = result.rows[0];
     if (updated.file_url) {

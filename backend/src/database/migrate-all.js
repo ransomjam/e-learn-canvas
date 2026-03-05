@@ -566,12 +566,25 @@ const allMigrations = [
     `},
     {
         name: '037_add_practice_submission_approval_fields', up: `
-        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'
-            CHECK (status IN ('pending', 'approved', 'rejected'));
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
+        DO $$ BEGIN
+            ALTER TABLE practice_submissions ADD CONSTRAINT practice_submissions_status_check
+                CHECK (status IN ('pending', 'approved', 'rejected'));
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
         ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS instructor_feedback TEXT;
         ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
         ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
         CREATE INDEX IF NOT EXISTS idx_practice_submissions_status ON practice_submissions(status);
+    `},
+
+    // Repair migration: ensure all columns exist even if 037 partially failed
+    {
+        name: '038_repair_practice_submission_columns', up: `
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS instructor_feedback TEXT;
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
     `}
 ];
 

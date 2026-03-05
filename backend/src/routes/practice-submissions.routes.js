@@ -6,6 +6,7 @@ const {
     submitPracticeFile,
     getMyPracticeSubmissions,
     getInstructorPracticeSubmissions,
+    updatePracticeSubmissionApproval,
     deletePracticeSubmission
 } = require('../controllers/practice-submissions.controller');
 
@@ -15,6 +16,7 @@ router.get('/my', authenticate, getMyPracticeSubmissions);
 
 // Instructor route
 router.get('/instructor', authenticate, getInstructorPracticeSubmissions);
+router.patch('/:id/approval', authenticate, updatePracticeSubmissionApproval);
 
 // Delete (owner or instructor)
 router.delete('/:id', authenticate, deletePracticeSubmission);

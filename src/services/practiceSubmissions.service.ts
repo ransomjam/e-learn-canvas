@@ -26,7 +26,13 @@ export interface PracticeSubmission {
     lastName?: string;
     last_name?: string;
     email?: string;
+    status?: 'pending' | 'approved' | 'rejected' | string;
+    instructorFeedback?: string;
+    instructor_feedback?: string;
+    approvedAt?: string;
+    approved_at?: string;
 }
+
 
 export const practiceSubmissionsService = {
     async submit(data: {
@@ -87,6 +93,15 @@ export const practiceSubmissionsService = {
         pagination: { page: number; limit: number; total: number; pages: number };
     }> {
         const response = await api.get('/practice-submissions/instructor', { params });
+        return response.data.data;
+    },
+
+
+    async updateApproval(id: string, data: {
+        status: 'pending' | 'approved' | 'rejected';
+        feedback?: string;
+    }): Promise<PracticeSubmission> {
+        const response = await api.patch(`/practice-submissions/${id}/approval`, data);
         return response.data.data;
     },
 

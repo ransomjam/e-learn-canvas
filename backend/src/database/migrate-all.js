@@ -563,6 +563,15 @@ const allMigrations = [
         name: '036_add_lesson_submission_fields', up: `
         ALTER TABLE lessons ADD COLUMN IF NOT EXISTS has_submission BOOLEAN DEFAULT false;
         ALTER TABLE lessons ADD COLUMN IF NOT EXISTS submission_is_mandatory BOOLEAN DEFAULT false;
+    `},
+    {
+        name: '037_add_practice_submission_approval_fields', up: `
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'
+            CHECK (status IN ('pending', 'approved', 'rejected'));
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS instructor_feedback TEXT;
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
+        ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
+        CREATE INDEX IF NOT EXISTS idx_practice_submissions_status ON practice_submissions(status);
     `}
 ];
 

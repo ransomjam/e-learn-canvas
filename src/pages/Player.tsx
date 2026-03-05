@@ -117,6 +117,7 @@ const Player = () => {
     queryKey: ['myPracticeSubmissions', id],
     queryFn: () => practiceSubmissionsService.getMy(id!),
     enabled: !!id,
+    refetchInterval: 5000,
   });
 
   const { data: likesData } = useQuery({
@@ -331,17 +332,21 @@ const Player = () => {
   const processedLessonsLookup = new Map<string, boolean>();
 
   const completedLessonsList = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
-  const submissionSet = new Set(myPracticeSubmissions.map((s: any) => s.lessonId || s.lesson_id));
+  const approvedSubmissionSet = new Set(
+    myPracticeSubmissions
+      .filter((s: any) => (s.status || 'pending') === 'approved')
+      .map((s: any) => s.lessonId || s.lesson_id)
+  );
 
   allLessons.forEach(l => {
     processedLessonsLookup.set(l.id, isSubsequentLocked);
     const isCompleted = completedLessonsList.includes(l.id);
-    const hasSubmitted = submissionSet.has(l.id);
+    const hasApprovedSubmission = approvedSubmissionSet.has(l.id);
 
     if (l.type === 'quiz' && l.isMandatory && !isCompleted) {
       isSubsequentLocked = true;
     }
-    if (l.hasSubmission && l.submissionIsMandatory && !hasSubmitted) {
+    if (l.hasSubmission && l.submissionIsMandatory && !hasApprovedSubmission) {
       isSubsequentLocked = true;
     }
   });
@@ -371,7 +376,7 @@ const Player = () => {
           toast({ title: 'Bypassing Lock', description: 'This lesson is locked for students, but accessible to you as an instructor.', variant: 'default' });
         }
       } else {
-        toast({ title: 'Lesson Locked', description: 'Please complete mandatory quizzes or submissions first to proceed.', variant: 'destructive' });
+        toast({ title: 'Lesson Locked', description: 'Please complete mandatory quizzes or wait for instructor approval on required submissions.', variant: 'destructive' });
       }
     }
   };
@@ -807,9 +812,14 @@ const Player = () => {
                                   <p className="text-xs text-muted-foreground mt-1 truncate">{sub.notes}</p>
                                 )}
                               </div>
-                              <p className="text-xs text-muted-foreground/80 flex-shrink-0 ml-3">
-                                <CheckCircle className="h-4 w-4 text-emerald-500 inline mr-1" />
-                                Submitted
+                              <p className="text-xs flex-shrink-0 ml-3 font-medium">
+                                {(sub.status || 'pending') === 'approved' ? (
+                                  <><CheckCircle className="h-4 w-4 text-emerald-500 inline mr-1" /> <span className="text-emerald-600">Approved</span></>
+                                ) : (sub.status || 'pending') === 'rejected' ? (
+                                  <><Trash2 className="h-4 w-4 text-rose-500 inline mr-1" /> <span className="text-rose-500">Rejected</span></>
+                                ) : (
+                                  <><Clock className="h-4 w-4 text-yellow-500 inline mr-1" /> <span className="text-yellow-600">Pending approval</span></>
+                                )}
                               </p>
                             </div>
                           ))}
@@ -1041,7 +1051,7 @@ const Player = () => {
                                 onClick={() => {
                                   if (isLocked) {
                                     if (!isPrivileged) {
-                                      toast({ title: 'Lesson Locked', description: 'Please complete previous mandatory quizzes or submissions first to proceed.', variant: 'destructive' });
+                                      toast({ title: 'Lesson Locked', description: 'Please complete previous mandatory quizzes or wait for instructor approval on required submissions.', variant: 'destructive' });
                                       return;
                                     } else {
                                       toast({ title: 'Bypassing Lock', description: 'This lesson is locked for students, but accessible to you as an instructor.', variant: 'default' });

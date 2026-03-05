@@ -221,13 +221,32 @@ const updatePracticeSubmissionApproval = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Not authorized to review this submission');
     }
 
+    const columnMetadata = await query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'practice_submissions'
+           AND column_name IN ('approved_by', 'approved_at')`
+    );
+
+    const availableColumns = new Set(columnMetadata.rows.map((row) => row.column_name));
+    const updateFields = [
+        'status = $1',
+        'instructor_feedback = $2',
+        'updated_at = CURRENT_TIMESTAMP',
+    ];
+
+    if (availableColumns.has('approved_by')) {
+        updateFields.push("approved_by = CASE WHEN $1 = 'approved' THEN $3 ELSE NULL END");
+    }
+
+    if (availableColumns.has('approved_at')) {
+        updateFields.push("approved_at = CASE WHEN $1 = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END");
+    }
+
     const result = await query(
         `UPDATE practice_submissions
-         SET status = $1,
-             instructor_feedback = $2,
-             approved_by = CASE WHEN $1 = 'approved' THEN $3 ELSE NULL END,
-             approved_at = CASE WHEN $1 = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
-             updated_at = CURRENT_TIMESTAMP
+         SET ${updateFields.join(', ')}
          WHERE id = $4
          RETURNING *`,
         [status, feedback || null, req.user.id, id]

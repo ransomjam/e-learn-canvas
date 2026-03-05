@@ -356,10 +356,14 @@ const Player = () => {
     }
   });
 
-  const getLockDescription = (targetLessonId: string) => {
+  const getLockFeedback = (targetLessonId: string): { title: string; description: string; variant: 'destructive' | 'warning' } => {
     const targetIndex = allLessons.findIndex((lesson) => lesson.id === targetLessonId);
     if (targetIndex <= 0) {
-      return 'Please complete mandatory quizzes or wait for instructor approval on required submissions.';
+      return {
+        title: 'Lesson Locked',
+        description: 'Please complete required quizzes or submissions from earlier lessons to continue.',
+        variant: 'destructive',
+      };
     }
 
     for (let i = 0; i < targetIndex; i += 1) {
@@ -368,18 +372,34 @@ const Player = () => {
       const hasApprovedSubmission = approvedSubmissionSet.has(lesson.id);
 
       if (lesson.type === 'quiz' && lesson.isMandatory && !isCompleted) {
-        return 'Please complete previous mandatory quizzes or wait for instructor approval on required submissions.';
+        return {
+          title: 'Quiz Required',
+          description: 'Complete the mandatory quiz in a previous lesson to unlock this lesson.',
+          variant: 'destructive',
+        };
       }
 
       if (lesson.hasSubmission && lesson.submissionIsMandatory && !hasApprovedSubmission) {
         if (pendingSubmissionSet.has(lesson.id)) {
-          return 'Pending approval, notify the instructor to review your submission and approve it.';
+          return {
+            title: 'Pending Approval',
+            description: 'Pending approval, notify the instructor to review your submission and approve it.',
+            variant: 'warning',
+          };
         }
-        return 'Please complete previous mandatory quizzes or wait for instructor approval on required submissions.';
+        return {
+          title: 'Submission Required',
+          description: 'Submit the required work in a previous lesson to continue to the next lesson.',
+          variant: 'destructive',
+        };
       }
     }
 
-    return 'Please complete previous mandatory quizzes or wait for instructor approval on required submissions.';
+    return {
+      title: 'Lesson Locked',
+      description: 'Please complete required quizzes or submissions from earlier lessons to continue.',
+      variant: 'destructive',
+    };
   };
 
   const isPrivileged = user?.role === 'instructor' || user?.role === 'admin';
@@ -407,7 +427,8 @@ const Player = () => {
           toast({ title: 'Bypassing Lock', description: 'This lesson is locked for students, but accessible to you as an instructor.', variant: 'default' });
         }
       } else {
-        toast({ title: 'Lesson Locked', description: getLockDescription(nextId), variant: 'destructive' });
+        const lockFeedback = getLockFeedback(nextId);
+        toast(lockFeedback);
       }
     }
   };
@@ -1082,7 +1103,8 @@ const Player = () => {
                                 onClick={() => {
                                   if (isLocked) {
                                     if (!isPrivileged) {
-                                      toast({ title: 'Lesson Locked', description: getLockDescription(lesson.id), variant: 'destructive' });
+                                      const lockFeedback = getLockFeedback(lesson.id);
+                                      toast(lockFeedback);
                                       return;
                                     } else {
                                       toast({ title: 'Bypassing Lock', description: 'This lesson is locked for students, but accessible to you as an instructor.', variant: 'default' });

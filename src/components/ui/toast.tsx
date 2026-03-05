@@ -15,7 +15,7 @@ const ToastViewport = React.forwardRef<
     ref={ref}
     className={cn(
       // position to bottom-right to avoid covering headers
-      "fixed bottom-4 right-4 z-[100] flex max-h-screen w-full flex-col-reverse gap-2 p-0 sm:max-w-[420px]",
+      "fixed inset-x-0 bottom-3 z-[100] flex max-h-screen w-full flex-col-reverse gap-2 px-3 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:px-0 sm:max-w-[420px]",
       className,
     )}
     {...props}
@@ -24,14 +24,14 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-lg border p-4 pr-8 shadow-xl ring-1 ring-black/5 transition-all motion-safe:duration-200 data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-full",
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-lg border-2 p-4 pr-8 shadow-2xl ring-1 ring-black/20 transition-all motion-safe:duration-200 data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-full",
   {
     variants: {
       variant: {
         default: "border-border bg-card text-foreground shadow-lg",
         destructive: "destructive group border-destructive bg-destructive text-destructive-foreground",
         success: "border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400",
-        warning: "border-yellow-500/40 bg-yellow-500/15 text-yellow-800 dark:text-yellow-300",
+        warning: "border-yellow-500 bg-yellow-100 text-yellow-900 dark:border-yellow-400 dark:bg-yellow-950 dark:text-yellow-200",
       },
     },
     defaultVariants: {

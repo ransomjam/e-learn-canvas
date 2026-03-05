@@ -374,8 +374,8 @@ const Player = () => {
       if (lesson.type === 'quiz' && lesson.isMandatory && !isCompleted) {
         return {
           title: 'Quiz Required',
-          description: 'Complete the mandatory quiz in a previous lesson to unlock this lesson.',
-          variant: 'destructive',
+          description: 'Complete and submit the required quiz in an earlier lesson to unlock this content.',
+          variant: 'default',
         };
       }
 
@@ -389,7 +389,7 @@ const Player = () => {
         }
         return {
           title: 'Submission Required',
-          description: 'Submit the required work in a previous lesson to continue to the next lesson.',
+          description: 'Submit the required assignment in an earlier lesson. Instructor approval is needed before the next lesson unlocks.',
           variant: 'destructive',
         };
       }
@@ -583,7 +583,36 @@ const Player = () => {
                       lessonId={currentLesson.id}
                       quizData={typeof currentLesson.quizData === 'string' ? JSON.parse(currentLesson.quizData) : currentLesson.quizData}
                       onComplete={() => {
-                        completeLessonMutation.mutate(currentLesson.id);
+                        completeLessonMutation.mutate(currentLesson.id, {
+                          onSuccess: () => {
+                            const nextLesson = allLessons[currentIndex + 1];
+                            if (!nextLesson) {
+                              return;
+                            }
+
+                            const hasBlockingRequirementBeforeNext = allLessons
+                              .slice(0, currentIndex + 1)
+                              .some((lesson) => {
+                                if (lesson.id === currentLesson.id) {
+                                  return false;
+                                }
+                                const isCompleted = completedLessonsList.includes(lesson.id);
+                                const hasApprovedSubmission = approvedSubmissionSet.has(lesson.id);
+                                const blocksByQuiz = lesson.type === 'quiz' && lesson.isMandatory && !isCompleted;
+                                const blocksBySubmission = lesson.hasSubmission && lesson.submissionIsMandatory && !hasApprovedSubmission;
+                                return blocksByQuiz || blocksBySubmission;
+                              });
+
+                            if (!hasBlockingRequirementBeforeNext || isPrivileged) {
+                              setCurrentLessonId(nextLesson.id);
+                              toast({
+                                title: 'Next Lesson Unlocked',
+                                description: 'Great work! You can continue to the next lesson now.',
+                                variant: 'success',
+                              });
+                            }
+                          },
+                        });
                       }}
                     />
                   </div>

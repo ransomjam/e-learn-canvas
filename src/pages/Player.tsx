@@ -331,7 +331,7 @@ const Player = () => {
   let isSubsequentLocked = false;
   const processedLessonsLookup = new Map<string, boolean>();
 
-  const completedLessonsList = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
+  const completedLessonsList = Array.isArray(progress?.completedLessonIds) ? progress.completedLessonIds : [];
   const approvedSubmissionSet = new Set(
     myPracticeSubmissions
       .filter((s: any) => (s.status || 'pending') === 'approved')
@@ -406,7 +406,7 @@ const Player = () => {
 
   const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
   const totalLessons = allLessons.length;
-  const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons.length : (typeof progress?.completedLessons === 'number' ? progress.completedLessons : 0);
+  const completedLessons = typeof progress?.completedLessons === 'number' ? progress.completedLessons : 0;
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
   const isVideoLesson = currentLesson?.type === 'video';
 

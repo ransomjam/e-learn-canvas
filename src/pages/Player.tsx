@@ -465,7 +465,7 @@ const Player = () => {
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
             <Logo size="sm" className="h-8 w-8" />
-            <span className="font-display font-bold text-primary text-base hidden sm:inline">Cradema</span>
+            <span className="font-display font-bold text-primary text-sm sm:text-base">Cradema</span>
           </Link>
           <span className="text-muted-foreground/40 hidden sm:inline">|</span>
           <Link to={`/course/${id}`}>
@@ -575,7 +575,7 @@ const Player = () => {
                           </p>
                         )}
                       </div>
-                    )}
+                      )}
                   </div>
                 ) : currentLesson.type === 'quiz' ? (
                   <div className="h-full w-full overflow-auto bg-card">
@@ -637,11 +637,14 @@ const Player = () => {
             <div className="max-w-5xl mx-auto p-5 space-y-4">
               {/* Lesson title and metadata */}
               {/* Lesson title and metadata */}
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-1">
-                <div className="flex-1">
+              <div className="space-y-3 mb-1">
+                <div>
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground mb-3 drop-shadow-sm tracking-tight leading-tight">
                     {currentLesson?.title || 'Select a lesson'}
                   </h1>
+                </div>
+
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-xs sm:text-sm text-foreground/80 font-medium">
                     <span className="bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40 shadow-sm">{((course?.enrollmentCount || 0) * 4) + (likesData?.likesCount || 0) * 2 + 156} plays</span>
                     <span className="bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40 shadow-sm">{course?.enrollmentCount || 0} student{(course?.enrollmentCount === 1) ? '' : 's'}</span>
@@ -656,60 +659,60 @@ const Player = () => {
                         <Upload className="h-3.5 w-3.5" />
                         {currentLesson.submissionIsMandatory ? 'Submission Required' : 'Optional Project'}
                       </span>
+                      )}
+                  </div>
+
+                  {/* Rating Button Moved Here */}
+                  <div className="relative flex-shrink-0 ml-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowRating(!showRating)}
+                      disabled={!progress}
+                      className="gap-2 h-9 px-4 text-sm font-semibold rounded-full border-border/60 hover:border-yellow-500/40 hover:bg-yellow-500/5 transition-all duration-300 shadow-sm hover:shadow-md group"
+                    >
+                      <Star className={`h-4 w-4 transition-transform group-hover:scale-110 ${userReview?.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                      <span>Rate: {userReview?.rating || course?.ratingAvg?.toFixed(1) || '0.0'}</span>
+                    </Button>
+
+                    {/* Rating dropdown */}
+                    {showRating && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowRating(false)}
+                        />
+                        <div className="absolute right-0 top-full mt-2 z-50 bg-card border border-border/50 rounded-2xl shadow-2xl p-4 min-w-[220px] animate-in fade-in slide-in-from-top-2 duration-300 backdrop-blur-xl">
+                          <p className="text-sm font-bold text-foreground mb-3 text-center">Rate Course</p>
+                          <div className="flex justify-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                className="p-1.5 hover:scale-125 hover:-translate-y-1 transition-all duration-200"
+                                onMouseEnter={() => setHoverRating(star)}
+                                onMouseLeave={() => setHoverRating(0)}
+                                onClick={() => ratingMutation.mutate(star)}
+                                disabled={ratingMutation.isPending}
+                              >
+                                <Star
+                                  className={`h-6 w-6 transition-colors ${star <= (hoverRating || userReview?.rating || 0)
+                                    ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]'
+                                    : 'text-muted-foreground/30'
+                                    }`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                          {ratingMutation.isPending && (
+                            <div className="flex justify-center mt-3">
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            </div>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
-                </div>
-
-                {/* Rating Button Moved Here */}
-                <div className="relative flex-shrink-0 pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowRating(!showRating)}
-                    disabled={!progress}
-                    className="gap-2 h-9 px-4 text-sm font-semibold rounded-full border-border/60 hover:border-yellow-500/40 hover:bg-yellow-500/5 transition-all duration-300 shadow-sm hover:shadow-md group"
-                  >
-                    <Star className={`h-4 w-4 transition-transform group-hover:scale-110 ${userReview?.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
-                    <span>Rate: {userReview?.rating || course?.ratingAvg?.toFixed(1) || '0.0'}</span>
-                  </Button>
-
-                  {/* Rating dropdown */}
-                  {showRating && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setShowRating(false)}
-                      />
-                      <div className="absolute right-0 top-full mt-2 z-50 bg-card border border-border/50 rounded-2xl shadow-2xl p-4 min-w-[220px] animate-in fade-in slide-in-from-top-2 duration-300 backdrop-blur-xl">
-                        <p className="text-sm font-bold text-foreground mb-3 text-center">Rate Course</p>
-                        <div className="flex justify-center gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              type="button"
-                              className="p-1.5 hover:scale-125 hover:-translate-y-1 transition-all duration-200"
-                              onMouseEnter={() => setHoverRating(star)}
-                              onMouseLeave={() => setHoverRating(0)}
-                              onClick={() => ratingMutation.mutate(star)}
-                              disabled={ratingMutation.isPending}
-                            >
-                              <Star
-                                className={`h-6 w-6 transition-colors ${star <= (hoverRating || userReview?.rating || 0)
-                                  ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]'
-                                  : 'text-muted-foreground/30'
-                                  }`}
-                              />
-                            </button>
-                          ))}
-                        </div>
-                        {ratingMutation.isPending && (
-                          <div className="flex justify-center mt-3">
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
 
@@ -906,7 +909,7 @@ const Player = () => {
                           ))}
                         </div>
                       </div>
-                    )}
+                      )}
                   </div>
                 </div>
               )}

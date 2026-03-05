@@ -465,7 +465,9 @@ const Player = () => {
         <div className="flex items-center gap-3 min-w-0">
           <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
             <Logo size="sm" className="h-8 w-8" />
-            <span className="font-display font-bold text-primary text-sm sm:text-base">Cradema</span>
+            <span className="font-display text-xl font-bold text-foreground">
+              Crad<span className="text-primary">ema</span>
+            </span>
           </Link>
           <span className="text-muted-foreground/40 hidden sm:inline">|</span>
           <Link to={`/course/${id}`}>
@@ -485,13 +487,13 @@ const Player = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-10 w-10 hover:bg-transparent hover:text-foreground transition-all active:scale-95"
+            className="lg:hidden h-12 w-12 rounded-xl hover:bg-secondary/80 hover:text-foreground transition-all active:scale-95"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
             {isSidebarOpen ? (
-              <X className="h-7 w-7" />
+              <X className="h-8 w-8" />
             ) : (
-              <Menu className="h-7 w-7" />
+              <Menu className="h-8 w-8" />
             )}
           </Button>
         </div>
@@ -1091,8 +1093,8 @@ const Player = () => {
         >
           <div className="flex items-center justify-between border-b border-border/40 bg-card/50 px-5 py-4">
             <h2 className="font-bold text-foreground tracking-tight">Course Content</h2>
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(false)}>
-              <X className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="lg:hidden h-10 w-10" onClick={() => setIsSidebarOpen(false)}>
+              <X className="h-5 w-5" />
             </Button>
           </div>
 

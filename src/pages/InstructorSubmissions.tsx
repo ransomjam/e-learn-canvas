@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     FileText, User, Calendar, CheckCircle, Clock, Loader2,
-    Download, Paperclip, ChevronDown, MessageSquare, Filter, Search
+    Download, Paperclip, ChevronDown, MessageSquare, Filter, Search, XCircle
 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ const InstructorSubmissions = () => {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [downloadingSubmissionId, setDownloadingSubmissionId] = useState<string | null>(null);
     const [activeMainTab, setActiveMainTab] = useState<'projects' | 'uploads'>('projects');
+    const [approvingId, setApprovingId] = useState<string | null>(null);
 
     // Fetch instructor's courses for filter dropdown
     const { data: courses = [] } = useQuery({
@@ -56,6 +57,22 @@ const InstructorSubmissions = () => {
             page: 1,
             limit: 50,
         }),
+    });
+
+
+    const approvalMutation = useMutation({
+        mutationFn: ({ submissionId, status }: { submissionId: string; status: 'pending' | 'approved' | 'rejected' }) =>
+            practiceSubmissionsService.updateApproval(submissionId, { status }),
+        onSuccess: () => {
+            toast({ title: 'Submission approval updated' });
+            setApprovingId(null);
+            queryClient.invalidateQueries({ queryKey: ['instructorPracticeSubmissions'] });
+            queryClient.invalidateQueries({ queryKey: ['myPracticeSubmissions'] });
+        },
+        onError: () => {
+            toast({ title: 'Failed to update approval', variant: 'destructive' });
+            setApprovingId(null);
+        },
     });
 
     const gradeMutation = useMutation({
@@ -483,7 +500,11 @@ const InstructorSubmissions = () => {
 
                 {/* ── PRACTICE UPLOADS TAB ── */}
                 {activeMainTab === 'uploads' && (
-                    <div>
+                    <div className="space-y-4">
+                        <div className="rounded-lg border border-border bg-muted/20 p-4">
+                            <h3 className="font-semibold text-foreground">Approvals</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Approve required learner submissions to unlock their next lesson automatically.</p>
+                        </div>
                         {practiceLoading ? (
                             <div className="flex items-center justify-center py-20">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -529,30 +550,63 @@ const InstructorSubmissions = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Date + download */}
-                                                <div className="flex items-center gap-3 flex-shrink-0">
+                                                {/* Date + status + actions */}
+                                                <div className="flex flex-col items-end gap-2 flex-shrink-0">
                                                     <span className="text-xs text-muted-foreground hidden sm:block">
                                                         {new Date(sub.submitted_at || sub.submittedAt || '').toLocaleDateString()}
                                                     </span>
-                                                    {(sub.file_url || sub.fileUrl) && (sub.file_name || sub.fileName) && (
-                                                        <button
-                                                            onClick={() => downloadProjectFile(
-                                                                (sub.file_url || sub.fileUrl)!,
-                                                                (sub.file_name || sub.fileName)!,
-                                                                () => setDownloadingSubmissionId(sub.id!),
-                                                                () => setDownloadingSubmissionId(null)
-                                                            )}
-                                                            className="text-muted-foreground hover:text-primary disabled:opacity-50"
-                                                            title="Download file"
-                                                            disabled={downloadingSubmissionId === sub.id}
-                                                        >
-                                                            {downloadingSubmissionId === sub.id ? (
-                                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                            ) : (
-                                                                <Download className="h-4 w-4" />
-                                                            )}
-                                                        </button>
-                                                    )}
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={(sub.status || 'pending') === 'approved'
+                                                            ? 'text-emerald-500 border-emerald-500/30'
+                                                            : (sub.status || 'pending') === 'rejected'
+                                                                ? 'text-rose-500 border-rose-500/30'
+                                                                : 'text-yellow-500 border-yellow-500/30'}
+                                                    >
+                                                        {(sub.status || 'pending') === 'approved' && <CheckCircle className="h-3 w-3 mr-1" />}
+                                                        {(sub.status || 'pending') === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
+                                                        {(sub.status || 'pending') === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+                                                        {(sub.status || 'pending').toUpperCase()}
+                                                    </Badge>
+                                                    <div className="flex items-center gap-2">
+                                                        {(sub.file_url || sub.fileUrl) && (sub.file_name || sub.fileName) && (
+                                                            <button
+                                                                onClick={() => downloadProjectFile(
+                                                                    (sub.file_url || sub.fileUrl)!,
+                                                                    (sub.file_name || sub.fileName)!,
+                                                                    () => setDownloadingSubmissionId(sub.id!),
+                                                                    () => setDownloadingSubmissionId(null)
+                                                                )}
+                                                                className="text-muted-foreground hover:text-primary disabled:opacity-50"
+                                                                title="Download file"
+                                                                disabled={downloadingSubmissionId === sub.id}
+                                                            >
+                                                                {downloadingSubmissionId === sub.id ? (
+                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                ) : (
+                                                                    <Download className="h-4 w-4" />
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={approvingId === sub.id || (sub.status || 'pending') === 'approved'}
+                                                            onClick={() => {
+                                                                setApprovingId(sub.id || null);
+                                                                approvalMutation.mutate({ submissionId: sub.id!, status: 'approved' });
+                                                            }}
+                                                        >Approve</Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            disabled={approvingId === sub.id || (sub.status || 'pending') === 'rejected'}
+                                                            onClick={() => {
+                                                                setApprovingId(sub.id || null);
+                                                                approvalMutation.mutate({ submissionId: sub.id!, status: 'rejected' });
+                                                            }}
+                                                        >Reject</Button>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -580,6 +634,14 @@ const InstructorSubmissions = () => {
                                                                     ({((sub.file_size || sub.fileSize || 0) / 1024 / 1024).toFixed(2)} MB)
                                                                 </span>
                                                             )}
+                                                        </div>
+                                                    )}
+                                                    {(sub.instructor_feedback || sub.instructorFeedback) && (
+                                                        <div>
+                                                            <span className="text-xs font-medium text-muted-foreground block mb-1">Review Feedback</span>
+                                                            <p className="text-sm text-foreground whitespace-pre-wrap bg-background rounded-lg p-3">
+                                                                {sub.instructor_feedback || sub.instructorFeedback}
+                                                            </p>
                                                         </div>
                                                     )}
                                                     {sub.notes && (

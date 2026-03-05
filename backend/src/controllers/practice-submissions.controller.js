@@ -189,6 +189,62 @@ const getInstructorPracticeSubmissions = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Approve or reject a practice submission
+ * @route   PATCH /api/v1/practice-submissions/:id/approval
+ * @access  Private (Instructor/Admin)
+ */
+const updatePracticeSubmissionApproval = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { status, feedback } = req.body;
+
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+        throw new ApiError(400, 'status must be one of: pending, approved, rejected');
+    }
+
+    const submissionResult = await query(
+        `SELECT ps.id, ps.course_id, c.instructor_id
+         FROM practice_submissions ps
+         JOIN courses c ON ps.course_id = c.id
+         WHERE ps.id = $1`,
+        [id]
+    );
+
+    if (submissionResult.rows.length === 0) {
+        throw new ApiError(404, 'Submission not found');
+    }
+
+    const submission = submissionResult.rows[0];
+    const isOwnerInstructor = submission.instructor_id === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwnerInstructor && !isAdmin) {
+        throw new ApiError(403, 'Not authorized to review this submission');
+    }
+
+    const result = await query(
+        `UPDATE practice_submissions
+         SET status = $1,
+             instructor_feedback = $2,
+             approved_by = CASE WHEN $1 = 'approved' THEN $3 ELSE NULL END,
+             approved_at = CASE WHEN $1 = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4
+         RETURNING *`,
+        [status, feedback || null, req.user.id, id]
+    );
+
+    const updated = result.rows[0];
+    if (updated.file_url) {
+        updated.file_url = signCloudinaryUrl(updated.file_url);
+    }
+
+    res.json({
+        success: true,
+        data: updated
+    });
+});
+
+/**
  * @desc    Delete a practice submission
  * @route   DELETE /api/v1/practice-submissions/:id
  * @access  Private (owner or instructor/admin)
@@ -225,5 +281,6 @@ module.exports = {
     submitPracticeFile,
     getMyPracticeSubmissions,
     getInstructorPracticeSubmissions,
+    updatePracticeSubmissionApproval,
     deletePracticeSubmission
 };

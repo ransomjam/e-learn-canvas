@@ -537,14 +537,7 @@ const submitForReview = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'You can only submit your own courses');
     }
 
-    const lessonCount = await query(
-        'SELECT COUNT(*) FROM lessons WHERE course_id = $1',
-        [id]
-    );
 
-    if (parseInt(lessonCount.rows[0].count) === 0) {
-        throw new ApiError(400, 'Course must have at least one lesson before submission');
-    }
 
     const result = await query(
         `UPDATE courses 
@@ -587,14 +580,7 @@ const publishCourse = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Course must be approved before publishing');
     }
 
-    const lessonCount = await query(
-        'SELECT COUNT(*) FROM lessons WHERE course_id = $1',
-        [id]
-    );
 
-    if (parseInt(lessonCount.rows[0].count) === 0) {
-        throw new ApiError(400, 'Course must have at least one lesson before publishing');
-    }
 
     // When admin publishes directly, also set moderation_status to approved
     // so the course is visible to all users (visibility filter requires both

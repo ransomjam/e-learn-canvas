@@ -58,7 +58,7 @@ const Navbar = () => {
           <Link to="/" className="flex items-center gap-2">
             <Logo size="sm" className="h-8 w-8" />
             <span className="font-display text-xl font-bold text-foreground">
-              Crad<span className="text-primary">ema</span>
+              Cra<span className="text-primary">dema</span>
             </span>
           </Link>
 

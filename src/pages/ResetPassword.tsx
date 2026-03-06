@@ -106,7 +106,7 @@ const ResetPassword = () => {
                 <Link to="/" className="relative flex items-center gap-2">
                     <Logo size="sm" className="h-8 w-8" />
                     <span className="font-display text-xl font-bold text-foreground">
-                        Crad<span className="text-primary">ema</span>
+                        Cra<span className="text-primary">dema</span>
                     </span>
                 </Link>
 
@@ -133,7 +133,7 @@ const ResetPassword = () => {
                     <Link to="/" className="flex items-center justify-center gap-2 lg:hidden mb-8 sm:mb-10">
                         <Logo size="md" className="h-9 w-9" />
                         <span className="font-display text-lg font-bold text-foreground sm:text-xl">
-                            Crad<span className="text-primary">ema</span>
+                            Cra<span className="text-primary">dema</span>
                         </span>
                     </Link>
 

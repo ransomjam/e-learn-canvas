@@ -15,7 +15,7 @@ const Footer = () => {
             <Link to="/" className="flex items-center gap-2 w-fit">
               <Logo size="sm" className="h-7 w-7" />
               <span className="font-display text-lg font-bold">
-                Crad<span className="text-primary">ema</span>
+                Cra<span className="text-primary">dema</span>
               </span>
             </Link>
             <p className="text-xs text-muted-foreground leading-relaxed">

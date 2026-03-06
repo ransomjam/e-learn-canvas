@@ -89,7 +89,7 @@ const Auth = () => {
         <Link to="/" className="relative flex items-center gap-2">
           <Logo size="sm" className="h-8 w-8" />
           <span className="font-display text-xl font-bold text-foreground">
-            Crad<span className="text-primary">ema</span>
+            Cra<span className="text-primary">dema</span>
           </span>
         </Link>
 
@@ -118,7 +118,7 @@ const Auth = () => {
           <Link to="/" className="flex items-center justify-center gap-2 lg:hidden mb-8 sm:mb-10">
             <Logo size="md" className="h-9 w-9" />
             <span className="font-display text-lg font-bold text-foreground sm:text-xl">
-              Crad<span className="text-primary">ema</span>
+              Cra<span className="text-primary">dema</span>
             </span>
           </Link>
 
@@ -147,8 +147,8 @@ const Auth = () => {
                         type="button"
                         onClick={() => setSelectedRole('learner')}
                         className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-all ${selectedRole === 'learner'
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
                           }`}
                       >
                         <GraduationCap className="h-5 w-5" />
@@ -158,8 +158,8 @@ const Auth = () => {
                         type="button"
                         onClick={() => setSelectedRole('instructor')}
                         className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-all ${selectedRole === 'instructor'
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-background/50 text-muted-foreground hover:border-border hover:bg-muted/50'
                           }`}
                       >
                         <Presentation className="h-5 w-5" />

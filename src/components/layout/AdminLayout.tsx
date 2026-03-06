@@ -148,7 +148,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                         <Menu className="h-6 w-6" />
                     </Button>
                     <Link to="/" className="font-display text-lg font-bold hover:opacity-80 transition-opacity">
-                        Crad<span className="text-primary">ema</span> {isAdmin ? 'Admin' : 'Panel'}
+                        Cra<span className="text-primary">dema</span> {isAdmin ? 'Admin' : 'Panel'}
                     </Link>
                 </header>
 

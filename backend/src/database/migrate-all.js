@@ -585,6 +585,12 @@ const allMigrations = [
         ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS instructor_feedback TEXT;
         ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;
         ALTER TABLE practice_submissions ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
+    `},
+
+    // ── Fapshi payment support: external_id on payments ─────────────────
+    {
+        name: '039_add_external_id_to_payments', up: `
+        ALTER TABLE payments ADD COLUMN IF NOT EXISTS external_id VARCHAR(255);
     `}
 ];
 

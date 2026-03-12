@@ -382,6 +382,17 @@ const migrations = [
     `
   },
 
+  // Add external_id column to payments
+  {
+    name: '033_add_external_id_to_payments',
+    up: `
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS external_id VARCHAR(255);
+    `,
+    down: `
+      ALTER TABLE payments DROP COLUMN IF EXISTS external_id;
+    `
+  },
+
   // Migrations tracking table
   {
     name: '000_create_migrations',

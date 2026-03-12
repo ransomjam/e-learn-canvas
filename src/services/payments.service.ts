@@ -48,6 +48,18 @@ export interface FapshiPaymentStatus {
     error?: string;
 }
 
+export interface FapshiDirectPayResponse {
+    paymentId: string;
+    transactionId: string;
+    amount: number;
+    currency: string;
+    status: string;
+    course: {
+        id: string;
+        title: string;
+    };
+}
+
 export const paymentsService = {
     async createPayment(courseId: string, paymentMethod?: string): Promise<PaymentIntent> {
         const response = await api.post('/payments', { courseId, paymentMethod });
@@ -77,6 +89,12 @@ export const paymentsService = {
 
     async checkFapshiPaymentStatus(transactionId: string): Promise<FapshiPaymentStatus> {
         const response = await api.get(`/payments/fapshi/status/${transactionId}`);
+        return response.data.data;
+    },
+
+    // Direct Fapshi payment (no redirect, sends prompt to phone)
+    async createFapshiDirectPayment(courseId: string, phone: string, medium?: string): Promise<FapshiDirectPayResponse> {
+        const response = await api.post('/payments/fapshi/direct', { courseId, phone, medium });
         return response.data.data;
     },
 };

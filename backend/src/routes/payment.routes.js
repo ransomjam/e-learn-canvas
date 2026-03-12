@@ -10,6 +10,7 @@ const {
     refundPayment,
     getInstructorEarnings,
     createFapshiPayment,
+    createFapshiDirectPayment,
     checkFapshiPaymentStatus,
     handleFapshiWebhook
 } = require('../controllers/payment.controller');
@@ -45,6 +46,13 @@ router.get('/earnings', authenticate, authorize('instructor', 'admin'), getInstr
  * @access  Private
  */
 router.post('/fapshi', authenticate, createFapshiPayment);
+
+/**
+ * @route   POST /api/v1/payments/fapshi/direct
+ * @desc    Direct Fapshi payment (sends prompt to phone, no redirect)
+ * @access  Private
+ */
+router.post('/fapshi/direct', authenticate, createFapshiDirectPayment);
 
 /**
  * @route   GET /api/v1/payments/fapshi/status/:transactionId

@@ -382,7 +382,7 @@ const createCourse = asyncHandler(async (req, res) => {
         previewVideoUrl,
         price = 0,
         discountPrice,
-        currency = 'USD',
+        currency = 'XAF',
         level = 'beginner',
         language = 'English',
         requirements = [],

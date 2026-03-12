@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Star, Users, Play, Award, Globe,
   CheckCircle, Lock, FileText, HelpCircle, Loader2, ShoppingCart, BookOpen,
-  Ticket, CreditCard, Heart
+  Ticket, CreditCard, Heart, Phone, Smartphone, ArrowRight, CheckCircle2, XCircle, AlertCircle
 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -30,13 +30,22 @@ const CourseDetail = () => {
   const { user, isAuthenticated } = useAuth();
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
-  const [enrollMode, setEnrollMode] = useState<'choose' | 'code'>('choose');
+  const [enrollMode, setEnrollMode] = useState<'choose' | 'code' | 'payment'>('choose');
   const [enrollmentCode, setEnrollmentCode] = useState('');
   const [isRedeemingCode, setIsRedeemingCode] = useState(false);
-  const [isRedirectingToPayment, setIsRedirectingToPayment] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+
+  // In-situ payment state
+  const [paymentPhone, setPaymentPhone] = useState('');
+  const [paymentMedium, setPaymentMedium] = useState<'mobile money' | 'orange money'>('mobile money');
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'sent' | 'polling' | 'success' | 'failed'>('idle');
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentTransactionId, setPaymentTransactionId] = useState('');
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollCountRef = useRef(0);
 
   // Fetch course
   const { data: course, isLoading: courseLoading, isError: courseError } = useQuery({
@@ -160,26 +169,98 @@ const CourseDetail = () => {
     }
   };
 
-  const handleFapshiPayment = async () => {
-    setIsRedirectingToPayment(true);
-    try {
-      const result = await paymentsService.createFapshiPayment(id!);
-
-      // Backend returns Fapshi's hosted checkout link as `link`
-      if (result.link) {
-        // Redirect to Fapshi payment page (supports both MTN & Orange)
-        window.location.href = result.link;
-      } else {
-        throw new Error('No payment link received from payment provider');
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
       }
+    };
+  }, []);
+
+  const resetPaymentState = useCallback(() => {
+    setPaymentPhone('');
+    setPaymentMedium('mobile money');
+    setIsPaymentProcessing(false);
+    setPaymentStatus('idle');
+    setPaymentError('');
+    setPaymentTransactionId('');
+    pollCountRef.current = 0;
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  }, []);
+
+  const pollPaymentStatus = useCallback((transactionId: string) => {
+    setPaymentStatus('polling');
+    pollCountRef.current = 0;
+
+    pollIntervalRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+
+      // Stop after ~3 minutes (36 polls × 5 seconds)
+      if (pollCountRef.current > 36) {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setPaymentStatus('failed');
+        setPaymentError('Payment verification timed out. If you have been charged, please contact support.');
+        return;
+      }
+
+      try {
+        const result = await paymentsService.checkFapshiPaymentStatus(transactionId);
+        if (result.status === 'completed' || result.fapshiStatus === 'SUCCESSFUL') {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          setPaymentStatus('success');
+          toast({
+            title: "Payment successful! 🎉",
+            description: "You are now enrolled in the course.",
+          });
+          queryClient.invalidateQueries({ queryKey: ['enrollment', id] });
+          // Auto-navigate after a short delay so the user sees the success state
+          setTimeout(() => {
+            setShowEnrollDialog(false);
+            navigate(`/player/${id}`);
+          }, 2000);
+        } else if (result.status === 'failed') {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          setPaymentStatus('failed');
+          setPaymentError('Payment was declined or failed. Please try again.');
+        }
+      } catch (err) {
+        // Don't stop polling on network errors, just continue
+        console.warn('Payment status check failed, retrying...', err);
+      }
+    }, 5000);
+  }, [id, queryClient, toast, navigate]);
+
+  const handleDirectPayment = async () => {
+    if (!paymentPhone.trim()) {
+      setPaymentError('Please enter your phone number.');
+      return;
+    }
+
+    // Basic validation for Cameroon phone numbers
+    const cleanPhone = paymentPhone.replace(/\s+/g, '').replace(/^\+?237/, '');
+    if (!/^6\d{8}$/.test(cleanPhone)) {
+      setPaymentError('Invalid phone number. Use format: 6XXXXXXXX (9 digits)');
+      return;
+    }
+
+    setPaymentError('');
+    setIsPaymentProcessing(true);
+    setPaymentStatus('sent');
+
+    try {
+      const result = await paymentsService.createFapshiDirectPayment(id!, cleanPhone, paymentMedium);
+      setPaymentTransactionId(result.transactionId);
+      // Start polling for payment confirmation
+      pollPaymentStatus(result.transactionId);
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "Payment initiation failed. Please try again.";
-      toast({
-        title: "Payment failed",
-        description: errorMsg,
-        variant: "destructive",
-      });
-      setIsRedirectingToPayment(false);
+      const errorMsg = error.response?.data?.message || 'Payment initiation failed. Please try again.';
+      setPaymentError(errorMsg);
+      setPaymentStatus('failed');
+      setIsPaymentProcessing(false);
     }
   };
 
@@ -656,7 +737,7 @@ const CourseDetail = () => {
       {/* Enrollment Dialog */}
       <Dialog open={showEnrollDialog} onOpenChange={(open) => {
         if (!open) {
-          setIsRedirectingToPayment(false);
+          resetPaymentState();
         }
         setShowEnrollDialog(open);
       }}>
@@ -695,25 +776,18 @@ const CourseDetail = () => {
                 variant="outline"
                 size="lg"
                 className="w-full justify-start gap-3 h-16"
-                onClick={handleFapshiPayment}
-                disabled={isRedirectingToPayment}
+                onClick={() => {
+                  resetPaymentState();
+                  setEnrollMode('payment');
+                }}
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                  {isRedirectingToPayment ? (
-                    <Loader2 className="h-5 w-5 text-accent animate-spin" />
-                  ) : (
-                    <CreditCard className="h-5 w-5 text-accent" />
-                  )}
+                  <CreditCard className="h-5 w-5 text-accent" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold">
-                    {isRedirectingToPayment ? 'Redirecting...' : 'Pay Now'}
-                  </p>
+                  <p className="font-semibold">Pay Now</p>
                   <p className="text-xs text-muted-foreground">
-                    {isRedirectingToPayment
-                      ? 'Taking you to payment page...'
-                      : `Pay ${course ? (course.discountPrice || course.price).toLocaleString() + ' CFA' : ''} with mobile money (MTN/Orange)`
-                    }
+                    {`Pay ${course ? (course.discountPrice || course.price).toLocaleString() + ' CFA' : ''} with mobile money (MTN/Orange)`}
                   </p>
                 </div>
               </Button>
@@ -755,6 +829,167 @@ const CourseDetail = () => {
                   )}
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* In-situ mobile money payment */}
+          {enrollMode === 'payment' && (
+            <div className="space-y-5 pt-2">
+              {/* Payment amount summary */}
+              <div className="rounded-lg bg-accent/5 border border-accent/20 p-4 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Amount to pay</p>
+                <p className="text-2xl font-bold text-foreground mt-1">
+                  {course ? (course.discountPrice || course.price).toLocaleString() : '—'}
+                  <span className="text-sm font-normal text-muted-foreground ml-1">CFA</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{course?.title}</p>
+              </div>
+
+              {/* Idle / input state */}
+              {(paymentStatus === 'idle' || paymentStatus === 'failed') && (
+                <>
+                  {/* Payment medium selector */}
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-2 block">Payment Method</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className={`flex items-center gap-2 rounded-lg border-2 p-3 text-left transition-all ${
+                          paymentMedium === 'mobile money'
+                            ? 'border-[#FFCC00] bg-[#FFCC00]/10 shadow-sm'
+                            : 'border-border hover:border-border/80 hover:bg-secondary/30'
+                        }`}
+                        onClick={() => setPaymentMedium('mobile money')}
+                      >
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-md text-xs font-bold ${
+                          paymentMedium === 'mobile money' ? 'bg-[#FFCC00] text-black' : 'bg-muted text-muted-foreground'
+                        }`}>MTN</div>
+                        <div>
+                          <p className="text-sm font-medium">MTN MoMo</p>
+                          <p className="text-[10px] text-muted-foreground">Mobile Money</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className={`flex items-center gap-2 rounded-lg border-2 p-3 text-left transition-all ${
+                          paymentMedium === 'orange money'
+                            ? 'border-[#FF6600] bg-[#FF6600]/10 shadow-sm'
+                            : 'border-border hover:border-border/80 hover:bg-secondary/30'
+                        }`}
+                        onClick={() => setPaymentMedium('orange money')}
+                      >
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-md text-xs font-bold ${
+                          paymentMedium === 'orange money' ? 'bg-[#FF6600] text-white' : 'bg-muted text-muted-foreground'
+                        }`}>OM</div>
+                        <div>
+                          <p className="text-sm font-medium">Orange</p>
+                          <p className="text-[10px] text-muted-foreground">Orange Money</p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Phone number input */}
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1.5 block">
+                      <Phone className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />
+                      Phone Number
+                    </label>
+                    <Input
+                      type="tel"
+                      placeholder="e.g. 6XXXXXXXX"
+                      value={paymentPhone}
+                      onChange={(e) => {
+                        setPaymentPhone(e.target.value);
+                        setPaymentError('');
+                      }}
+                      className="text-center text-lg tracking-wider font-mono"
+                      onKeyDown={(e) => e.key === 'Enter' && handleDirectPayment()}
+                      maxLength={13}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1.5">Enter your {paymentMedium === 'mobile money' ? 'MTN' : 'Orange'} mobile money number</p>
+                  </div>
+
+                  {/* Error message */}
+                  {paymentError && (
+                    <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+                      <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-destructive">{paymentError}</p>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        resetPaymentState();
+                        setEnrollMode('choose');
+                      }}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={handleDirectPayment}
+                      disabled={isPaymentProcessing || !paymentPhone.trim()}
+                    >
+                      {isPaymentProcessing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Smartphone className="mr-2 h-4 w-4" />
+                          Pay Now
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Polling / waiting state */}
+              {(paymentStatus === 'sent' || paymentStatus === 'polling') && (
+                <div className="flex flex-col items-center gap-4 py-4">
+                  <div className="relative">
+                    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Smartphone className="h-8 w-8 text-primary" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-accent flex items-center justify-center">
+                      <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+                    </div>
+                  </div>
+                  <div className="text-center space-y-2">
+                    <p className="font-semibold text-foreground">Check your phone</p>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      A payment prompt has been sent to your {paymentMedium === 'mobile money' ? 'MTN' : 'Orange'} number.
+                      Please confirm the payment on your device.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Waiting for confirmation...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Success state */}
+              {paymentStatus === 'success' && (
+                <div className="flex flex-col items-center gap-4 py-4">
+                  <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-8 w-8 text-green-500" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <p className="font-semibold text-foreground">Payment Successful! 🎉</p>
+                    <p className="text-sm text-muted-foreground">
+                      You are now enrolled. Redirecting to your course...
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

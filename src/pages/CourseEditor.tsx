@@ -37,7 +37,7 @@ const CourseEditor = () => {
         price: 0,
         discountPrice: undefined as number | undefined,
         level: 'beginner' as 'beginner' | 'intermediate' | 'advanced',
-        currency: 'USD',
+        currency: 'XAF',
         thumbnailUrl: '',
         objectives: [''] as string[],
         requirements: [''] as string[],
@@ -101,7 +101,7 @@ const CourseEditor = () => {
                 price: course.price || 0,
                 discountPrice: course.discountPrice,
                 level: course.level || 'beginner',
-                currency: course.currency || 'USD',
+                currency: course.currency || 'XAF',
                 thumbnailUrl: course.thumbnailUrl || '',
                 objectives: course.objectives?.length ? course.objectives : [''],
                 requirements: course.requirements?.length ? course.requirements : [''],
@@ -816,7 +816,25 @@ const CourseEditor = () => {
                                             {!formData.isFree && (
                                                 <>
                                                     <div>
-                                                        <Label htmlFor="price">Price ($)</Label>
+                                                        <Label htmlFor="currency">Currency</Label>
+                                                        <select
+                                                            id="currency"
+                                                            value={formData.currency}
+                                                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                                                            className="mt-2 w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                                        >
+                                                            <option value="XAF">XAF — CFA Franc (FCFA)</option>
+                                                            <option value="USD">USD — US Dollar ($)</option>
+                                                            <option value="EUR">EUR — Euro (€)</option>
+                                                            <option value="GBP">GBP — British Pound (£)</option>
+                                                            <option value="NGN">NGN — Nigerian Naira (₦)</option>
+                                                            <option value="GHS">GHS — Ghanaian Cedi (₵)</option>
+                                                            <option value="KES">KES — Kenyan Shilling (KSh)</option>
+                                                            <option value="ZAR">ZAR — South African Rand (R)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <Label htmlFor="price">Price ({formData.currency})</Label>
                                                         <Input
                                                             id="price"
                                                             type="text"
@@ -833,7 +851,7 @@ const CourseEditor = () => {
                                                         />
                                                     </div>
                                                     <div>
-                                                        <Label htmlFor="discountPrice">Discount Price ($)</Label>
+                                                        <Label htmlFor="discountPrice">Discount Price ({formData.currency})</Label>
                                                         <Input
                                                             id="discountPrice"
                                                             type="text"

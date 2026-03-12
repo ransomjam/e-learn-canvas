@@ -586,6 +586,120 @@ const createFapshiPayment = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Initiate Fapshi direct pay (sends prompt to user's phone, no redirect)
+ * @route   POST /api/v1/payments/fapshi/direct
+ * @access  Private
+ */
+const createFapshiDirectPayment = asyncHandler(async (req, res) => {
+    const { courseId, phone, medium } = req.body;
+    const fapshi = require('../config/fapshi');
+
+    if (!courseId) {
+        throw new ApiError(400, 'Course ID is required');
+    }
+    if (!phone) {
+        throw new ApiError(400, 'Phone number is required');
+    }
+
+    // Validate phone number format (Cameroon: 6XXXXXXXX - 9 digits)
+    const cleanPhone = phone.replace(/\s+/g, '').replace(/^\+?237/, '');
+    if (!/^6\d{8}$/.test(cleanPhone)) {
+        throw new ApiError(400, 'Invalid phone number. Use format: 6XXXXXXXX');
+    }
+
+    // Validate medium
+    const validMediums = ['mobile money', 'orange money'];
+    const paymentMedium = medium ? medium.toLowerCase() : undefined;
+    if (paymentMedium && !validMediums.includes(paymentMedium)) {
+        throw new ApiError(400, 'Invalid payment medium. Use "mobile money" (MTN) or "orange money" (Orange)');
+    }
+
+    // Check if course exists
+    const courseResult = await query(
+        'SELECT id, title, price, discount_price, currency, status FROM courses WHERE id = $1',
+        [courseId]
+    );
+
+    if (courseResult.rows.length === 0) {
+        throw new ApiError(404, 'Course not found');
+    }
+
+    const course = courseResult.rows[0];
+
+    if (course.status !== 'published') {
+        throw new ApiError(400, 'This course is not available for purchase');
+    }
+
+    // Check if already enrolled
+    const enrollmentResult = await query(
+        "SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND status IN ('active', 'completed')",
+        [req.user.id, courseId]
+    );
+
+    if (enrollmentResult.rows.length > 0) {
+        throw new ApiError(400, 'You are already enrolled in this course');
+    }
+
+    const amount = parseFloat(course.discount_price || course.price);
+
+    // Build a safe externalId
+    const rawId = `${courseId}-${req.user.id}-${Date.now()}`;
+    const externalId = rawId.replace(/[^a-zA-Z0-9\-_]/g, '').substring(0, 100);
+
+    const payload = {
+        amount: Math.round(amount),
+        phone: cleanPhone,
+        message: `Payment for course: ${course.title}`,
+        email: req.user.email || undefined,
+        userId: String(req.user.id).substring(0, 100),
+        externalId: externalId,
+    };
+
+    // Only include medium if specified
+    if (paymentMedium) {
+        payload.medium = paymentMedium;
+    }
+
+    // Initiate Fapshi direct payment
+    let fapshiResponse;
+    try {
+        fapshiResponse = await fapshi.directPay(payload);
+    } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || 'Payment initiation failed';
+        console.error('Fapshi direct payment error:', err.response?.data || err.message);
+        throw new ApiError(400, `Payment failed: ${errMsg}`);
+    }
+
+    const transactionId = fapshiResponse.transId || `TXN-FAPSHI-${Date.now()}-${uuidv4().substring(0, 8)}`;
+
+    // Create payment record in DB
+    const result = await query(
+        `INSERT INTO payments (user_id, course_id, amount, currency, status, payment_method, payment_provider, transaction_id, provider_response, external_id)
+         VALUES ($1, $2, $3, $4, 'pending', 'mobile_money', 'fapshi', $5, $6, $7)
+         RETURNING *`,
+        [req.user.id, courseId, amount, course.currency, transactionId, JSON.stringify(fapshiResponse), externalId]
+    );
+
+    const payment = result.rows[0];
+
+    res.status(201).json({
+        success: true,
+        message: 'Payment request sent to your phone. Please confirm on your device.',
+        data: {
+            paymentId: payment.id,
+            transactionId: transactionId,
+            amount: parseFloat(payment.amount),
+            currency: payment.currency,
+            status: 'pending',
+            course: {
+                id: course.id,
+                title: course.title
+            }
+        }
+    });
+});
+
+/**
  * @desc    Check Fapshi payment status
  * @route   GET /api/v1/payments/fapshi/status/:transactionId
  * @access  Private
@@ -774,6 +888,7 @@ module.exports = {
     refundPayment,
     getInstructorEarnings,
     createFapshiPayment,
+    createFapshiDirectPayment,
     checkFapshiPaymentStatus,
     handleFapshiWebhook
 };

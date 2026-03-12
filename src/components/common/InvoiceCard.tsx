@@ -9,6 +9,23 @@ interface InvoiceCardProps {
   user: User;
 }
 
+// Currency display helper – shows symbol + formatted amount
+const CURRENCY_MAP: Record<string, { symbol: string; label: string }> = {
+  XAF: { symbol: 'FCFA', label: 'CFA Franc (XAF)' },
+  USD: { symbol: '$', label: 'US Dollar (USD)' },
+  EUR: { symbol: '€', label: 'Euro (EUR)' },
+  GBP: { symbol: '£', label: 'British Pound (GBP)' },
+  NGN: { symbol: '₦', label: 'Nigerian Naira (NGN)' },
+  GHS: { symbol: '₵', label: 'Ghanaian Cedi (GHS)' },
+  KES: { symbol: 'KSh', label: 'Kenyan Shilling (KES)' },
+  ZAR: { symbol: 'R', label: 'South African Rand (ZAR)' },
+};
+
+const formatCurrency = (amount: number, currencyCode: string) => {
+  const info = CURRENCY_MAP[currencyCode] || { symbol: currencyCode, label: currencyCode };
+  return `${info.symbol} ${amount.toLocaleString()}`;
+};
+
 const InvoiceCard = forwardRef<HTMLDivElement, InvoiceCardProps>(
   ({ payment, user }, ref) => {
     return (
@@ -62,7 +79,7 @@ const InvoiceCard = forwardRef<HTMLDivElement, InvoiceCardProps>(
               <p className="text-sm text-gray-500">Course Enrollment</p>
             </div>
             <p className="font-bold text-gray-900">
-              {(payment.amount).toLocaleString()} {payment.currency}
+              {formatCurrency(payment.amount, payment.currency)}
             </p>
           </div>
         </div>
@@ -72,16 +89,16 @@ const InvoiceCard = forwardRef<HTMLDivElement, InvoiceCardProps>(
           <div className="w-full sm:w-1/2">
             <div className="flex justify-between py-2 text-sm text-gray-600">
               <p>Subtotal</p>
-              <p>{(payment.amount).toLocaleString()} {payment.currency}</p>
+              <p>{formatCurrency(payment.amount, payment.currency)}</p>
             </div>
             <div className="flex justify-between py-2 text-sm text-gray-600 border-b border-gray-200">
               <p>Tax (0%)</p>
-              <p>0 {payment.currency}</p>
+              <p>0 {CURRENCY_MAP[payment.currency]?.symbol || payment.currency}</p>
             </div>
             <div className="flex justify-between py-4">
               <p className="text-lg font-bold text-gray-900">Total Paid</p>
               <p className="text-xl font-black text-blue-600">
-                {(payment.amount).toLocaleString()} {payment.currency}
+                {formatCurrency(payment.amount, payment.currency)}
               </p>
             </div>
           </div>

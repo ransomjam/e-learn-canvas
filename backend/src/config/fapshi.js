@@ -55,6 +55,28 @@ const fapshi = {
             console.error(`Fapshi status check failed for ${transId}:`, error.response?.data || error.message);
             throw error;
         }
+    },
+
+    async directPay(payment) {
+        if (!this.apiuser || !this.apikey) {
+            throw new Error('Fapshi API credentials not configured. Set FAPSHI_APIUSER and FAPSHI_APIKEY in .env');
+        }
+
+        try {
+            const response = await axios.post(`${this.baseUrl}/direct-pay`, payment, {
+                headers: {
+                    'apiuser': this.apiuser,
+                    'apikey': this.apikey,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 30000
+            });
+            return response.data;
+        } catch (error) {
+            const errorData = error.response?.data || { message: error.message };
+            console.error('Fapshi directPay failed:', errorData);
+            throw error;
+        }
     }
 };
 

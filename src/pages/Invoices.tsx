@@ -10,6 +10,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import InvoiceCard from '@/components/common/InvoiceCard';
 import ParticleLoader from '@/components/ui/ParticleLoader';
 
+// Currency display helper
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  XAF: 'FCFA', USD: '$', EUR: '€', GBP: '£',
+  NGN: '₦', GHS: '₵', KES: 'KSh', ZAR: 'R',
+};
+const fmtCurrency = (amt: number, code: string) =>
+  `${CURRENCY_SYMBOLS[code] || code} ${amt.toLocaleString()}`;
+
 const Invoices = () => {
   const { user } = useAuth();
   const [selectedInvoice, setSelectedInvoice] = useState<Payment | null>(null);
@@ -80,7 +88,7 @@ const Invoices = () => {
                           {payment.course.title}
                         </td>
                         <td className="px-6 py-4 font-semibold text-primary">
-                          {payment.amount.toLocaleString()} {payment.currency}
+                          {fmtCurrency(payment.amount, payment.currency)}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <Dialog>

@@ -61,6 +61,7 @@ const Privacy = lazyRetry(() => import("./pages/Privacy"));
 const Terms = lazyRetry(() => import("./pages/Terms"));
 const About = lazyRetry(() => import("./pages/About"));
 const Contact = lazyRetry(() => import("./pages/Contact"));
+const Invoices = lazyRetry(() => import("./pages/Invoices"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +114,14 @@ const App = () => (
                       element={
                         <ProtectedRoute>
                           <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/invoices"
+                      element={
+                        <ProtectedRoute>
+                          <Invoices />
                         </ProtectedRoute>
                       }
                     />

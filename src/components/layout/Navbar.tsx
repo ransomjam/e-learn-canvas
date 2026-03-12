@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Menu, X, User, LogOut, GraduationCap, BookOpen } from 'lucide-react';
+import { Search, Menu, X, User, LogOut, GraduationCap, BookOpen, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -134,6 +134,12 @@ const Navbar = () => {
                       <span className="font-medium text-sm">Profile</span>
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
+                    <Link to="/invoices" className="flex items-center w-full">
+                      <FileText className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="font-medium text-sm">Invoices</span>
+                    </Link>
+                  </DropdownMenuItem>
                   {(user.role === 'instructor' || user.role === 'admin') && (
                     <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
                       <Link to="/instructor" className="flex items-center w-full">
@@ -201,6 +207,12 @@ const Navbar = () => {
                     <Link to="/profile" className="flex items-center w-full">
                       <User className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       <span className="font-medium text-sm">Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="cursor-pointer py-2.5 rounded-md group">
+                    <Link to="/invoices" className="flex items-center w-full">
+                      <FileText className="mr-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="font-medium text-sm">Invoices</span>
                     </Link>
                   </DropdownMenuItem>
                   {(user.role === 'instructor' || user.role === 'admin') && (

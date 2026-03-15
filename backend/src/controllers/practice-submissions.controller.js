@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
 const { projectUpload, uploadToCloudinary, cloudinaryEnabled, signCloudinaryUrl } = require('./upload.controller');
+const { notifyPracticeSubmission, notifySubmissionReviewed } = require('../services/notification.service');
 
 /**
  * @desc    Submit a custom practice file for a lesson
@@ -66,6 +67,9 @@ const submitPracticeFile = asyncHandler(async (req, res) => {
     if (submissionData.file_url) {
         submissionData.file_url = signCloudinaryUrl(submissionData.file_url);
     }
+
+    // Notify instructor about the new submission (fire-and-forget)
+    notifyPracticeSubmission({ userId, courseId, lessonId });
 
     res.status(201).json({
         success: true,
@@ -285,6 +289,15 @@ const updatePracticeSubmissionApproval = asyncHandler(async (req, res) => {
     const updated = result.rows[0];
     if (updated.file_url) {
         updated.file_url = signCloudinaryUrl(updated.file_url);
+    }
+
+    // Notify student about the review result (fire-and-forget)
+    if (status === 'approved' || status === 'rejected') {
+        notifySubmissionReviewed({
+            submissionId: id,
+            status,
+            feedback: feedback || null
+        });
     }
 
     res.json({

@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { notifyCourseCompleted } = require('../services/notification.service');
 
 /**
  * @desc    Update lesson progress
@@ -157,6 +158,15 @@ const updateEnrollmentProgress = async (enrollmentId, courseId) => {
      WHERE id = $3`,
         [percentage, isComplete, enrollmentId]
     );
+
+    // Send course completion notification if just completed
+    if (isComplete) {
+        // Get user_id from enrollment
+        const enrollResult = await query('SELECT user_id FROM enrollments WHERE id = $1', [enrollmentId]);
+        if (enrollResult.rows.length > 0) {
+            notifyCourseCompleted({ userId: enrollResult.rows[0].user_id, courseId });
+        }
+    }
 
     return isComplete;
 };

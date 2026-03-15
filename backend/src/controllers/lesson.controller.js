@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
 const { signCloudinaryUrl } = require('./upload.controller');
+const { notifyNewLesson } = require('../services/notification.service');
 
 // Helper to deeply sign Cloudinary URLs in JSON arrays (like resources or practice_files)
 // Also injects `originalName` from the URL path so the frontend download handler always
@@ -537,6 +538,15 @@ const createLesson = asyncHandler(async (req, res) => {
     );
 
     const lesson = result.rows[0];
+
+    // Notify enrolled students about the new lesson (only if published)
+    if (isPublished) {
+        notifyNewLesson({
+            courseId,
+            lessonTitle: title,
+            lessonType: type
+        });
+    }
 
     res.status(201).json({
         success: true,

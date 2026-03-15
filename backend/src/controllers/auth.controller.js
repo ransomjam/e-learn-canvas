@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { query, transaction } = require('../config/database');
 const { jwt: jwtConfig } = require('../config/constants');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { notifyUserRegistered, notifyPasswordReset, notifyPasswordChanged } = require('../services/notification.service');
 
 /**
  * Generate access and refresh tokens
@@ -66,6 +67,14 @@ const register = asyncHandler(async (req, res) => {
         'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
         [user.id, refreshToken, expiresAt]
     );
+
+    // Send welcome email (fire-and-forget)
+    notifyUserRegistered({
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role
+    });
 
     res.status(201).json({
         success: true,
@@ -305,6 +314,9 @@ const changePassword = asyncHandler(async (req, res) => {
     // Invalidate all refresh tokens
     await query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.user.id]);
 
+    // Send password changed confirmation email
+    notifyPasswordChanged({ userId: req.user.id });
+
     res.json({
         success: true,
         message: 'Password changed successfully. Please login again.'
@@ -320,7 +332,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
     const result = await query(
-        'SELECT id, email FROM users WHERE email = $1',
+        'SELECT id, email, first_name FROM users WHERE email = $1',
         [email.toLowerCase()]
     );
 
@@ -344,13 +356,16 @@ const forgotPassword = asyncHandler(async (req, res) => {
         [resetToken, resetExpires, user.id]
     );
 
-    // TODO: Send email with reset link
-    // In production, send email with: `${frontendUrl}/reset-password?token=${resetToken}`
+    // Send password reset email
+    notifyPasswordReset({
+        email: user.email,
+        firstName: user.first_name || 'User',
+        resetToken
+    });
 
     res.json({
         success: true,
-        message: 'If an account with that email exists, a password reset link has been sent.',
-        resetToken
+        message: 'If an account with that email exists, a password reset link has been sent.'
     });
 });
 

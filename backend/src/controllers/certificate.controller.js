@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { notifyCertificateIssued } = require('../services/notification.service');
 
 /**
  * Generate unique certificate number
@@ -83,6 +84,13 @@ const issueCertificate = asyncHandler(async (req, res) => {
     );
 
     const certificate = result.rows[0];
+
+    // Notify student about their certificate (fire-and-forget)
+    notifyCertificateIssued({
+        userId: enrollment.user_id,
+        courseId: enrollment.course_id,
+        certificateNumber
+    });
 
     res.status(201).json({
         success: true,

@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { query } = require('../config/database');
 const { jwt: jwtConfig } = require('../config/constants');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { notifyUserRegistered } = require('../services/notification.service');
 
 /**
  * Generate access and refresh tokens (same as auth.controller)
@@ -121,6 +122,16 @@ const googleAuth = asyncHandler(async (req, res) => {
         'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
         [user.id, refreshToken, expiresAt]
     );
+
+    // Send welcome email for new Google users (fire-and-forget)
+    if (isNewUser) {
+        notifyUserRegistered({
+            email: email.toLowerCase(),
+            firstName: given_name || 'User',
+            lastName: family_name || '',
+            role: role
+        });
+    }
 
     res.status(isNewUser ? 201 : 200).json({
         success: true,

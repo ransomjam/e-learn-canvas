@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { notifyNewReview } = require('../services/notification.service');
 
 /**
  * @desc    Get reviews for a course
@@ -102,6 +103,9 @@ const addReview = asyncHandler(async (req, res) => {
 
     // Update course average rating
     await updateCourseRatingRef(id);
+
+    // Notify instructor about the new review (fire-and-forget)
+    notifyNewReview({ userId, courseId: id, rating, comment });
 
     res.status(201).json({
         success: true,

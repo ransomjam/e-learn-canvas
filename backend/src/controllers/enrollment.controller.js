@@ -1,5 +1,6 @@
 const { query, transaction } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const { notifyEnrollment } = require('../services/notification.service');
 
 /**
  * @desc    Get user's enrollments
@@ -217,6 +218,9 @@ const enrollInCourse = asyncHandler(async (req, res) => {
      WHERE id = $1`,
         [courseId]
     );
+
+    // Send enrollment notification emails (fire-and-forget)
+    notifyEnrollment({ userId: req.user.id, courseId });
 
     res.status(201).json({
         success: true,

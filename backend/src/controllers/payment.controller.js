@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
 const { v4: uuidv4 } = require('uuid');
+const { notifyPaymentCompleted, notifyEnrollment } = require('../services/notification.service');
 
 /**
  * @desc    Create payment intent
@@ -147,6 +148,15 @@ const confirmPayment = asyncHandler(async (req, res) => {
         'UPDATE courses SET enrollment_count = enrollment_count + 1 WHERE id = $1',
         [payment.course_id]
     );
+
+    // Send payment receipt + instructor notification (fire-and-forget)
+    notifyPaymentCompleted({
+        userId: req.user.id,
+        courseId: payment.course_id,
+        amount: payment.amount,
+        currency: payment.currency,
+        transactionId: payment.transaction_id
+    });
 
     res.json({
         success: true,
@@ -772,6 +782,15 @@ const checkFapshiPaymentStatus = asyncHandler(async (req, res) => {
                 'UPDATE courses SET enrollment_count = enrollment_count + 1 WHERE id = $1',
                 [payment.course_id]
             );
+
+            // Send payment receipt + instructor notification
+            notifyPaymentCompleted({
+                userId: payment.user_id,
+                courseId: payment.course_id,
+                amount: payment.amount,
+                currency: payment.currency,
+                transactionId
+            });
         } else if (normalizedStatus === 'failed' && payment.status !== 'failed') {
             await query(
                 `UPDATE payments SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -862,6 +881,15 @@ const handleFapshiWebhook = asyncHandler(async (req, res) => {
                     'UPDATE courses SET enrollment_count = enrollment_count + 1 WHERE id = $1',
                     [payment.course_id]
                 );
+
+                // Send payment receipt + instructor notification
+                notifyPaymentCompleted({
+                    userId: payment.user_id,
+                    courseId: payment.course_id,
+                    amount: payment.amount,
+                    currency: payment.currency,
+                    transactionId: transId
+                });
 
                 console.log(`Webhook: Payment ${transId} completed, enrollment created`);
             } else if (normalized === 'failed' && payment.status !== 'failed') {

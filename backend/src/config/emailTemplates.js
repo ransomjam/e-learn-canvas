@@ -12,7 +12,7 @@
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const PLATFORM_NAME = 'Cradema';
 // Logo hosted on the live site (works for both dev & production)
-const LOGO_URL = (process.env.FRONTEND_URL || 'https://www.cradema.com') + '/New%20Logo.png';
+const LOGO_URL = (process.env.FRONTEND_URL || 'https://www.cradema.com') + '/logo-email.png';
 
 // ─── Base layout wrapper ───────────────────────────────────────────────
 const baseLayout = (title, content) => `

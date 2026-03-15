@@ -1253,7 +1253,7 @@ const sendCustomEmail = asyncHandler(async (req, res) => {
 
     // Build branded email using same layout as notification templates
     const FRONTEND_URL = process.env.FRONTEND_URL || 'https://www.cradema.com';
-    const LOGO_URL = FRONTEND_URL + '/New%20Logo.png';
+    const LOGO_URL = FRONTEND_URL + '/logo-email.png';
     const PLATFORM_NAME = 'Cradema';
 
     // Convert newlines in message to <br> for HTML

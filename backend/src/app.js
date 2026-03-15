@@ -245,6 +245,24 @@ app.get('/api/v1/config', (req, res) => {
     });
 });
 
+// Test email endpoint — hit this to verify SMTP works end-to-end
+// Usage: GET https://www.cradema.com/api/v1/test-email?to=your@email.com
+app.get('/api/v1/test-email', async (req, res) => {
+    const { sendEmail } = require('./config/email');
+    const to = req.query.to;
+    if (!to) {
+        return res.status(400).json({ success: false, message: 'Add ?to=your@email.com' });
+    }
+    console.log(`[Test-Email] Attempting to send test email to ${to}...`);
+    const result = await sendEmail({
+        to,
+        subject: 'Cradema Test Email ✅',
+        html: '<h1>It works!</h1><p>If you see this, email notifications are configured correctly on Cradema.</p>'
+    });
+    console.log(`[Test-Email] Result:`, JSON.stringify(result));
+    res.json({ success: true, message: 'Test email sent — check your inbox (and spam)', result });
+});
+
 // API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);

@@ -18,7 +18,9 @@ const templates = require('../config/emailTemplates');
  */
 const safe = (fn) => async (...args) => {
     try {
+        console.log(`[Notification] Calling ${fn.name}...`);
         await fn(...args);
+        console.log(`[Notification] ${fn.name} completed.`);
     } catch (err) {
         console.error(`[Notification] ${fn.name || 'anonymous'} error:`, err.message);
     }

@@ -50,6 +50,7 @@ const AdminStudents = lazyRetry(() => import("./pages/AdminStudents"));
 const AdminCourses = lazyRetry(() => import("./pages/AdminCourses"));
 const AdminInstructors = lazyRetry(() => import("./pages/AdminInstructors"));
 const AdminPlatformVideo = lazyRetry(() => import("./pages/AdminPlatformVideo"));
+const AdminEmail = lazyRetry(() => import("./pages/AdminEmail"));
 const PaymentCallback = lazyRetry(() => import("./pages/PaymentCallback"));
 const Wishlist = lazyRetry(() => import("./pages/Wishlist"));
 const ProjectDetail = lazyRetry(() => import("./pages/ProjectDetail"));
@@ -271,6 +272,14 @@ const App = () => (
                       element={
                         <ProtectedRoute requiredRoles={['admin']}>
                           <AdminPlatformVideo />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/instructor/email"
+                      element={
+                        <ProtectedRoute requiredRoles={['admin']}>
+                          <AdminEmail />
                         </ProtectedRoute>
                       }
                     />

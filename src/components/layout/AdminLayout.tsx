@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, User, LogOut, Menu, X, ChevronLeft, Ticket, Users, FileText, Settings, ShieldCheck, BarChart3, Video, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, BookOpen, User, LogOut, Menu, X, ChevronLeft, Ticket, Users, FileText, Settings, ShieldCheck, BarChart3, Video, ClipboardList, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -31,6 +31,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             { icon: Ticket, label: 'Enrollment Codes', path: '/instructor/enrollment-codes' },
             { icon: Users, label: 'Students', path: '/instructor/students' },
             { icon: Video, label: 'Platform Video', path: '/instructor/platform-video' },
+            { icon: Mail, label: 'Send Email', path: '/instructor/email' },
         ] : []),
         { icon: User, label: 'My Profile', path: '/profile' },
     ];
@@ -53,7 +54,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                 {isAdmin && (
                     <p className="px-3 mb-2 text-[10px] uppercase tracking-widest text-slate-500">Instructor</p>
                 )}
-                {sidebarLinks.filter(l => !['All Courses', 'Instructors', 'Enrollment Codes', 'Students', 'Platform Video'].includes(l.label)).map((link) => {
+                {sidebarLinks.filter(l => !['All Courses', 'Instructors', 'Enrollment Codes', 'Students', 'Platform Video', 'Send Email'].includes(l.label)).map((link) => {
                     const isActive = location.pathname === link.path ||
                         (link.path !== '/instructor' && location.pathname.startsWith(link.path));
                     return (
@@ -75,7 +76,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     <>
                         <div className="my-4 border-t border-slate-800" />
                         <p className="px-3 mb-2 text-[10px] uppercase tracking-widest text-slate-500">Administration</p>
-                        {sidebarLinks.filter(l => ['All Courses', 'Instructors', 'Enrollment Codes', 'Students', 'Platform Video'].includes(l.label)).map((link) => {
+                        {sidebarLinks.filter(l => ['All Courses', 'Instructors', 'Enrollment Codes', 'Students', 'Platform Video', 'Send Email'].includes(l.label)).map((link) => {
                             const isActive = location.pathname === link.path ||
                                 (link.path !== '/instructor' && location.pathname.startsWith(link.path));
                             return (

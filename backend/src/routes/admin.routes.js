@@ -35,7 +35,10 @@ const {
 
     // Platform Video
     getPlatformVideo,
-    uploadPlatformVideo
+    uploadPlatformVideo,
+
+    // Custom Email
+    sendCustomEmail
 } = require('../controllers/admin.controller');
 
 const {
@@ -251,6 +254,17 @@ router.get('/users/enrollments', getUsersWithEnrollments);
  * @access  Private/Admin
  */
 router.post('/platform-video', uploadPlatformVideo);
+
+// =====================
+// CUSTOM EMAIL
+// =====================
+
+/**
+ * @route   POST /api/v1/admin/send-email
+ * @desc    Send custom email to users
+ * @access  Private/Admin
+ */
+router.post('/send-email', sendCustomEmail);
 
 module.exports = router;
 

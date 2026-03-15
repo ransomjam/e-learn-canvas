@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
 const { logWithState, AUDIT_ACTIONS } = require('../middleware/audit.middleware');
+const { sendEmail } = require('../config/email');
 const path = require('path');
 const fs = require('fs');
 
@@ -1183,6 +1184,171 @@ const uploadPlatformVideo = asyncHandler(async (req, res) => {
     });
 });
 
+// =====================
+// CUSTOM EMAIL
+// =====================
+
+/**
+ * @desc    Send custom email to users
+ * @route   POST /api/v1/admin/send-email
+ * @access  Private/Admin
+ * @body    { recipients: 'all'|'students'|'instructors'|'course'|'custom', courseId?, emails?, subject, message }
+ */
+const sendCustomEmail = asyncHandler(async (req, res) => {
+    const { recipients, courseId, emails, subject, message } = req.body;
+
+    if (!subject || !message) {
+        throw new ApiError(400, 'Subject and message are required');
+    }
+
+    if (!recipients) {
+        throw new ApiError(400, 'Recipients type is required');
+    }
+
+    let recipientEmails = [];
+
+    switch (recipients) {
+        case 'all': {
+            const result = await query('SELECT email, first_name FROM users WHERE is_active = true AND is_banned = false');
+            recipientEmails = result.rows;
+            break;
+        }
+        case 'students': {
+            const result = await query("SELECT email, first_name FROM users WHERE role = 'learner' AND is_active = true AND is_banned = false");
+            recipientEmails = result.rows;
+            break;
+        }
+        case 'instructors': {
+            const result = await query("SELECT email, first_name FROM users WHERE role = 'instructor' AND is_active = true AND is_banned = false");
+            recipientEmails = result.rows;
+            break;
+        }
+        case 'course': {
+            if (!courseId) {
+                throw new ApiError(400, 'courseId is required for course-specific emails');
+            }
+            const result = await query(
+                `SELECT u.email, u.first_name FROM enrollments e
+                 JOIN users u ON e.user_id = u.id
+                 WHERE e.course_id = $1 AND e.status = 'active'`,
+                [courseId]
+            );
+            recipientEmails = result.rows;
+            break;
+        }
+        case 'custom': {
+            if (!emails || !Array.isArray(emails) || emails.length === 0) {
+                throw new ApiError(400, 'emails array is required for custom recipients');
+            }
+            recipientEmails = emails.map(e => ({ email: e, first_name: 'User' }));
+            break;
+        }
+        default:
+            throw new ApiError(400, 'Invalid recipients type. Use: all, students, instructors, course, or custom');
+    }
+
+    if (recipientEmails.length === 0) {
+        throw new ApiError(404, 'No recipients found for the selected criteria');
+    }
+
+    // Build branded email using same layout as notification templates
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://www.cradema.com';
+    const LOGO_URL = FRONTEND_URL + '/New%20Logo.png';
+    const PLATFORM_NAME = 'Cradema';
+
+    // Convert newlines in message to <br> for HTML
+    const htmlMessage = message.replace(/\n/g, '<br>');
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:#0f172a;padding:28px 40px;text-align:center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:12px;">
+                    <img src="${LOGO_URL}" alt="Cradema" width="44" height="44" style="display:block;border-radius:10px;" />
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <span style="font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Cradema</span>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.6);font-size:13px;letter-spacing:0.5px;">E-Learning Platform</p>
+            </td>
+          </tr>
+          <tr><td style="height:4px;background:linear-gradient(90deg,#8B5CF6,#1570EF,#06B6D4);"></td></tr>
+          <tr>
+            <td style="padding:36px 40px 28px;">
+              <h2 style="margin:0 0 16px;color:#0f172a;font-size:22px;font-weight:700;">${subject}</h2>
+              <div style="color:#475569;font-size:15px;line-height:1.7;">
+                ${htmlMessage}
+              </div>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:28px auto;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#1570EF,#1e40af);border-radius:10px;">
+                    <a href="${FRONTEND_URL}" target="_blank" style="display:inline-block;padding:14px 36px;color:#fff;text-decoration:none;font-size:15px;font-weight:600;">Visit ${PLATFORM_NAME}</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 40px 28px;border-top:1px solid #e2e8f0;text-align:center;">
+              <p style="margin:0 0 8px;color:#94a3b8;font-size:12px;">&copy; ${new Date().getFullYear()} ${PLATFORM_NAME}. All rights reserved.</p>
+              <a href="${FRONTEND_URL}" style="color:#1570EF;text-decoration:none;font-size:12px;">${FRONTEND_URL.replace(/^https?:\/\//, '')}</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    // Send emails (fire-and-forget per recipient, but track counts)
+    let sentCount = 0;
+    let failedCount = 0;
+
+    const sendPromises = recipientEmails.map(async (r) => {
+        try {
+            const result = await sendEmail({ to: r.email, subject, html });
+            if (result && !result.error) {
+                sentCount++;
+            } else {
+                failedCount++;
+            }
+        } catch {
+            failedCount++;
+        }
+    });
+
+    // Wait for all emails to send (with a timeout)
+    await Promise.allSettled(sendPromises);
+
+    console.log(`[Admin Email] Sent: ${sentCount}, Failed: ${failedCount}, Total: ${recipientEmails.length}`);
+
+    res.json({
+        success: true,
+        message: `Email sent to ${sentCount} recipient(s)${failedCount > 0 ? ` (${failedCount} failed)` : ''}`,
+        data: {
+            totalRecipients: recipientEmails.length,
+            sent: sentCount,
+            failed: failedCount
+        }
+    });
+});
+
 module.exports = {
     // Users
     getAdminUsers,
@@ -1217,5 +1383,8 @@ module.exports = {
 
     // Platform Video
     getPlatformVideo,
-    uploadPlatformVideo
+    uploadPlatformVideo,
+
+    // Custom Email
+    sendCustomEmail
 };

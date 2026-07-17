@@ -33,6 +33,16 @@ if (process.env.NODE_ENV === 'production') {
 
 // Security middleware - configure CSP for dashboard
 const isProd = process.env.NODE_ENV === 'production';
+
+// Storage hosts the browser must be allowed to reach (direct uploads + media).
+// R2_PUBLIC_BASE_URL e.g. https://pub-xxx.r2.dev; BUNNY_CDN_HOST e.g. vz-xxx.b-cdn.net
+const storageConnectSrc = [
+    ...(process.env.R2_PUBLIC_BASE_URL ? [process.env.R2_PUBLIC_BASE_URL.replace(/\/+$/, '')] : []),
+    ...(process.env.R2_ACCOUNT_ID ? [`https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`] : []),
+    ...(process.env.BUNNY_CDN_HOST ? [`https://${process.env.BUNNY_CDN_HOST.replace(/^https?:\/\//, '')}`] : []),
+    'https://video.bunnycdn.com', // Bunny TUS upload endpoint
+];
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -43,7 +53,7 @@ app.use(helmet({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "blob:", "https:", ...(isProd ? [] : ["http://localhost:*"]), "https://res.cloudinary.com", "https://www.facebook.com"],
             mediaSrc: ["'self'", "blob:", "https:", ...(isProd ? [] : ["http://localhost:*"]), "https://res.cloudinary.com"],
-            connectSrc: ["'self'", ...(isProd ? [] : ["http://localhost:*"]), "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://api.cloudinary.com", "https://*.cradema.com", "https://cradema.com", "https://www.facebook.com", "https://connect.facebook.net"],
+            connectSrc: ["'self'", ...(isProd ? [] : ["http://localhost:*"]), "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://api.cloudinary.com", "https://*.cradema.com", "https://cradema.com", "https://www.facebook.com", "https://connect.facebook.net", ...storageConnectSrc],
             workerSrc: ["'self'", "blob:"],
             frameSrc: ["'self'", "https://accounts.google.com", "https://drive.google.com", "https://*.google.com", "https://view.officeapps.live.com"],
             // Don't force upgrade-insecure-requests in dev (breaks mixed-content)

@@ -1,28 +1,31 @@
-# Render Blueprint – deploy Cradema as a single web service + managed PostgreSQL
+# Render Blueprint – Cradema API only.
+#
+# Cost-minimized architecture:
+#   Frontend  → Vercel (free)                — see vercel.json + DEPLOYMENT.md
+#   API       → this Render web service      — free or Starter ($7/mo, no cold starts)
+#   Database  → Neon Postgres (free)         — set DATABASE_URL below
+#   Files     → Cloudflare R2 (free tier)    — images, PDFs, docs
+#   Videos    → Bunny Stream (~$1+/mo)       — transcoding + HLS + CDN
+#
 # https://render.com/docs/blueprint-spec
-
-databases:
-  - name: elearn-canvas-db
-    plan: free
-    databaseName: elearn_canvas
-    user: elearn_user
 
 services:
   - type: web
     name: elearn-canvas
     runtime: node
     plan: free
-    buildCommand: npm run render-build
+    # API only — the frontend is built and served by Vercel
+    buildCommand: cd backend && npm install --omit=dev
     startCommand: cd backend && npm run migrate:all && npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3001
+      # Neon Postgres connection string (postgresql://...neon.tech/...?sslmode=require)
       - key: DATABASE_URL
-        fromDatabase:
-          name: elearn-canvas-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -31,10 +34,12 @@ services:
         value: 7d
       - key: JWT_REFRESH_EXPIRES_IN
         value: 30d
+      # Comma-separated list of allowed origins, e.g. https://cradema.com,https://www.cradema.com,https://your-app.vercel.app
       - key: CORS_ORIGIN
         sync: false
       - key: FRONTEND_URL
         sync: false
+      # Fapshi payments
       - key: FAPSHI_APIUSER
         sync: false
       - key: FAPSHI_APIKEY
@@ -45,11 +50,38 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
+      # SMTP (Brevo)
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      # Cloudflare R2 — images, PDFs, documents
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
+      # Bunny Stream — course videos
+      - key: BUNNY_LIBRARY_ID
+        sync: false
+      - key: BUNNY_API_KEY
+        sync: false
+      - key: BUNNY_CDN_HOST
+        sync: false
+      # Cloudinary — LEGACY, only while old assets remain there (URL signing).
+      # Remove these once the storage migration script has run.
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      - key: VITE_API_URL
-        value: /api/v1

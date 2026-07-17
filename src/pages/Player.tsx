@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { coursesService, Section, Lesson } from '@/services/courses.service';
 import { enrollmentsService } from '@/services/enrollments.service';
-import { resolveMediaUrl, toDirectVideoUrl } from '@/lib/media';
+import { resolveMediaUrl, toDirectVideoUrl, getVideoThumbnailUrl } from '@/lib/media';
 import { resolveFileUrl } from '@/lib/download';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
@@ -522,6 +522,7 @@ const Player = () => {
                       <CustomVideoPlayer
                         key={`${currentLessonId}-${resolvedVideoUrl}`}
                         src={resolvedVideoUrl}
+                        poster={getVideoThumbnailUrl(resolvedVideoUrl) || undefined}
                         title={currentLesson.title}
                       />
                     );
@@ -1168,9 +1169,8 @@ const Player = () => {
                                   {lesson.type !== 'quiz' && (
                                     <img
                                       src={
-                                        lesson.type === 'video' && lesson.videoUrl && lesson.videoUrl.includes('res.cloudinary.com')
-                                          ? resolveMediaUrl(lesson.videoUrl).replace(/\.[^/.]+$/, ".jpg")
-                                          : resolveMediaUrl(course.thumbnailUrl)
+                                        (lesson.type === 'video' && getVideoThumbnailUrl(resolveMediaUrl(lesson.videoUrl)))
+                                          || resolveMediaUrl(course.thumbnailUrl)
                                       }
                                       alt=""
                                       className={`absolute inset-0 w-full h-full object-cover transition-opacity ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}

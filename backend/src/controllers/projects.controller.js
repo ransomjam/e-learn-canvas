@@ -1,6 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
-const { projectUpload, uploadToCloudinary, cloudinaryEnabled, signCloudinaryUrl } = require('./upload.controller');
+const { projectUpload, uploadToStorage, storageEnabled, signCloudinaryUrl } = require('./upload.controller');
 
 /**
  * @desc    Create a project for a course
@@ -29,8 +29,8 @@ const createProject = asyncHandler(async (req, res) => {
     let attachmentUrl = req.body.attachmentUrl || null;
     let attachmentName = req.body.attachmentName || null;
     if (req.file) {
-        if (cloudinaryEnabled) {
-            const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+        if (storageEnabled) {
+            const result = await uploadToStorage(req.file.path, req.file.originalname);
             attachmentUrl = result.url;
         } else {
             attachmentUrl = `/uploads/${req.file.filename}`;
@@ -167,8 +167,8 @@ const submitProject = asyncHandler(async (req, res) => {
     let fileName = req.body.fileName || null;
     let fileSize = req.body.fileSize || null;
     if (req.file) {
-        if (cloudinaryEnabled) {
-            const uploaded = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+        if (storageEnabled) {
+            const uploaded = await uploadToStorage(req.file.path, req.file.originalname);
             submissionUrl = uploaded.url;
         } else {
             submissionUrl = `/uploads/${req.file.filename}`;
@@ -452,8 +452,8 @@ const updateProject = asyncHandler(async (req, res) => {
     let attachmentUrl = req.body.attachmentUrl || projectResult.rows[0].attachment_url;
     let attachmentName = req.body.attachmentName || projectResult.rows[0].attachment_name;
     if (req.file) {
-        if (cloudinaryEnabled) {
-            const uploaded = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+        if (storageEnabled) {
+            const uploaded = await uploadToStorage(req.file.path, req.file.originalname);
             attachmentUrl = uploaded.url;
         } else {
             attachmentUrl = `/uploads/${req.file.filename}`;

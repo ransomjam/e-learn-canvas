@@ -52,6 +52,44 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
 
     const isExternal = src.startsWith('http://') || src.startsWith('https://');
 
+    // HLS streams (Bunny Stream `.m3u8` playlists): Safari/iOS play them natively;
+    // everywhere else we attach hls.js. The <source> element is skipped for HLS —
+    // the source is wired up in the effect below instead.
+    const isHls = /\.m3u8($|\?)/i.test(src);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !isHls) return;
+
+        // Native HLS support (Safari, iOS browsers)
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = src;
+            return;
+        }
+
+        let hls: { destroy: () => void } | null = null;
+        let cancelled = false;
+        import('hls.js').then(({ default: Hls }) => {
+            if (cancelled || !videoRef.current) return;
+            if (Hls.isSupported()) {
+                const instance = new Hls({ maxBufferLength: 30 });
+                instance.loadSource(src);
+                instance.attachMedia(videoRef.current);
+                instance.on(Hls.Events.ERROR, (_evt, data) => {
+                    if (data.fatal) setVideoError(true);
+                });
+                hls = instance;
+            } else {
+                setVideoError(true);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+            if (hls) hls.destroy();
+        };
+    }, [src, isHls]);
+
     // Auto-hide controls
     const resetControlsTimeout = useCallback(() => {
         setShowControls(true);
@@ -241,7 +279,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 preload="metadata"
                 controls={false}
             >
-                <source src={src} type={getMimeType(src)} />
+                {!isHls && <source src={src} type={getMimeType(src)} />}
                 Your browser does not support this video format.
             </video>
 

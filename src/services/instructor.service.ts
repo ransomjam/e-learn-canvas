@@ -185,8 +185,12 @@ export const instructorService = {
         return response.data.data;
     },
 
-    // File upload — uses direct Cloudinary upload to bypass Render's 30 s timeout
-    async uploadFile(file: File): Promise<{ url: string; filename: string; fileType?: string; originalName?: string }> {
+    // File upload — asks the backend which storage provider to use, then uploads
+    // directly from the browser (bypasses Render's 30 s timeout entirely):
+    //   bunny      → TUS resumable upload to Bunny Stream (videos, transcoded to HLS)
+    //   r2         → presigned PUT to Cloudflare R2 (images, docs, everything else)
+    //   cloudinary → legacy signed form upload (fallback while migrating)
+    async uploadFile(file: File, onProgress?: (percent: number) => void): Promise<{ url: string; filename: string; fileType?: string; originalName?: string }> {
         // Detect file type from extension
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
         let fileType = 'file';
@@ -198,10 +202,62 @@ export const instructorService = {
 
         try {
             // Step 1: Get signed upload params from backend
-            const signRes = await api.get('/upload/sign', { params: { fileType } });
+            const signRes = await api.get('/upload/sign', { params: { fileType, filename: file.name } });
             const sig = signRes.data.data;
 
-            // Step 2: Upload directly to Cloudinary (bypasses Render entirely)
+            // ── Bunny Stream: TUS resumable upload ─────────────────────────────
+            if (sig.provider === 'bunny') {
+                const { Upload } = await import('tus-js-client');
+                await new Promise<void>((resolve, reject) => {
+                    const upload = new Upload(file, {
+                        endpoint: sig.tusEndpoint,
+                        retryDelays: [0, 3000, 5000, 10000, 20000],
+                        headers: {
+                            AuthorizationSignature: sig.signature,
+                            AuthorizationExpire: String(sig.expiration),
+                            VideoId: sig.videoId,
+                            LibraryId: String(sig.libraryId),
+                        },
+                        metadata: {
+                            filetype: file.type,
+                            title: file.name,
+                        },
+                        onError: reject,
+                        onProgress: (sent, total) => {
+                            if (onProgress && total > 0) onProgress(Math.round((sent / total) * 100));
+                        },
+                        onSuccess: () => resolve(),
+                    });
+                    upload.start();
+                });
+                return {
+                    url: sig.playbackUrl, // HLS playlist URL — stored in the DB
+                    filename: file.name,
+                    fileType,
+                    originalName: file.name,
+                };
+            }
+
+            // ── Cloudflare R2: presigned PUT ────────────────────────────────────
+            if (sig.provider === 'r2') {
+                const putRes = await fetch(sig.uploadUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: { 'Content-Type': sig.contentType || file.type || 'application/octet-stream' },
+                });
+                if (!putRes.ok) {
+                    throw new Error(`R2 upload failed (${putRes.status})`);
+                }
+                if (onProgress) onProgress(100);
+                return {
+                    url: sig.publicUrl,
+                    filename: file.name,
+                    fileType,
+                    originalName: file.name,
+                };
+            }
+
+            // ── Cloudinary (legacy fallback) ────────────────────────────────────
             const cloudFormData = new FormData();
             cloudFormData.append('file', file);
             cloudFormData.append('api_key', sig.apiKey);
@@ -237,9 +293,9 @@ export const instructorService = {
                 originalName: file.name,
             };
         } catch (signErr: any) {
-            // If signature endpoint fails (e.g. Cloudinary not configured), fall back
+            // If direct upload fails (e.g. storage not configured), fall back
             // to the backend proxy upload (works in local dev)
-            console.warn('Direct Cloudinary upload unavailable, falling back to backend proxy:', signErr?.message);
+            console.warn('Direct upload unavailable, falling back to backend proxy:', signErr?.message);
             const formData = new FormData();
             formData.append('file', file);
             const response = await api.post('/upload', formData, {

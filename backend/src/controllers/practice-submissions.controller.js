@@ -1,6 +1,6 @@
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
-const { projectUpload, uploadToCloudinary, cloudinaryEnabled, signCloudinaryUrl } = require('./upload.controller');
+const { projectUpload, uploadToStorage, storageEnabled, signCloudinaryUrl } = require('./upload.controller');
 const { notifyPracticeSubmission, notifySubmissionReviewed } = require('../services/notification.service');
 
 /**
@@ -42,8 +42,8 @@ const submitPracticeFile = asyncHandler(async (req, res) => {
     let fileSize = req.body.fileSize || null;
 
     if (req.file) {
-        if (cloudinaryEnabled) {
-            const uploaded = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+        if (storageEnabled) {
+            const uploaded = await uploadToStorage(req.file.path, req.file.originalname);
             fileUrl = uploaded.url;
         } else {
             fileUrl = `/uploads/${req.file.filename}`;

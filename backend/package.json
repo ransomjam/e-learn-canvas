@@ -9,9 +9,13 @@
         "migrate": "node src/database/migrate.js",
         "migrate:all": "node src/database/migrate-all.js",
         "migrate:rollback": "node src/database/migrate.js rollback",
+        "migrate:storage": "node src/database/migrate-storage.js",
+        "migrate:storage:dry": "node src/database/migrate-storage.js --dry-run",
         "test": "jest"
     },
     "dependencies": {
+        "@aws-sdk/client-s3": "^3.1089.0",
+        "@aws-sdk/s3-request-presigner": "^3.1089.0",
         "axios": "^1.13.5",
         "bcryptjs": "^2.4.3",
         "cloudinary": "^1.41.3",

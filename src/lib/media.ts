@@ -69,6 +69,23 @@ export const resolveMediaUrl = (url?: string | null) => {
 };
 
 /**
+ * Derive a poster/thumbnail image URL for a hosted video, or return null when
+ * the host doesn't provide one.
+ * - Bunny Stream: https://<cdn>/<guid>/playlist.m3u8 → https://<cdn>/<guid>/thumbnail.jpg
+ * - Cloudinary:   swap the file extension for .jpg (on-the-fly frame extraction)
+ */
+export const getVideoThumbnailUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (/b-cdn\.net\/.+\/playlist\.m3u8/i.test(url)) {
+    return url.replace(/playlist\.m3u8.*$/i, 'thumbnail.jpg');
+  }
+  if (/res\.cloudinary\.com/i.test(url) && /\/video\/upload\//i.test(url)) {
+    return url.replace(/\.[^/.]+$/, '.jpg');
+  }
+  return null;
+};
+
+/**
  * Convert external video sharing URLs into direct-playable URLs.
  * Supports Google Drive, Dropbox, and OneDrive sharing links.
  * Falls through to the original URL if no transformation is needed.

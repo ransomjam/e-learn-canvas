@@ -1,11 +1,18 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// Build pool configuration – prefer DATABASE_URL (Render, Heroku, etc.)
+// Build pool configuration – prefer DATABASE_URL (Neon, Render, Heroku, etc.)
+// SSL is enabled in production OR when the connection string asks for it
+// (Neon URLs always carry sslmode=require, even when used from local dev).
+const needsSsl =
+    process.env.NODE_ENV === 'production' ||
+    /sslmode=require/i.test(process.env.DATABASE_URL || '') ||
+    /neon\.tech/i.test(process.env.DATABASE_URL || '');
+
 const poolConfig = process.env.DATABASE_URL
     ? {
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        ssl: needsSsl ? { rejectUnauthorized: false } : false,
         max: 20,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 5000,

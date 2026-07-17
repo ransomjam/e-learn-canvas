@@ -6,20 +6,23 @@ const {
   cloudinary,
   isConfigured: cloudinaryEnabled,
 } = require("../config/cloudinary");
+const r2 = require("../config/r2");
+const bunny = require("../config/bunny");
+const mimeTypes = require("mime-types");
 
-// In production, Cloudinary MUST be configured. Render's filesystem is ephemeral —
-// files saved to local disk are lost on every redeploy/restart.
-if (process.env.NODE_ENV === "production" && !cloudinaryEnabled) {
+// At least one cloud storage provider MUST be configured in production.
+// Render's filesystem is ephemeral — local files are lost on every redeploy.
+const storageEnabled = r2.isConfigured || bunny.isConfigured || cloudinaryEnabled;
+if (process.env.NODE_ENV === "production" && !storageEnabled) {
   console.error(
-    "\n🚨 CRITICAL: Cloudinary is NOT configured but NODE_ENV=production!",
+    "\n🚨 CRITICAL: No cloud storage configured but NODE_ENV=production!",
   );
   console.error(
-    "   Uploads will fail because Render uses an ephemeral filesystem.",
+    "   Uploads will fail because the server filesystem is ephemeral.",
   );
   console.error(
-    "   Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET",
+    "   Set R2_* (files/images) and BUNNY_* (videos) env vars — see DEPLOYMENT.md.",
   );
-  console.error("   in your Render dashboard environment variables.\n");
 }
 
 // ── Helper: detect file type from extension ──────────────────────────────────
@@ -139,6 +142,55 @@ const uploadToCloudinary = async (filePath, originalname) => {
   }
 };
 
+// ── Provider resolution ───────────────────────────────────────────────────────
+// Videos:      Bunny Stream (transcoding + adaptive HLS) → R2 → Cloudinary → local
+// Everything else: R2 (zero egress) → Cloudinary → local
+const resolveProvider = (fileType) => {
+  if (fileType === "video") {
+    if (bunny.isConfigured) return "bunny";
+    if (r2.isConfigured) return "r2";
+    if (cloudinaryEnabled) return "cloudinary";
+    return "local";
+  }
+  if (r2.isConfigured) return "r2";
+  if (cloudinaryEnabled) return "cloudinary";
+  return "local";
+};
+
+const r2Folder = (fileType) =>
+  fileType === "image" ? "images" : fileType === "video" ? "videos" : "files";
+
+// ── Upload a local temp file to whichever provider is configured ─────────────
+// Returns { url, publicId? }. Used by the backend-proxy upload route and by
+// projects / practice-submissions controllers.
+const uploadToStorage = async (filePath, originalname) => {
+  const fileType = detectFileType(originalname);
+  const provider = resolveProvider(fileType);
+
+  if (provider === "bunny") {
+    console.log(`🎬 Uploading to Bunny Stream: ${originalname}`);
+    const videoId = await bunny.createVideo(originalname);
+    const url = await bunny.uploadLocalFile(videoId, filePath);
+    console.log(`✅ Bunny upload success: ${url}`);
+    return { url, publicId: videoId };
+  }
+
+  if (provider === "r2") {
+    const key = r2.makeKey(r2Folder(fileType), originalname);
+    const contentType = mimeTypes.lookup(originalname) || "application/octet-stream";
+    console.log(`📦 Uploading to R2: ${originalname} → ${key}`);
+    const url = await r2.uploadLocalFile(filePath, key, contentType);
+    console.log(`✅ R2 upload success: ${url}`);
+    return { url, publicId: key };
+  }
+
+  if (provider === "cloudinary") {
+    return uploadToCloudinary(filePath, originalname);
+  }
+
+  throw new Error("No cloud storage provider configured");
+};
+
 // ── Helper: sign a Cloudinary URL so restricted raw resources are accessible ─
 // Cloudinary accounts with "Restrict unsigned raw resource delivery" return 401
 // for unsigned /raw/upload/ URLs. This function re-generates the URL using the
@@ -204,14 +256,14 @@ const uploadFile = asyncHandler(async (req, res) => {
   const fileType = detectFileType(req.file.originalname);
   let fileUrl;
 
-  if (cloudinaryEnabled) {
-    // Upload temporary disk file to Cloudinary
+  if (storageEnabled) {
+    // Upload temporary disk file to the configured provider (Bunny/R2/Cloudinary)
     try {
-      const result = await uploadToCloudinary(
+      const result = await uploadToStorage(
         req.file.path,
         req.file.originalname,
       );
-      fileUrl = result.url; // full https://res.cloudinary.com/... URL
+      fileUrl = result.url;
 
       // Clean up the temporary local file on success
       fs.unlink(req.file.path, (err) => {
@@ -219,7 +271,7 @@ const uploadFile = asyncHandler(async (req, res) => {
       });
     } catch (err) {
       console.error(
-        "❌ Cloudinary upload failed for",
+        "❌ Cloud upload failed for",
         req.file.originalname,
         err.message,
       );
@@ -231,10 +283,10 @@ const uploadFile = asyncHandler(async (req, res) => {
       throw new ApiError(500, "File upload failed. Please try again later.");
     }
   } else if (process.env.NODE_ENV === "production") {
-    // In production without Cloudinary, reject the upload because Render's local disk erases on deploy
+    // In production without cloud storage, reject the upload because the local disk erases on deploy
     fs.unlink(req.file.path, () => { });
     console.error(
-      "❌ Upload rejected: Cloudinary not configured in production",
+      "❌ Upload rejected: no cloud storage configured in production",
     );
     throw new ApiError(
       503,
@@ -560,14 +612,59 @@ function streamResponse(proxyRes, res, downloadName, originalUrl) {
   }
 }
 
-// ── Signed upload params for direct frontend-to-Cloudinary uploads ───────────
+// ── Signed upload params for direct browser-to-storage uploads ───────────────
+// The response is tagged with `provider` so the frontend knows which upload
+// protocol to use:
+//   bunny      → TUS resumable upload to video.bunnycdn.com (videos)
+//   r2         → presigned PUT to Cloudflare R2 (images, docs, everything else)
+//   cloudinary → legacy signed form upload (fallback while migrating)
 const getUploadSignature = asyncHandler(async (req, res) => {
-  if (!cloudinaryEnabled) {
+  if (!storageEnabled) {
     throw new ApiError(503, "Cloud storage is not configured");
   }
 
-  const { fileType } = req.query; // 'image', 'video', 'pdf', etc.
+  const { fileType, filename } = req.query; // 'image', 'video', 'pdf', etc.
   const detectedType = fileType || "file";
+  const provider = resolveProvider(detectedType);
+
+  // ── Bunny Stream (videos) ──────────────────────────────────────────────────
+  if (provider === "bunny") {
+    const videoId = await bunny.createVideo(filename || "lesson-video");
+    const { signature, expiration, tusEndpoint } = bunny.getTusSignature(videoId);
+    return res.json({
+      success: true,
+      data: {
+        provider: "bunny",
+        libraryId: bunny.LIBRARY_ID,
+        videoId,
+        signature,
+        expiration,
+        tusEndpoint,
+        playbackUrl: bunny.hlsUrl(videoId),
+        thumbnailUrl: bunny.thumbnailUrl(videoId),
+      },
+    });
+  }
+
+  // ── Cloudflare R2 (presigned PUT) ──────────────────────────────────────────
+  if (provider === "r2") {
+    const name = filename || `upload.${detectedType === "image" ? "png" : "bin"}`;
+    const key = r2.makeKey(r2Folder(detectedType), name);
+    const contentType = mimeTypes.lookup(name) || "application/octet-stream";
+    const uploadUrl = await r2.getPresignedPutUrl(key, contentType);
+    return res.json({
+      success: true,
+      data: {
+        provider: "r2",
+        uploadUrl,
+        publicUrl: r2.publicUrl(key),
+        key,
+        contentType,
+      },
+    });
+  }
+
+  // ── Cloudinary (legacy fallback) ───────────────────────────────────────────
   const resourceType = getCloudinaryResourceType(detectedType);
   const folder = `cradema/${detectedType === "image" ? "images" : detectedType === "video" ? "videos" : "files"}`;
 
@@ -594,6 +691,7 @@ const getUploadSignature = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
+      provider: "cloudinary",
       signature,
       timestamp,
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
@@ -614,8 +712,10 @@ module.exports = {
   uploadFile,
   downloadFile,
   uploadToCloudinary,
+  uploadToStorage,
   detectFileType,
   cloudinaryEnabled,
+  storageEnabled,
   handleMulterError,
   getUploadSignature,
   signCloudinaryUrl,

@@ -1,31 +1,33 @@
-# Render Blueprint – Cradema API only.
+# Render Blueprint – Cradema.
 #
-# Cost-minimized architecture:
-#   Frontend  → Vercel (free)                — see vercel.json + DEPLOYMENT.md
-#   API       → this Render web service      — free or Starter ($7/mo, no cold starts)
-#   Database  → Neon Postgres (free)         — set DATABASE_URL below
-#   Files     → Cloudflare R2 (free tier)    — images, PDFs, docs
-#   Videos    → Bunny Stream (~$1+/mo)       — transcoding + HLS + CDN
+# This matches the CURRENT working setup:
+#   - one Web Service that builds the React frontend AND runs the Express API
+#   - the existing managed PostgreSQL database (elearn-canvas-db)
+#   - Cloudflare R2 for images/PDFs/docs and Bunny Stream for videos
 #
+# NOTE: the live service is configured from the Render dashboard, not from this
+# file. This blueprint is kept accurate so it is safe if you ever re-sync it.
 # https://render.com/docs/blueprint-spec
 
 services:
   - type: web
-    name: elearn-canvas
+    name: e-learn-canvas
     runtime: node
-    plan: free
-    # API only — the frontend is built and served by Vercel
-    buildCommand: cd backend && npm install --omit=dev
+    plan: starter
+    # Builds the frontend into dist/ and installs backend deps (see package.json)
+    buildCommand: npm run render-build
     startCommand: cd backend && npm run migrate:all && npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3001
-      # Neon Postgres connection string (postgresql://...neon.tech/...?sslmode=require)
+        value: 10000
+      # Existing managed database — keep pointing at it
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: elearn-canvas-db
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -34,7 +36,6 @@ services:
         value: 7d
       - key: JWT_REFRESH_EXPIRES_IN
         value: 30d
-      # Comma-separated list of allowed origins, e.g. https://cradema.com,https://www.cradema.com,https://your-app.vercel.app
       - key: CORS_ORIGIN
         sync: false
       - key: FRONTEND_URL
@@ -59,7 +60,7 @@ services:
         sync: false
       - key: SMTP_PASS
         sync: false
-      # Cloudflare R2 — images, PDFs, documents
+      # ── Cloudflare R2 — images, PDFs, documents ──────────────────────────────
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
@@ -70,18 +71,24 @@ services:
         sync: false
       - key: R2_PUBLIC_BASE_URL
         sync: false
-      # Bunny Stream — course videos
+      # ── Bunny Stream — course videos ─────────────────────────────────────────
       - key: BUNNY_LIBRARY_ID
         sync: false
       - key: BUNNY_API_KEY
         sync: false
       - key: BUNNY_CDN_HOST
         sync: false
-      # Cloudinary — LEGACY, only while old assets remain there (URL signing).
-      # Remove these once the storage migration script has run.
+      # ── Cloudinary — LEGACY. Keep until the storage migration is verified, ────
+      # then delete these three and the old assets.
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+
+databases:
+  - name: elearn-canvas-db
+    plan: basic-256mb
+    databaseName: elearn_canvas_db
+    user: elearn_canvas_db_user

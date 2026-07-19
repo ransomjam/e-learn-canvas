@@ -62,18 +62,35 @@ const sniffExt = (buf) => {
     return '';
 };
 
-const download = async (url) => {
-    // Sign so restricted Cloudinary assets are downloadable
-    const fetchUrl = signCloudinaryUrl(url);
+// Stream the asset straight to a temp file (never buffer whole videos in RAM,
+// so this is safe to run even on a small 512 MB instance).
+const download = async (url, destPath) => {
+    const fetchUrl = signCloudinaryUrl(url); // sign restricted Cloudinary assets
     const res = await axios.get(fetchUrl, {
-        responseType: 'arraybuffer',
+        responseType: 'stream',
         maxRedirects: 5,
-        timeout: 10 * 60 * 1000,
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
+        timeout: 30 * 60 * 1000,
         validateStatus: (s) => s === 200,
     });
-    return Buffer.from(res.data);
+    await new Promise((resolve, reject) => {
+        const w = fs.createWriteStream(destPath);
+        res.data.pipe(w);
+        w.on('finish', resolve);
+        w.on('error', reject);
+        res.data.on('error', reject);
+    });
+};
+
+// Read just the first 4 KB from disk to sniff the type of extensionless files.
+const sniffExtFromFile = (filePath) => {
+    const fd = fs.openSync(filePath, 'r');
+    try {
+        const buf = Buffer.alloc(4096);
+        const n = fs.readSync(fd, buf, 0, 4096, 0);
+        return sniffExt(buf.subarray(0, n));
+    } finally {
+        fs.closeSync(fd);
+    }
 };
 
 const migrateOne = async (url) => {
@@ -87,15 +104,14 @@ const migrateOne = async (url) => {
         return urlMap.get(url);
     }
 
-    const buf = await download(url);
-    console.log(`  downloaded ${(buf.length / 1024 / 1024).toFixed(2)} MB`);
+    const tmp = path.join(os.tmpdir(), `mig-${Date.now()}-${Math.random().toString(36).slice(2)}.download`);
+    await download(url, tmp);
+    const sizeMb = fs.statSync(tmp).size / 1024 / 1024;
+    console.log(`  downloaded ${sizeMb.toFixed(2)} MB`);
 
     // Work out a filename with a real extension
     let name = decodeURIComponent(path.basename(new URL(url).pathname));
-    if (!path.extname(name)) name += sniffExt(buf) || '';
-
-    const tmp = path.join(os.tmpdir(), `mig-${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(name) || '.bin'}`);
-    fs.writeFileSync(tmp, buf);
+    if (!path.extname(name)) name += sniffExtFromFile(tmp) || '';
 
     try {
         let newUrl;

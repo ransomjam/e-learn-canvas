@@ -38,7 +38,9 @@ const isProd = process.env.NODE_ENV === 'production';
 // R2_PUBLIC_BASE_URL e.g. https://pub-xxx.r2.dev; BUNNY_CDN_HOST e.g. vz-xxx.b-cdn.net
 const storageConnectSrc = [
     ...(process.env.R2_PUBLIC_BASE_URL ? [process.env.R2_PUBLIC_BASE_URL.replace(/\/+$/, '')] : []),
-    ...(process.env.R2_ACCOUNT_ID ? [`https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`] : []),
+    // Allow all R2 subdomains: both the S3 endpoint (<accountId>.r2.cloudflarestorage.com)
+    // and the presigned PUT bucket URL (<bucket>.<accountId>.r2.cloudflarestorage.com)
+    'https://*.r2.cloudflarestorage.com',
     ...(process.env.BUNNY_CDN_HOST ? [`https://${process.env.BUNNY_CDN_HOST.replace(/^https?:\/\//, '')}`] : []),
     'https://video.bunnycdn.com', // Bunny TUS upload endpoint
 ];

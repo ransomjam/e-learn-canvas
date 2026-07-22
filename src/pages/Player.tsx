@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewer from '@/components/ui/DocumentViewer';
+import LessonArtifacts from '@/components/ai-studio/LessonArtifacts';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { projectsService, Project } from '@/services/projects.service';
 import { practiceSubmissionsService, PracticeSubmission } from '@/services/practiceSubmissions.service';
@@ -914,6 +915,10 @@ const Player = () => {
                   </div>
                 </div>
               )}
+
+              {/* AI-generated learning materials for this lesson
+                  (whiteboard video, slides, flashcards) */}
+              {currentLessonId && <LessonArtifacts lessonId={currentLessonId} />}
 
               {/* Chats section - YouTube style comments */}
               <div className="pt-4">

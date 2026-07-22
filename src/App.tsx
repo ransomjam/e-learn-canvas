@@ -45,6 +45,7 @@ const InstructorCourses = lazyRetry(() => import("./pages/InstructorCourses"));
 const InstructorSubmissions = lazyRetry(() => import("./pages/InstructorSubmissions"));
 const InstructorQuizResults = lazyRetry(() => import("./pages/InstructorQuizResults"));
 const AddLesson = lazyRetry(() => import("./pages/AddLesson"));
+const CreateLesson = lazyRetry(() => import("./pages/CreateLesson"));
 const AdminEnrollmentCodes = lazyRetry(() => import("./pages/AdminEnrollmentCodes"));
 const AdminStudents = lazyRetry(() => import("./pages/AdminStudents"));
 const AdminCourses = lazyRetry(() => import("./pages/AdminCourses"));
@@ -226,8 +227,18 @@ const App = () => (
                         </ProtectedRoute>
                       }
                     />
+                    {/* AI Course Studio — the new lesson creation flow */}
                     <Route
                       path="/instructor/courses/:courseId/lessons/new"
+                      element={
+                        <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                          <CreateLesson />
+                        </ProtectedRoute>
+                      }
+                    />
+                    {/* Classic manual lesson editor ("Write Manually") */}
+                    <Route
+                      path="/instructor/courses/:courseId/lessons/manual"
                       element={
                         <ProtectedRoute requiredRoles={['instructor', 'admin']}>
                           <AddLesson />

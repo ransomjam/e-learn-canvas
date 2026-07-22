@@ -591,7 +591,13 @@ const allMigrations = [
     {
         name: '039_add_external_id_to_payments', up: `
         ALTER TABLE payments ADD COLUMN IF NOT EXISTS external_id VARCHAR(255);
-    `}
+    `},
+
+    // ── AI Course Studio: jobs, storyboards, scenes, decks, artifacts ────
+    {
+        name: '040_ai_course_studio',
+        up: require('./migrate-ai-studio').AI_STUDIO_SQL
+    }
 ];
 
 // ─── runner ─────────────────────────────────────────────────────────────────

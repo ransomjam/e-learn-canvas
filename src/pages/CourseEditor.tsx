@@ -1470,12 +1470,12 @@ const CourseEditor = () => {
                                 {/* Add New Lesson Button */}
                                 <div className="rounded-lg border-2 border-dashed border-border bg-secondary/10 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                     <div>
-                                        <h4 className="text-sm font-semibold text-foreground">Add New Lesson</h4>
-                                        <p className="text-xs text-muted-foreground mt-1">Create a new lesson and assign it to one of your created sections.</p>
+                                        <h4 className="text-sm font-semibold text-foreground">Create Lesson</h4>
+                                        <p className="text-xs text-muted-foreground mt-1">Start from an idea, a PDF, a video, a voice note — or write it yourself. AI builds the rest.</p>
                                     </div>
                                     <Button variant="outline" onClick={() => navigate(`/instructor/courses/${id}/lessons/new`)}>
                                         <Plus className="mr-2 h-4 w-4" />
-                                        Add Lesson
+                                        Create Lesson
                                     </Button>
                                 </div>
                             </div>

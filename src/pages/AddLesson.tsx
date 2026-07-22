@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { coursesService, Section } from '@/services/courses.service';
 import { instructorService } from '@/services/instructor.service';
+import AIAssistantPanel from '@/components/ai-studio/AIAssistantPanel';
+import { marked } from 'marked';
 
 const AddLesson = () => {
     const { courseId } = useParams();
@@ -391,6 +393,15 @@ const AddLesson = () => {
                             className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Lesson description or text content..."
                         />
+                        {/* AI Assistant — one-click rewrites of the content above */}
+                        {lessonForm.content.trim().length > 0 && (
+                            <AIAssistantPanel
+                                content={lessonForm.content}
+                                onResult={(markdown) =>
+                                    setLessonForm((p) => ({ ...p, content: marked.parse(markdown) as string }))
+                                }
+                            />
+                        )}
                     </div>
 
                     {/* Duration */}

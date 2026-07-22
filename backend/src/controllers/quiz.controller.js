@@ -1,6 +1,6 @@
-const axios = require('axios');
 const { query } = require('../config/database');
 const { asyncHandler, ApiError } = require('../middleware/error.middleware');
+const courseAI = require('../services/ai/courseAI.service');
 
 /**
  * @desc    Generate a quiz from text
@@ -16,121 +16,36 @@ const generateQuiz = asyncHandler(async (req, res) => {
 
     const { questionCount, difficulty = 'medium' } = options || {};
 
-    // Helper: build prompt for a chunk of text
-    const buildPrompt = (inputText, count) => {
-        const countInstruction = count
-            ? `Generate exactly ${count} questions.`
-            : `Generate as many questions as the text supports. Extract EVERY possible fact, concept, and detail from the text and create a unique question for each. Do NOT limit yourself — aim for thoroughness. If the text can support 20+ questions, generate 20+ questions.`;
-
-        return `You are a helpful education assistant. Generate a Multiple Choice Quiz based on the text provided below.
-Requirements:
-1. ${countInstruction}
-2. Difficulty should be ${difficulty}.
-3. Each question must have exactly 4 options.
-4. Provide the correct answer index (0-3).
-5. Cover ALL topics, facts, and details present in the text — do NOT skip any.
-6. Output MUST be ONLY valid JSON matching this schema:
-[
-  {
-    "question": "Question text?",
-    "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-    "correctAnswer": 0,
-    "explanation": "Explanation for the answer"
-  }
-]
-
-Text:
-${inputText}
-`;
-    };
-
-    // Helper: call the AI API for a given prompt
-    const callAI = async (prompt) => {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: 'deepseek-chat',
-            messages: [
-                { role: 'system', content: 'You are a quiz generator. You only output valid JSON arrays. No markdown formatting like ```json or anything else, just raw JSON text. Generate ALL questions the text supports — be thorough and exhaustive.' },
-                { role: 'user', content: prompt }
-            ],
-            max_tokens: 8192
-        }, {
-            headers: {
-                'Authorization': `Bearer sk-4a857c0c76cf4db89fef65b871da982a`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 120000 // 2 min timeout for AI generation
-        });
-
-        let content = response.data.choices[0].message.content;
-
-        // cleanup potential markdown formatting
-        content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-
-        let quizData;
-        try {
-            quizData = JSON.parse(content);
-            if (!Array.isArray(quizData) && quizData.questions) {
-                quizData = quizData.questions;
-            }
-        } catch (e) {
-            console.error('Failed to parse AI response:', content);
-            throw new ApiError(500, 'Failed to parse generated quiz');
-        }
-
-        return Array.isArray(quizData) ? quizData : [];
-    };
-
     try {
-        // For very large texts, split into chunks and merge results
-        const MAX_CHARS_PER_CHUNK = 12000;
-        let allQuestions = [];
+        // All AI reasoning goes through the provider-agnostic CourseAIService
+        // (see services/ai) — controllers never call a model vendor directly.
+        const questions = await courseAI.generateQuiz({ text, questionCount, difficulty });
 
-        if (text.length <= MAX_CHARS_PER_CHUNK) {
-            // Single call
-            const prompt = buildPrompt(text, questionCount);
-            allQuestions = await callAI(prompt);
-        } else {
-            // Split text into chunks by paragraphs
-            const paragraphs = text.split(/\n\s*\n/);
-            const chunks = [];
-            let currentChunk = '';
-
-            for (const para of paragraphs) {
-                if ((currentChunk + '\n\n' + para).length > MAX_CHARS_PER_CHUNK && currentChunk.length > 0) {
-                    chunks.push(currentChunk.trim());
-                    currentChunk = para;
-                } else {
-                    currentChunk += (currentChunk ? '\n\n' : '') + para;
+        // The classic quiz player expects MCQ-style entries; keep only
+        // questions with selectable options for backwards compatibility.
+        const playable = questions
+            .map((q) => {
+                if (q.type === 'true_false') {
+                    const answer = typeof q.correctAnswer === 'number' ? q.correctAnswer
+                        : String(q.correctAnswer).toLowerCase().startsWith('t') ? 0 : 1;
+                    return { question: q.question, options: ['True', 'False'], correctAnswer: answer, explanation: q.explanation };
                 }
-            }
-            if (currentChunk.trim()) {
-                chunks.push(currentChunk.trim());
-            }
+                if (Array.isArray(q.options) && q.options.length >= 2 && typeof q.correctAnswer === 'number') {
+                    return { question: q.question, options: q.options, correctAnswer: q.correctAnswer, explanation: q.explanation };
+                }
+                return null;
+            })
+            .filter(Boolean);
 
-            console.log(`Quiz generation: splitting text into ${chunks.length} chunks (total ${text.length} chars)`);
-
-            // Process each chunk and collect questions
-            for (const chunk of chunks) {
-                const prompt = buildPrompt(chunk, null); // let AI generate as many as possible per chunk
-                const chunkQuestions = await callAI(prompt);
-                allQuestions.push(...chunkQuestions);
-            }
-
-            // If a specific count was requested, trim to that count
-            if (questionCount && allQuestions.length > questionCount) {
-                allQuestions = allQuestions.slice(0, questionCount);
-            }
-        }
-
-        console.log(`Quiz generation complete: ${allQuestions.length} questions generated`);
+        console.log(`Quiz generation complete: ${playable.length} questions generated`);
 
         res.json({
             success: true,
-            data: allQuestions
+            data: playable
         });
     } catch (error) {
         console.error('Quiz generation error:', error.response?.data || error.message);
-        throw new ApiError(500, 'Failed to generate quiz from AI');
+        throw new ApiError(error.statusCode || 500, error.statusCode ? error.message : 'Failed to generate quiz from AI');
     }
 });
 

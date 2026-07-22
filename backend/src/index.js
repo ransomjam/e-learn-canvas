@@ -48,6 +48,13 @@ const startServer = async () => {
     // Clean up demo/test accounts in production
     await cleanupDemoAccounts();
 
+    // AI Course Studio: register background job handlers and resume any
+    // generations that were interrupted by a restart
+    const { registerAIJobHandlers } = require('./services/jobs/aiJobHandlers');
+    const aiJobs = require('./services/jobs/aiJobs.service');
+    registerAIJobHandlers();
+    await aiJobs.recoverInterruptedJobs();
+
     // Start server
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);

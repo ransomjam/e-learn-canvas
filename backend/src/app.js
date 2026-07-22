@@ -20,6 +20,7 @@ const uploadRoutes = require('./routes/upload.routes');
 const wishlistRoutes = require('./routes/wishlist.routes');
 const quizRoutes = require('./routes/quiz.routes');
 const practiceSubmissionsRoutes = require('./routes/practice-submissions.routes');
+const aiStudioRoutes = require('./routes/ai-studio.routes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/error.middleware');
@@ -55,7 +56,7 @@ app.use(helmet({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "blob:", "https:", ...(isProd ? [] : ["http://localhost:*"]), "https://res.cloudinary.com", "https://www.facebook.com"],
             mediaSrc: ["'self'", "blob:", "https:", ...(isProd ? [] : ["http://localhost:*"]), "https://res.cloudinary.com"],
-            connectSrc: ["'self'", ...(isProd ? [] : ["http://localhost:*"]), "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://api.cloudinary.com", "https://*.cradema.com", "https://cradema.com", "https://www.facebook.com", "https://connect.facebook.net", ...storageConnectSrc],
+            connectSrc: ["'self'", ...(isProd ? [] : ["http://localhost:*"]), "https://cdn.jsdelivr.net", "https://accounts.google.com", "https://oauth2.googleapis.com", "https://www.googleapis.com", "https://res.cloudinary.com", "https://api.cloudinary.com", "https://*.cradema.com", "https://cradema.com", "https://www.facebook.com", "https://connect.facebook.net", "https://*.facebook.com", "https://*.a.run.app", "https://*.on.aws", ...storageConnectSrc],
             workerSrc: ["'self'", "blob:"],
             frameSrc: ["'self'", "https://accounts.google.com", "https://drive.google.com", "https://*.google.com", "https://view.officeapps.live.com"],
             // Don't force upgrade-insecure-requests in dev (breaks mixed-content)
@@ -291,6 +292,7 @@ app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/quiz', quizRoutes);
 app.use('/api/v1/practice-submissions', practiceSubmissionsRoutes);
+app.use('/api/v1/ai', aiStudioRoutes);
 
 // API documentation endpoint
 app.get('/api/v1', (req, res) => {

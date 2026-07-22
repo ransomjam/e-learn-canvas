@@ -180,6 +180,13 @@ export interface Storyboard {
 
 // ── The full generated pack (lesson_pack job result) ───────────────────────
 
+export interface WhiteboardVideo {
+    url: string;
+    provider: 'bunny' | 'r2' | 'local';
+    durationSeconds: number;
+    voiced: boolean;
+}
+
 export interface LessonPack {
     structured: StructuredContent;
     lesson: LessonDraft;
@@ -190,6 +197,7 @@ export interface LessonPack {
     summary: LessonSummary | null;
     storyboard: Storyboard | null;
     sceneGraph: SceneGraph | null;
+    whiteboardVideo: WhiteboardVideo | null;
     warnings: string[];
     source: { sourceType: SourceType; fileUrl: string | null };
 }
@@ -214,7 +222,9 @@ export interface AIStatus {
 export interface ApplyResult {
     lessonId: string;
     quizLessonId?: string;
+    whiteboardLessonId?: string;
     flashcardDeckId?: string;
     slideDeckId?: string;
     storyboardId?: string;
+    warnings?: string[];
 }

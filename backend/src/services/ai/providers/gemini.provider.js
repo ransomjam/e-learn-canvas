@@ -142,6 +142,39 @@ module.exports = {
     },
 
     /**
+     * Text → speech. Returns raw PCM audio (s16le, 24 kHz, mono) suitable
+     * for the whiteboard renderer's audio track.
+     */
+    async generateSpeech(text, { voice } = {}) {
+        const key = apiKeyOrThrow();
+        const model = aiConfig.gemini.ttsModel;
+        const call = async () => {
+            const res = await axios.post(
+                `${aiConfig.gemini.baseUrl}/models/${model}:generateContent`,
+                {
+                    contents: [{ role: 'user', parts: [{ text }] }],
+                    generationConfig: {
+                        responseModalities: ['AUDIO'],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: voice || aiConfig.gemini.ttsVoice },
+                            },
+                        },
+                    },
+                },
+                {
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+                    timeout: aiConfig.requestTimeoutMs,
+                }
+            );
+            const part = res.data?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
+            if (!part) throw new AIProviderError('Gemini TTS returned no audio', { retryable: true });
+            return Buffer.from(part.inlineData.data, 'base64');
+        };
+        return withRetry(call, 'gemini:tts');
+    },
+
+    /**
      * Fetch a remote file (R2/Cloudinary/local URL) and turn it into a media
      * part. Small files are inlined as base64; large files go through the
      * File API so Gemini can process long audio/video.

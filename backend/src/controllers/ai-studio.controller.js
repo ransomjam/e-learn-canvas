@@ -172,10 +172,16 @@ const applyJob = asyncHandler(async (req, res) => {
         [sectionId]
     );
 
-    // For video imports keep the original video playable on the lesson
+    // Pick the lesson's video: a video import keeps the original recording;
+    // otherwise the rendered whiteboard explainer (hosted on Bunny/R2 like
+    // every other course video) becomes the lesson video.
     const isVideoSource = pack.source?.sourceType === 'video' && pack.source?.fileUrl;
-    const lessonType = isVideoSource ? 'video' : 'text';
-    const readSeconds = (lessonDraft.estimatedReadMinutes || structured.estimatedDurationMinutes || 5) * 60;
+    const whiteboardUrl = pack.whiteboardVideo?.url || null;
+    const mainVideoUrl = isVideoSource ? pack.source.fileUrl : whiteboardUrl;
+    const lessonType = mainVideoUrl ? 'video' : 'text';
+    const durationSeconds = mainVideoUrl && !isVideoSource
+        ? (pack.whiteboardVideo?.durationSeconds || 60)
+        : (lessonDraft.estimatedReadMinutes || structured.estimatedDurationMinutes || 5) * 60;
 
     // The lesson player renders content as HTML — convert the generated
     // markdown here; the raw markdown stays available in ai_artifacts.
@@ -189,90 +195,135 @@ const applyJob = asyncHandler(async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true) RETURNING id`,
         [sectionId, section.course_id, lessonTitle, slug,
         structured.summary || '', contentHtml, lessonType,
-        isVideoSource ? pack.source.fileUrl : null, readSeconds,
+        mainVideoUrl, durationSeconds,
         orderResult.rows[0].next_order]
     );
     const lessonId = lessonInsert.rows[0].id;
     const created = { lessonId };
+    // Every artifact below saves independently: one failure must never lose
+    // the others (or the lesson itself, which is already committed).
+    const artifactWarnings = [];
+    const trySave = async (label, fn) => {
+        try {
+            await fn();
+        } catch (err) {
+            console.error(`[AI apply] failed to save ${label}:`, err.message);
+            artifactWarnings.push(`${label} could not be saved (${err.message})`);
+        }
+    };
 
     // Optional separate quiz lesson (uses the existing quiz player format)
     if (pack.quiz?.length && include.quizLesson !== false) {
-        const playable = pack.quiz
-            .map((q) => {
-                if (q.type === 'true_false') {
-                    const answer = typeof q.correctAnswer === 'number' ? q.correctAnswer
-                        : String(q.correctAnswer).toLowerCase().startsWith('t') ? 0 : 1;
-                    return { question: q.question, options: ['True', 'False'], correctAnswer: answer, explanation: q.explanation };
-                }
-                if (Array.isArray(q.options) && q.options.length >= 2 && typeof q.correctAnswer === 'number') {
-                    return { question: q.question, options: q.options, correctAnswer: q.correctAnswer, explanation: q.explanation };
-                }
-                return null; // fill_blank / short_answer are not playable in the current quiz UI
-            })
-            .filter(Boolean);
-        if (playable.length) {
-            const quizSlugBase = `${slug}-quiz`;
+        await trySave('Quiz lesson', async () => {
+            const playable = pack.quiz
+                .map((q) => {
+                    if (q.type === 'true_false') {
+                        const answer = typeof q.correctAnswer === 'number' ? q.correctAnswer
+                            : String(q.correctAnswer).toLowerCase().startsWith('t') ? 0 : 1;
+                        return { question: q.question, options: ['True', 'False'], correctAnswer: answer, explanation: q.explanation };
+                    }
+                    if (Array.isArray(q.options) && q.options.length >= 2 && typeof q.correctAnswer === 'number') {
+                        return { question: q.question, options: q.options, correctAnswer: q.correctAnswer, explanation: q.explanation };
+                    }
+                    return null; // fill_blank / short_answer are not playable in the current quiz UI
+                })
+                .filter(Boolean);
+            if (!playable.length) return;
             const quizInsert = await query(
                 `INSERT INTO lessons (section_id, course_id, title, slug, description, type,
                                       quiz_data, order_index, is_published)
                  VALUES ($1, $2, $3, $4, $5, 'quiz', $6, $7, true) RETURNING id`,
-                [sectionId, section.course_id, `Quiz: ${lessonTitle}`.slice(0, 255), `${quizSlugBase}-${Date.now()}`,
+                [sectionId, section.course_id, `Quiz: ${lessonTitle}`.slice(0, 255), `${slug}-quiz-${Date.now()}`.slice(0, 255),
                 'Auto-generated knowledge check', JSON.stringify(playable),
                 orderResult.rows[0].next_order + 1]
             );
             created.quizLessonId = quizInsert.rows[0].id;
-        }
+        });
     }
 
-    // Flashcard deck
+    // Video imports keep the original recording as the main lesson, so the
+    // whiteboard explainer becomes its own video lesson right after it.
+    if (isVideoSource && whiteboardUrl) {
+        await trySave('Whiteboard video lesson', async () => {
+            const wbInsert = await query(
+                `INSERT INTO lessons (section_id, course_id, title, slug, description, type,
+                                      video_url, video_duration, order_index, is_published)
+                 VALUES ($1, $2, $3, $4, $5, 'video', $6, $7, $8, true) RETURNING id`,
+                [sectionId, section.course_id, `Whiteboard: ${lessonTitle}`.slice(0, 255), `${slug}-whiteboard-${Date.now()}`.slice(0, 255),
+                'Animated whiteboard explainer', whiteboardUrl,
+                pack.whiteboardVideo?.durationSeconds || 60,
+                orderResult.rows[0].next_order + 2]
+            );
+            created.whiteboardLessonId = wbInsert.rows[0].id;
+        });
+    }
+
+    // Flashcard deck (single batched insert)
     if (pack.flashcards?.length) {
-        const deck = await query(
-            `INSERT INTO flashcard_decks (user_id, course_id, lesson_id, title) VALUES ($1, $2, $3, $4) RETURNING id`,
-            [req.user.id, section.course_id, lessonId, `${lessonTitle} — Flashcards`.slice(0, 255)]
-        );
-        for (let i = 0; i < pack.flashcards.length; i++) {
-            const c = pack.flashcards[i];
+        await trySave('Flashcards', async () => {
+            const deck = await query(
+                `INSERT INTO flashcard_decks (user_id, course_id, lesson_id, title) VALUES ($1, $2, $3, $4) RETURNING id`,
+                [req.user.id, section.course_id, lessonId, `${lessonTitle} — Flashcards`.slice(0, 255)]
+            );
+            const values = [];
+            const params = [deck.rows[0].id];
+            pack.flashcards.forEach((c, i) => {
+                const base = params.length;
+                params.push(c.question, c.answer, c.category || 'General', c.difficulty || 'medium', JSON.stringify(c.tags || []), i);
+                values.push(`($1, $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`);
+            });
             await query(
                 `INSERT INTO flashcards (deck_id, question, answer, category, difficulty, tags, order_index)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [deck.rows[0].id, c.question, c.answer, c.category, c.difficulty, JSON.stringify(c.tags || []), i]
+                 VALUES ${values.join(', ')}`,
+                params
             );
-        }
-        created.flashcardDeckId = deck.rows[0].id;
+            created.flashcardDeckId = deck.rows[0].id;
+        });
     }
 
     // Slide deck
     if (pack.slides?.slides?.length) {
-        const deck = await query(
-            `INSERT INTO slide_decks (user_id, course_id, lesson_id, title, slides) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-            [req.user.id, section.course_id, lessonId, pack.slides.title || lessonTitle, JSON.stringify(pack.slides.slides)]
-        );
-        created.slideDeckId = deck.rows[0].id;
+        await trySave('Slides', async () => {
+            const deck = await query(
+                `INSERT INTO slide_decks (user_id, course_id, lesson_id, title, slides) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                [req.user.id, section.course_id, lessonId, (pack.slides.title || lessonTitle).slice(0, 255), JSON.stringify(pack.slides.slides)]
+            );
+            created.slideDeckId = deck.rows[0].id;
+        });
     }
 
-    // Whiteboard storyboard + per-scene rows
+    // Whiteboard storyboard + per-scene rows (kept for scene-level editing
+    // and as the fallback in-browser player when no MP4 was rendered)
     if (pack.storyboard?.scenes?.length && pack.sceneGraph) {
-        const sb = await query(
-            `INSERT INTO storyboards (user_id, course_id, lesson_id, title, structured_content, total_duration_seconds)
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-            [req.user.id, section.course_id, lessonId, pack.sceneGraph.title || lessonTitle,
-            JSON.stringify(structured), Math.round(pack.sceneGraph.totalDurationSeconds || 0)]
-        );
-        for (let i = 0; i < pack.storyboard.scenes.length; i++) {
-            await query(
-                `INSERT INTO storyboard_scenes (storyboard_id, scene_index, scene, scene_graph)
-                 VALUES ($1, $2, $3, $4)`,
-                [sb.rows[0].id, i, JSON.stringify(pack.storyboard.scenes[i]), JSON.stringify(pack.sceneGraph.scenes[i])]
+        await trySave('Whiteboard storyboard', async () => {
+            const sb = await query(
+                `INSERT INTO storyboards (user_id, course_id, lesson_id, title, structured_content, total_duration_seconds)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+                [req.user.id, section.course_id, lessonId, (pack.sceneGraph.title || lessonTitle).slice(0, 255),
+                JSON.stringify(structured), Math.round(pack.sceneGraph.totalDurationSeconds || 0)]
             );
-        }
-        created.storyboardId = sb.rows[0].id;
+            for (let i = 0; i < pack.storyboard.scenes.length; i++) {
+                await query(
+                    `INSERT INTO storyboard_scenes (storyboard_id, scene_index, scene, scene_graph)
+                     VALUES ($1, $2, $3, $4)`,
+                    [sb.rows[0].id, i, JSON.stringify(pack.storyboard.scenes[i]), JSON.stringify(pack.sceneGraph.scenes[i])]
+                );
+            }
+            created.storyboardId = sb.rows[0].id;
+        });
     }
 
     // Link job + artifacts to the created lesson
-    await query('UPDATE ai_jobs SET lesson_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [job.id, lessonId]);
-    await query('UPDATE ai_artifacts SET lesson_id = $2 WHERE job_id = $1', [job.id, lessonId]);
+    await trySave('Job linking', async () => {
+        await query('UPDATE ai_jobs SET lesson_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [job.id, lessonId]);
+        await query('UPDATE ai_artifacts SET lesson_id = $2 WHERE job_id = $1', [job.id, lessonId]);
+    });
 
-    res.status(201).json({ success: true, message: 'Lesson created from AI generation', data: created });
+    res.status(201).json({
+        success: true,
+        message: 'Lesson created from AI generation',
+        data: { ...created, warnings: artifactWarnings },
+    });
 });
 
 /**
@@ -437,8 +488,15 @@ const regenerateScene = asyncHandler(async (req, res) => {
 const getLessonArtifacts = asyncHandler(async (req, res) => {
     const { lessonId } = req.params;
 
+    // Missing tables (migration not yet run) must degrade to "no artifacts",
+    // not a 500 that silently hides the whole section in the player.
+    const safeQuery = (text, params) => query(text, params).catch((err) => {
+        console.warn('[AI artifacts] query failed:', err.message);
+        return { rows: [] };
+    });
+
     const [decks, slides, storyboards] = await Promise.all([
-        query(
+        safeQuery(
             `SELECT d.id, d.title,
                     (SELECT json_agg(json_build_object(
                         'id', f.id, 'question', f.question, 'answer', f.answer,
@@ -447,8 +505,8 @@ const getLessonArtifacts = asyncHandler(async (req, res) => {
              FROM flashcard_decks d WHERE d.lesson_id = $1 ORDER BY d.created_at DESC`,
             [lessonId]
         ),
-        query('SELECT id, title, slides FROM slide_decks WHERE lesson_id = $1 ORDER BY created_at DESC', [lessonId]),
-        query('SELECT id, title, total_duration_seconds FROM storyboards WHERE lesson_id = $1 ORDER BY created_at DESC', [lessonId]),
+        safeQuery('SELECT id, title, slides FROM slide_decks WHERE lesson_id = $1 ORDER BY created_at DESC', [lessonId]),
+        safeQuery('SELECT id, title, total_duration_seconds FROM storyboards WHERE lesson_id = $1 ORDER BY created_at DESC', [lessonId]),
     ]);
 
     res.json({

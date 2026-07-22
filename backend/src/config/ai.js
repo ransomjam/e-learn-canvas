@@ -34,6 +34,9 @@ module.exports = {
         longContextModel: process.env.GEMINI_MODEL_LONG || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
         uploadBaseUrl: 'https://generativelanguage.googleapis.com/upload/v1beta',
+        // Text-to-speech (whiteboard narration voice)
+        ttsModel: process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts',
+        ttsVoice: process.env.GEMINI_TTS_VOICE || 'Kore',
         // Files smaller than this are sent inline (base64); larger ones go
         // through the Gemini File API (resumable upload).
         inlineMediaLimitBytes: 18 * 1024 * 1024,

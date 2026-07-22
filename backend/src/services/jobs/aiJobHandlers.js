@@ -115,16 +115,31 @@ async function lessonPackHandler(job, progress) {
             courseAI.generateSummary(lesson.markdown || JSON.stringify(structured)));
         if (summary) await saveArtifact(job, 'summary', summary);
     }
+    let whiteboardVideo = null;
     if (wants('whiteboard')) {
-        await progress(85, 'Creating storyboard...');
+        await progress(82, 'Creating storyboard...');
         storyboard = await softStep(warnings, 'Whiteboard video', () => courseAI.generateStoryboard(structured));
         if (storyboard) {
             await saveArtifact(job, 'storyboard', storyboard);
-            await progress(94, 'Rendering whiteboard video...');
             // Deterministic compile — no AI, cannot hallucinate
             sceneGraph = await softStep(warnings, 'Whiteboard rendering', () =>
                 courseAI.generateWhiteboardVideo(storyboard));
-            if (sceneGraph) await saveArtifact(job, 'scene_graph', sceneGraph);
+            if (sceneGraph) {
+                await saveArtifact(job, 'scene_graph', sceneGraph);
+                // Produce the real MP4 (narration TTS + frames + upload) and
+                // host it on the same video storage as instructor uploads.
+                whiteboardVideo = await softStep(warnings, 'Whiteboard video rendering', () =>
+                    courseAI.renderWhiteboardVideo(storyboard, sceneGraph, {
+                        title: lesson.title || structured.title,
+                        onProgress: (f, label) => progress(85 + Math.round(f * 12), label || 'Rendering whiteboard video...'),
+                    }));
+                if (whiteboardVideo) {
+                    await saveArtifact(job, 'whiteboard_video', whiteboardVideo);
+                    if (!whiteboardVideo.voiced) {
+                        warnings.push('The whiteboard video was rendered without narration voice (TTS unavailable)');
+                    }
+                }
+            }
         }
     }
 
@@ -139,6 +154,7 @@ async function lessonPackHandler(job, progress) {
         summary,
         storyboard,
         sceneGraph,
+        whiteboardVideo,
         narration: storyboard ? courseAI.generateVoiceNarration(storyboard) : null,
         warnings,
         source: { sourceType: source.sourceType, fileUrl: source.fileUrl || null },
@@ -157,13 +173,22 @@ async function storyboardHandler(job, progress) {
             { sourceType: 'lesson', lessonId: job.input.lessonId || job.lessonId },
             {}, (label) => progress(20, label));
     }
-    await progress(40, 'Creating storyboard...');
+    await progress(30, 'Creating storyboard...');
     const storyboard = await courseAI.generateStoryboard(structured);
     await saveArtifact(job, 'storyboard', storyboard);
 
-    await progress(80, 'Rendering whiteboard video...');
+    await progress(45, 'Rendering whiteboard video...');
     const sceneGraph = courseAI.generateWhiteboardVideo(storyboard);
     await saveArtifact(job, 'scene_graph', sceneGraph);
+
+    // Produce the streamable MP4 (voice + drawing) on the platform's video storage
+    const warnings = [];
+    const whiteboardVideo = await softStep(warnings, 'Whiteboard video rendering', () =>
+        courseAI.renderWhiteboardVideo(storyboard, sceneGraph, {
+            title: sceneGraph.title,
+            onProgress: (f, label) => progress(50 + Math.round(f * 45), label || 'Rendering whiteboard video...'),
+        }));
+    if (whiteboardVideo) await saveArtifact(job, 'whiteboard_video', whiteboardVideo);
 
     // Persist as an editable storyboard record with per-scene rows
     const sb = await query(
@@ -181,7 +206,26 @@ async function storyboardHandler(job, progress) {
         );
     }
 
-    return { storyboardId, storyboard, sceneGraph, narration: courseAI.generateVoiceNarration(storyboard) };
+    // If this whiteboard was generated for an existing lesson that has no
+    // video yet, attach it so the lesson becomes playable immediately.
+    const targetLessonId = job.lessonId || job.input.lessonId || null;
+    if (whiteboardVideo?.url && targetLessonId) {
+        await query(
+            `UPDATE lessons SET video_url = $2, type = 'video',
+                    video_duration = GREATEST(video_duration, $3), updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1 AND (video_url IS NULL OR video_url = '')`,
+            [targetLessonId, whiteboardVideo.url, whiteboardVideo.durationSeconds || 0]
+        ).catch((err) => console.warn('[AI jobs] could not attach whiteboard video to lesson:', err.message));
+    }
+
+    return {
+        storyboardId,
+        storyboard,
+        sceneGraph,
+        whiteboardVideo,
+        warnings,
+        narration: courseAI.generateVoiceNarration(storyboard),
+    };
 }
 
 /**

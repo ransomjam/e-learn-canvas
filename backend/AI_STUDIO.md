@@ -34,9 +34,13 @@ any source ──► extraction.service ──► Structured Content (JSON, sour
 ```
 
 - **Models only reason** (understand, structure, describe scenes). The
-  whiteboard "video" is compiled deterministically from the storyboard by
-  `services/ai/whiteboard.service.js` — same input, same output, no
-  AI-rendered pixels.
+  whiteboard video is produced deterministically from the storyboard:
+  `whiteboard.service.js` compiles positioned/timed scene graphs, then
+  `whiteboard-renderer.service.js` rasterizes them (canvas → ffmpeg) into a
+  real MP4 with Gemini-TTS narration, uploaded to the same video storage as
+  instructor uploads (Bunny Stream → R2 → local uploads). The MP4 becomes
+  the lesson's `video_url`, so it streams exactly like any other course
+  video. Same input, same output, no AI-rendered pixels.
 - Layers (never skip one):
   - `config/ai.js` — every AI setting/knob.
   - `services/ai/providers/` — vendor adapters (Gemini, DeepSeek). Common

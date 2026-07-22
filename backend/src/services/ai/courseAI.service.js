@@ -6,10 +6,13 @@
  * (understanding, generating, rewriting structured content). Rendering
  * (whiteboard video) is a deterministic pipeline in whiteboard.service.js.
  */
-const { getProvider } = require('./providers');
+const aiConfig = require('../../config/ai');
+const { getProvider, providers } = require('./providers');
 const prompts = require('./prompts');
 const extractionService = require('./extraction.service');
 const whiteboardService = require('./whiteboard.service');
+const whiteboardRenderer = require('./whiteboard-renderer.service');
+const mediaStorage = require('../media-storage.service');
 
 const courseAIService = {
     /**
@@ -151,8 +154,6 @@ const courseAIService = {
 
     /**
      * Narration script per scene (the voice track of the whiteboard video).
-     * TTS synthesis is a future provider capability; the script is the
-     * deterministic input it will consume.
      */
     generateVoiceNarration(storyboard) {
         return (storyboard.scenes || []).map((scene, i) => ({
@@ -160,6 +161,66 @@ const courseAIService = {
             text: scene.narration || '',
             estimatedSeconds: scene.durationSeconds || 12,
         }));
+    },
+
+    /**
+     * Synthesize the narration voice track: one PCM buffer per scene
+     * (null for scenes without narration or when TTS fails). Uses the
+     * Gemini TTS capability; other providers simply produce a silent video.
+     */
+    async synthesizeNarration(storyboard, { onProgress = () => { } } = {}) {
+        const scenes = storyboard.scenes || [];
+        const speechProvider = aiConfig.gemini.apiKey ? providers.gemini : null;
+        if (!speechProvider || typeof speechProvider.generateSpeech !== 'function') {
+            return { pcm: scenes.map(() => null), voiced: false };
+        }
+        const pcm = [];
+        let anyVoice = false;
+        for (let i = 0; i < scenes.length; i++) {
+            const text = (scenes[i].narration || '').trim();
+            if (!text) {
+                pcm.push(null);
+                continue;
+            }
+            try {
+                pcm.push(await speechProvider.generateSpeech(text));
+                anyVoice = true;
+            } catch (err) {
+                console.warn(`[AI] narration TTS failed for scene ${i + 1}:`, err.message);
+                pcm.push(null);
+            }
+            onProgress((i + 1) / scenes.length);
+        }
+        return { pcm, voiced: anyVoice };
+    },
+
+    /**
+     * Full whiteboard video production: narration TTS → deterministic
+     * frame rendering → MP4 → upload to the platform's video storage
+     * (Bunny Stream / R2 / local uploads). Returns the playable URL.
+     */
+    async renderWhiteboardVideo(storyboard, sceneGraph, { title, onProgress = () => { } } = {}) {
+        onProgress(0.02, 'Generating narration voice...');
+        const narration = await this.synthesizeNarration(storyboard, {
+            onProgress: (f) => onProgress(0.02 + f * 0.28),
+        });
+
+        onProgress(0.32, 'Rendering whiteboard video...');
+        const rendered = await whiteboardRenderer.renderVideo(sceneGraph, narration.pcm,
+            (f) => onProgress(0.32 + f * 0.5));
+
+        try {
+            onProgress(0.85, 'Uploading video...');
+            const stored = await mediaStorage.storeRenderedVideo(rendered.filePath, title || sceneGraph.title);
+            return {
+                url: stored.url,
+                provider: stored.provider,
+                durationSeconds: rendered.durationSeconds,
+                voiced: narration.voiced,
+            };
+        } finally {
+            whiteboardRenderer.cleanup(rendered.tmpDir);
+        }
     },
 
     /** Translate lesson content (markdown-preserving). */

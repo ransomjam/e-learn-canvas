@@ -18,6 +18,8 @@ import { aiStudioService } from '@/services/aiStudio.service';
 import { instructorService } from '@/services/instructor.service';
 import WhiteboardPlayer from '@/components/ai-studio/WhiteboardPlayer';
 import AIAssistantPanel from '@/components/ai-studio/AIAssistantPanel';
+import CustomVideoPlayer from '@/components/ui/CustomVideoPlayer';
+import { resolveMediaUrl } from '@/lib/media';
 import type { AIJob, LessonPack, SourceType } from '@/types/aiStudio';
 
 /**
@@ -67,7 +69,9 @@ const PROGRESS_STEPS = [
     'Generating slides...',
     'Creating assignment...',
     'Creating storyboard...',
+    'Generating narration voice...',
     'Rendering whiteboard video...',
+    'Uploading video...',
 ];
 
 const CreateLesson = () => {
@@ -285,7 +289,7 @@ const CreateLesson = () => {
                 sectionId = section.id;
             }
 
-            await aiStudioService.applyJob(job.id, {
+            const result = await aiStudioService.applyJob(job.id, {
                 sectionId,
                 title: lessonTitle,
                 include: { quizLesson: createQuizLesson && !!pack.quiz?.length },
@@ -293,7 +297,15 @@ const CreateLesson = () => {
             });
             queryClient.invalidateQueries({ queryKey: ['course', courseId] });
             queryClient.invalidateQueries({ queryKey: ['courseLessons', courseId] });
-            toast({ title: 'Lesson created!', description: 'Your AI-generated lesson has been added to the course.' });
+            if (result.warnings?.length) {
+                toast({
+                    title: 'Lesson created (with warnings)',
+                    description: result.warnings.join(' · '),
+                    variant: 'destructive',
+                });
+            } else {
+                toast({ title: 'Lesson created!', description: 'Your AI-generated lesson has been added to the course.' });
+            }
             navigate(`/instructor/courses/${courseId}/edit`);
         } catch (error: any) {
             toast({
@@ -509,7 +521,7 @@ const CreateLesson = () => {
                                 if (i === 4 && !include.flashcards) return false;
                                 if (i === 5 && !include.slides) return false;
                                 if (i === 6 && !include.assignment) return false;
-                                if ((i === 7 || i === 8) && !include.whiteboard) return false;
+                                if (i >= 7 && !include.whiteboard) return false;
                                 return true;
                             }).map((label) => {
                                 const idx = PROGRESS_STEPS.indexOf(label);
@@ -601,7 +613,7 @@ const CreateLesson = () => {
                                 {pack.flashcards?.length ? <TabsTrigger value="flashcards">Flashcards ({pack.flashcards.length})</TabsTrigger> : null}
                                 {pack.slides?.slides?.length ? <TabsTrigger value="slides">Slides ({pack.slides.slides.length})</TabsTrigger> : null}
                                 {pack.assignment ? <TabsTrigger value="assignment">Assignment</TabsTrigger> : null}
-                                {pack.sceneGraph ? <TabsTrigger value="whiteboard">Whiteboard</TabsTrigger> : null}
+                                {(pack.whiteboardVideo?.url || pack.sceneGraph) ? <TabsTrigger value="whiteboard">Whiteboard Video</TabsTrigger> : null}
                             </TabsList>
 
                             <TabsContent value="lesson" className="space-y-4">
@@ -724,9 +736,29 @@ const CreateLesson = () => {
                                 </TabsContent>
                             ) : null}
 
-                            {pack.sceneGraph ? (
-                                <TabsContent value="whiteboard">
-                                    <WhiteboardPlayer sceneGraph={pack.sceneGraph} />
+                            {(pack.whiteboardVideo?.url || pack.sceneGraph) ? (
+                                <TabsContent value="whiteboard" className="space-y-3">
+                                    {pack.whiteboardVideo?.url ? (
+                                        <>
+                                            <div className="rounded-xl border border-border overflow-hidden shadow-sm aspect-video">
+                                                <CustomVideoPlayer
+                                                    src={resolveMediaUrl(pack.whiteboardVideo.url)}
+                                                    title={lessonTitle}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                This narrated whiteboard video will be the lesson's video
+                                                {pack.whiteboardVideo.voiced ? '' : ' (rendered without voice — TTS was unavailable)'}.
+                                            </p>
+                                        </>
+                                    ) : pack.sceneGraph ? (
+                                        <>
+                                            <WhiteboardPlayer sceneGraph={pack.sceneGraph} />
+                                            <p className="text-xs text-muted-foreground">
+                                                Interactive preview — the MP4 render was unavailable for this generation.
+                                            </p>
+                                        </>
+                                    ) : null}
                                 </TabsContent>
                             ) : null}
                         </Tabs>

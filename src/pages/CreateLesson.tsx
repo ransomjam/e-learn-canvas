@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { coursesService, Section } from '@/services/courses.service';
 import { aiStudioService } from '@/services/aiStudio.service';
+import { instructorService } from '@/services/instructor.service';
 import WhiteboardPlayer from '@/components/ai-studio/WhiteboardPlayer';
 import AIAssistantPanel from '@/components/ai-studio/AIAssistantPanel';
 import type { AIJob, LessonPack, SourceType } from '@/types/aiStudio';
@@ -102,7 +103,9 @@ const CreateLesson = () => {
     const [pack, setPack] = useState<LessonPack | null>(null);
     const [lessonTitle, setLessonTitle] = useState('');
     const [lessonMarkdown, setLessonMarkdown] = useState('');
+    // '' = none selected, '__new__' = create a brand new section, otherwise a section id
     const [targetSectionId, setTargetSectionId] = useState('');
+    const [newSectionName, setNewSectionName] = useState('');
     const [createQuizLesson, setCreateQuizLesson] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -232,7 +235,15 @@ const CreateLesson = () => {
             setPack(result);
             setLessonTitle(result.lesson?.title || result.structured?.title || '');
             setLessonMarkdown(result.lesson?.markdown || '');
-            if (availableSections.length === 1) setTargetSectionId(availableSections[0].id);
+            // Pre-select a destination so the lesson can always be saved:
+            // the only section if there's one, else default to creating a new
+            // section (so a course with no sections is never a dead end).
+            if (availableSections.length === 1) {
+                setTargetSectionId(availableSections[0].id);
+            } else if (availableSections.length === 0) {
+                setTargetSectionId('__new__');
+                setNewSectionName('Lessons');
+            }
             setStep('review');
         } catch (error: any) {
             setUploading(false);
@@ -252,16 +263,30 @@ const CreateLesson = () => {
     };
 
     // ── save ───────────────────────────────────────────────────────────────
+    const creatingNewSection = targetSectionId === '__new__';
+
     const saveLesson = async () => {
         if (!job?.id || !pack) return;
+        if (creatingNewSection && !newSectionName.trim()) {
+            toast({ title: 'Name the new section for this lesson', variant: 'destructive' });
+            return;
+        }
         if (!targetSectionId) {
-            toast({ title: 'Please choose a section for the lesson', variant: 'destructive' });
+            toast({ title: 'Choose where to save the lesson', variant: 'destructive' });
             return;
         }
         setSaving(true);
         try {
+            // Create the destination section on the fly when needed, so an
+            // instructor never has to leave the studio to make one first.
+            let sectionId = targetSectionId;
+            if (creatingNewSection) {
+                const section = await instructorService.createSection(courseId!, { title: newSectionName.trim() });
+                sectionId = section.id;
+            }
+
             await aiStudioService.applyJob(job.id, {
-                sectionId: targetSectionId,
+                sectionId,
                 title: lessonTitle,
                 include: { quizLesson: createQuizLesson && !!pack.quiz?.length },
                 overrides: lessonMarkdown !== pack.lesson?.markdown ? { markdown: lessonMarkdown } : undefined,
@@ -529,22 +554,30 @@ const CreateLesson = () => {
                                     <Input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-sm font-medium">Section</Label>
+                                    <Label className="text-sm font-medium">Save to section</Label>
                                     <div className="relative">
                                         <select
                                             value={targetSectionId}
                                             onChange={(e) => setTargetSectionId(e.target.value)}
                                             className="w-full appearance-none rounded-lg border border-border bg-secondary px-3 py-2 pr-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
                                         >
-                                            <option value="" disabled>
-                                                {availableSections.length ? 'Select a section...' : 'No sections — create one in Course Editor'}
-                                            </option>
+                                            <option value="" disabled>Select where to save...</option>
                                             {availableSections.map((s) => (
                                                 <option key={s.id} value={s.id}>{s.title}</option>
                                             ))}
+                                            <option value="__new__">+ Create a new section</option>
                                         </select>
                                         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     </div>
+                                    {creatingNewSection && (
+                                        <Input
+                                            value={newSectionName}
+                                            onChange={(e) => setNewSectionName(e.target.value)}
+                                            placeholder="New section name, e.g. Introduction"
+                                            className="mt-2"
+                                            autoFocus
+                                        />
+                                    )}
                                 </div>
                             </div>
 
@@ -702,7 +735,11 @@ const CreateLesson = () => {
                             <Button variant="outline" onClick={() => setStep('pick')} disabled={saving}>
                                 Start Over
                             </Button>
-                            <Button onClick={saveLesson} disabled={saving || !targetSectionId} className="min-w-[160px] gap-2">
+                            <Button
+                                onClick={saveLesson}
+                                disabled={saving || !targetSectionId || (creatingNewSection && !newSectionName.trim())}
+                                className="min-w-[160px] gap-2"
+                            >
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                 Save to Course
                             </Button>

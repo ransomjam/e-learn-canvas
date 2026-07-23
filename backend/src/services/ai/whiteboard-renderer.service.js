@@ -24,9 +24,14 @@ const { createCanvas, GlobalFonts, Path2D } = require('@napi-rs/canvas');
 const { svgPathProperties: SvgPathProperties } = require('svg-path-properties');
 const ffmpegPath = require('ffmpeg-static');
 
-const FPS = 24;
+// 15 fps is plenty for a whiteboard (mostly static with progressive drawing)
+// and keeps the frame count — and therefore CPU/time — low enough to render
+// on a modest web dyno without starving request handling.
+const FPS = 15;
 const AUDIO_RATE = 24000; // Gemini TTS output: 16-bit PCM mono @ 24 kHz
 const SCENE_AUDIO_PAD_SECONDS = 0.7; // breathing room after narration ends
+// Safety ceiling so a pathological scene graph can't produce a runaway render.
+const MAX_TOTAL_FRAMES = 15 * 60 * FPS; // 15 minutes of video
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 const FONT_DIR = path.join(__dirname, '../../assets/fonts');
@@ -186,15 +191,27 @@ function buildAudioTrack(scenes, narrationPcm, tmpDir) {
 }
 
 // ── main entry ─────────────────────────────────────────────────────────────
+// Video rendering (canvas + ffmpeg) is the heaviest thing this process does.
+// Serialize it across the whole process so that with AI_JOB_CONCURRENCY > 1
+// we never run two renders at once and blow the container's memory limit.
+let renderChain = Promise.resolve();
+
 /**
- * Render a compiled scene graph (plus optional per-scene narration PCM
- * buffers) into an MP4 file. Returns { filePath, durationSeconds }.
+ * Render a compiled scene graph into an MP4. Serialized: concurrent calls
+ * queue and run one at a time. Returns { filePath, durationSeconds, tmpDir }.
  *
  * @param {object} sceneGraph          output of whiteboard.service.compileStoryboard
  * @param {Buffer[]|null} narrationPcm one s16le@24k mono buffer per scene (null entries = silent)
  * @param {function} onProgress        (fractionDone 0..1) => void
  */
-async function renderVideo(sceneGraph, narrationPcm, onProgress = () => { }) {
+function renderVideo(sceneGraph, narrationPcm, onProgress = () => { }) {
+    const run = () => renderVideoUnsafe(sceneGraph, narrationPcm, onProgress);
+    const result = renderChain.then(run, run); // run regardless of the previous outcome
+    renderChain = result.then(() => undefined, () => undefined); // never let a failure break the chain
+    return result;
+}
+
+async function renderVideoUnsafe(sceneGraph, narrationPcm, onProgress = () => { }) {
     ensureFonts();
     if (!ffmpegPath) throw new Error('ffmpeg binary is not available on this server');
 
@@ -205,7 +222,7 @@ async function renderVideo(sceneGraph, narrationPcm, onProgress = () => { }) {
 
     const { pcmPath, sceneDurations } = buildAudioTrack(sceneGraph.scenes, narrationPcm, tmpDir);
     const totalSeconds = sceneDurations.reduce((a, b) => a + b, 0);
-    const totalFrames = Math.ceil(totalSeconds * FPS);
+    const totalFrames = Math.min(MAX_TOTAL_FRAMES, Math.ceil(totalSeconds * FPS));
 
     const args = [
         '-y',
@@ -234,17 +251,24 @@ async function renderVideo(sceneGraph, narrationPcm, onProgress = () => { }) {
 
     let framesWritten = 0;
     try {
-        for (let s = 0; s < sceneGraph.scenes.length; s++) {
+        for (let s = 0; s < sceneGraph.scenes.length && framesWritten < MAX_TOTAL_FRAMES; s++) {
             const scene = sceneGraph.scenes[s];
             const frames = Math.ceil(sceneDurations[s] * FPS);
-            for (let f = 0; f < frames; f++) {
+            for (let f = 0; f < frames && framesWritten < MAX_TOTAL_FRAMES; f++) {
                 const t = f / FPS;
                 drawScene(ctx, scene, t, theme, pathCache);
                 const frame = Buffer.from(ctx.getImageData(0, 0, width, height).data.buffer);
-                if (!ffmpeg.stdin.write(frame)) {
-                    await once(ffmpeg.stdin, 'drain');
-                }
+                const flushed = ffmpeg.stdin.write(frame);
                 framesWritten++;
+                // Rendering is CPU-bound and runs inside the web process. Yield
+                // to the event loop on EVERY frame (not only on backpressure) so
+                // health checks and job-status polling stay responsive — a
+                // blocked loop is what makes Render return 502 mid-render.
+                if (!flushed) {
+                    await once(ffmpeg.stdin, 'drain');
+                } else {
+                    await new Promise((resolve) => setImmediate(resolve));
+                }
             }
             pathCache.clear(); // items are per-scene; free the samples
             onProgress(Math.min(0.99, framesWritten / totalFrames));

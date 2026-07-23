@@ -136,7 +136,12 @@ const limiter = rateLimit({
     legacyHeaders: false,
     // Skip preflight (OPTIONS) requests so Safari's frequent CORS checks don't
     // consume the rate-limit budget and cause "server stopped responding".
-    skip: (req) => req.method === 'OPTIONS' || (isDev && req.path === '/api/v1/auth/me'),
+    // Also skip AI job-status polling: a single generation is polled every few
+    // seconds for minutes, which would otherwise exhaust the budget and 429.
+    skip: (req) =>
+        req.method === 'OPTIONS'
+        || (req.method === 'GET' && req.path.startsWith('/api/v1/ai/jobs/'))
+        || (isDev && req.path === '/api/v1/auth/me'),
 });
 app.use('/api/', limiter);
 

@@ -172,10 +172,11 @@ const courseAIService = {
         const scenes = storyboard.scenes || [];
         const speechProvider = aiConfig.gemini.apiKey ? providers.gemini : null;
         if (!speechProvider || typeof speechProvider.generateSpeech !== 'function') {
-            return { pcm: scenes.map(() => null), voiced: false };
+            return { pcm: scenes.map(() => null), voiced: false, error: 'no speech-capable AI provider configured' };
         }
         const pcm = [];
         let anyVoice = false;
+        let lastError = null;
         for (let i = 0; i < scenes.length; i++) {
             const text = (scenes[i].narration || '').trim();
             if (!text) {
@@ -186,12 +187,13 @@ const courseAIService = {
                 pcm.push(await speechProvider.generateSpeech(text));
                 anyVoice = true;
             } catch (err) {
+                lastError = err.message;
                 console.warn(`[AI] narration TTS failed for scene ${i + 1}:`, err.message);
                 pcm.push(null);
             }
             onProgress((i + 1) / scenes.length);
         }
-        return { pcm, voiced: anyVoice };
+        return { pcm, voiced: anyVoice, error: anyVoice ? null : lastError };
     },
 
     /**
@@ -217,6 +219,7 @@ const courseAIService = {
                 provider: stored.provider,
                 durationSeconds: rendered.durationSeconds,
                 voiced: narration.voiced,
+                voiceError: narration.error,
             };
         } finally {
             whiteboardRenderer.cleanup(rendered.tmpDir);

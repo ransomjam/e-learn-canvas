@@ -149,27 +149,49 @@ module.exports = {
         const key = apiKeyOrThrow();
         const model = aiConfig.gemini.ttsModel;
         const call = async () => {
-            const res = await axios.post(
-                `${aiConfig.gemini.baseUrl}/models/${model}:generateContent`,
-                {
-                    contents: [{ role: 'user', parts: [{ text }] }],
-                    generationConfig: {
-                        responseModalities: ['AUDIO'],
-                        speechConfig: {
-                            voiceConfig: {
-                                prebuiltVoiceConfig: { voiceName: voice || aiConfig.gemini.ttsVoice },
+            let res;
+            try {
+                res = await axios.post(
+                    `${aiConfig.gemini.baseUrl}/models/${model}:generateContent`,
+                    {
+                        contents: [{ role: 'user', parts: [{ text }] }],
+                        generationConfig: {
+                            responseModalities: ['AUDIO'],
+                            speechConfig: {
+                                voiceConfig: {
+                                    prebuiltVoiceConfig: { voiceName: voice || aiConfig.gemini.ttsVoice },
+                                },
                             },
                         },
                     },
-                },
-                {
-                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-                    timeout: aiConfig.requestTimeoutMs,
+                    {
+                        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+                        timeout: aiConfig.requestTimeoutMs,
+                    }
+                );
+            } catch (err) {
+                // Surface the API's real reason (model access, quota, bad request)
+                // so the "no narration" warning is actionable in the logs.
+                const apiMsg = err.response?.data?.error?.message;
+                const status = err.response?.status;
+                if (apiMsg) {
+                    throw new AIProviderError(`Gemini TTS (${model}): ${apiMsg}`, {
+                        statusCode: status || 502,
+                        retryable: [429, 500, 502, 503, 504].includes(status),
+                    });
                 }
-            );
-            const part = res.data?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
-            if (!part) throw new AIProviderError('Gemini TTS returned no audio', { retryable: true });
-            return Buffer.from(part.inlineData.data, 'base64');
+                throw err;
+            }
+            // v1beta returns camelCase inlineData, but tolerate snake_case too.
+            const parts = res.data?.candidates?.[0]?.content?.parts || [];
+            const part = parts.find((p) => p.inlineData?.data || p.inline_data?.data);
+            const b64 = part?.inlineData?.data || part?.inline_data?.data;
+            if (!b64) {
+                const reason = res.data?.candidates?.[0]?.finishReason
+                    || res.data?.promptFeedback?.blockReason || 'no audio in response';
+                throw new AIProviderError(`Gemini TTS returned no audio (${reason})`, { retryable: true });
+            }
+            return Buffer.from(b64, 'base64');
         };
         return withRetry(call, 'gemini:tts');
     },

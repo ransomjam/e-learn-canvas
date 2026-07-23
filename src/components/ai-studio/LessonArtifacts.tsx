@@ -1,21 +1,21 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-    PenTool, Presentation, Layers, ChevronLeft, ChevronRight, Loader2, RotateCw,
+    Presentation, Layers, ChevronLeft, ChevronRight, Loader2, RotateCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { aiStudioService } from '@/services/aiStudio.service';
-import WhiteboardPlayer from '@/components/ai-studio/WhiteboardPlayer';
 import type { Flashcard, Slide } from '@/types/aiStudio';
 
 /**
- * LessonArtifacts — the student-facing home for everything the AI Studio
- * generated alongside a lesson: the whiteboard explainer video, slide deck
- * and flashcards. Renders nothing when a lesson has no AI artifacts, so it's
- * safe to drop under every lesson.
+ * LessonArtifacts — the student-facing home for the supplementary study
+ * material the AI Studio generated alongside a lesson: the slide deck and
+ * flashcards. (The whiteboard explainer is not shown here — it is rendered
+ * as the lesson's own video.) Renders nothing when a lesson has no such
+ * material, so it's safe to drop under every lesson.
  */
 
-type ArtifactTab = 'whiteboard' | 'slides' | 'flashcards';
+type ArtifactTab = 'slides' | 'flashcards';
 
 interface LessonArtifactsProps {
     lessonId: string;
@@ -29,12 +29,11 @@ const LessonArtifacts = ({ lessonId }: LessonArtifactsProps) => {
         staleTime: 5 * 60 * 1000,
     });
 
-    const hasWhiteboard = !!data?.storyboards?.length;
     const hasSlides = !!data?.slideDecks?.length;
     const hasFlashcards = !!data?.flashcardDecks?.length;
-    const hasAny = hasWhiteboard || hasSlides || hasFlashcards;
+    const hasAny = hasSlides || hasFlashcards;
 
-    const firstTab: ArtifactTab = hasWhiteboard ? 'whiteboard' : hasSlides ? 'slides' : 'flashcards';
+    const firstTab: ArtifactTab = hasSlides ? 'slides' : 'flashcards';
     const [tab, setTab] = useState<ArtifactTab | null>(null);
     const activeTab = tab ?? firstTab;
 
@@ -48,7 +47,6 @@ const LessonArtifacts = ({ lessonId }: LessonArtifactsProps) => {
     if (!hasAny) return null;
 
     const tabs: Array<{ key: ArtifactTab; label: string; icon: React.ElementType; show: boolean }> = [
-        { key: 'whiteboard', label: 'Whiteboard Video', icon: PenTool, show: hasWhiteboard },
         { key: 'slides', label: 'Slides', icon: Presentation, show: hasSlides },
         { key: 'flashcards', label: 'Flashcards', icon: Layers, show: hasFlashcards },
     ];
@@ -73,9 +71,6 @@ const LessonArtifacts = ({ lessonId }: LessonArtifactsProps) => {
                 ))}
             </div>
 
-            {activeTab === 'whiteboard' && hasWhiteboard && (
-                <WhiteboardArtifact storyboardId={data!.storyboards[0].id} />
-            )}
             {activeTab === 'slides' && hasSlides && (
                 <SlidesArtifact slides={(data!.slideDecks[0].slides as Slide[]) || []} />
             )}
@@ -84,27 +79,6 @@ const LessonArtifacts = ({ lessonId }: LessonArtifactsProps) => {
             )}
         </div>
     );
-};
-
-/** Whiteboard video — fetches the compiled scene graph, then plays it. */
-const WhiteboardArtifact = ({ storyboardId }: { storyboardId: string }) => {
-    const { data, isLoading, isError } = useQuery({
-        queryKey: ['storyboard', storyboardId],
-        queryFn: () => aiStudioService.getStoryboard(storyboardId),
-        staleTime: 30 * 60 * 1000,
-    });
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center gap-2 py-8 justify-center text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading whiteboard video...
-            </div>
-        );
-    }
-    if (isError || !data?.sceneGraph?.scenes?.length) {
-        return <p className="text-sm text-muted-foreground py-4">This whiteboard video is unavailable.</p>;
-    }
-    return <WhiteboardPlayer sceneGraph={data.sceneGraph} />;
 };
 
 /** Simple slide viewer with prev/next + speaker notes. */

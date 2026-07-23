@@ -136,7 +136,7 @@ async function lessonPackHandler(job, progress) {
                 if (whiteboardVideo) {
                     await saveArtifact(job, 'whiteboard_video', whiteboardVideo);
                     if (!whiteboardVideo.voiced) {
-                        warnings.push('The whiteboard video was rendered without narration voice (TTS unavailable)');
+                        warnings.push(`The whiteboard video was rendered without narration voice${whiteboardVideo.voiceError ? ` — ${whiteboardVideo.voiceError}` : ' (TTS unavailable)'}`);
                     }
                 }
             }

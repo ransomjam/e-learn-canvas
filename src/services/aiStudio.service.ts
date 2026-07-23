@@ -89,7 +89,7 @@ export const aiStudioService = {
     pollJob(
         jobId: string,
         onProgress: (job: AIJob) => void,
-        { intervalMs = 2500 }: { intervalMs?: number } = {},
+        { intervalMs = 4000 }: { intervalMs?: number } = {},
     ): { promise: Promise<AIJob>; stop: () => void } {
         let stopped = false;
         const promise = new Promise<AIJob>((resolve, reject) => {

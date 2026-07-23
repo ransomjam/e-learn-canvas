@@ -783,14 +783,21 @@ const Player = () => {
                 </div>
               </div>
 
-              {/* Lesson description */}
-              {currentLesson?.content && (
-                <div className="prose dark:prose-invert max-w-none">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {currentLesson.content}
-                  </p>
-                </div>
-              )}
+              {/* Lesson description — a short summary. AI lessons store the
+                  summary in `description`; fall back to the body for manually
+                  created lessons. Always strip HTML so rich content never
+                  shows raw tags here (the full body renders in the main area
+                  for text lessons). */}
+              {(() => {
+                const raw = (currentLesson as any)?.description || currentLesson?.content || '';
+                const text = String(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                if (!text) return null;
+                return (
+                  <div className="prose dark:prose-invert max-w-none">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{text}</p>
+                  </div>
+                );
+              })()}
 
               {/* ─── Custom Project Submission for this Lesson ─── */}
               {currentLesson?.hasSubmission && (

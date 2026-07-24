@@ -206,12 +206,23 @@ export const instructorService = {
             const sig = signRes.data.data;
 
             // ── Bunny Stream: TUS resumable upload ─────────────────────────────
+            // This uploads the file straight from the browser to Bunny's CDN —
+            // exactly what the Bunny dashboard uploader does — so it is as fast
+            // as uploading directly to the library (no slow round-trip through
+            // our backend). Chunked + resumable so a brief network drop resumes
+            // instead of restarting from zero, which is the usual cause of a
+            // "stuck"/slow upload.
             if (sig.provider === 'bunny') {
                 const { Upload } = await import('tus-js-client');
+                if (onProgress) onProgress(0);
                 await new Promise<void>((resolve, reject) => {
                     const upload = new Upload(file, {
                         endpoint: sig.tusEndpoint,
                         retryDelays: [0, 3000, 5000, 10000, 20000],
+                        // 50 MB chunks (a multiple of 256 KB, as Bunny requires).
+                        // Enables true resume-on-reconnect for large videos.
+                        chunkSize: 50 * 1024 * 1024,
+                        removeFingerprintOnSuccess: true,
                         headers: {
                             AuthorizationSignature: sig.signature,
                             AuthorizationExpire: String(sig.expiration),
@@ -226,7 +237,10 @@ export const instructorService = {
                         onProgress: (sent, total) => {
                             if (onProgress && total > 0) onProgress(Math.round((sent / total) * 100));
                         },
-                        onSuccess: () => resolve(),
+                        onSuccess: () => {
+                            if (onProgress) onProgress(100);
+                            resolve();
+                        },
                     });
                     upload.start();
                 });
@@ -239,16 +253,29 @@ export const instructorService = {
             }
 
             // ── Cloudflare R2: presigned PUT ────────────────────────────────────
+            // Use XHR (not fetch) so we get real upload-progress events.
             if (sig.provider === 'r2') {
-                const putRes = await fetch(sig.uploadUrl, {
-                    method: 'PUT',
-                    body: file,
-                    headers: { 'Content-Type': sig.contentType || file.type || 'application/octet-stream' },
+                if (onProgress) onProgress(0);
+                await new Promise<void>((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', sig.uploadUrl);
+                    xhr.setRequestHeader('Content-Type', sig.contentType || file.type || 'application/octet-stream');
+                    xhr.upload.onprogress = (evt) => {
+                        if (onProgress && evt.lengthComputable) {
+                            onProgress(Math.round((evt.loaded / evt.total) * 100));
+                        }
+                    };
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            if (onProgress) onProgress(100);
+                            resolve();
+                        } else {
+                            reject(new Error(`R2 upload failed (${xhr.status})`));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('R2 upload failed (network error)'));
+                    xhr.send(file);
                 });
-                if (!putRes.ok) {
-                    throw new Error(`R2 upload failed (${putRes.status})`);
-                }
-                if (onProgress) onProgress(100);
                 return {
                     url: sig.publicUrl,
                     filename: file.name,

@@ -22,6 +22,7 @@ const AddLesson = () => {
     const queryClient = useQueryClient();
 
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [quizText, setQuizText] = useState('');
     const [lessonForm, setLessonForm] = useState({
@@ -78,8 +79,9 @@ const AddLesson = () => {
 
     const handleVideoUpload = async (file: File) => {
         setIsUploading(true);
+        setUploadProgress(0);
         try {
-            const result = await instructorService.uploadFile(file);
+            const result = await instructorService.uploadFile(file, setUploadProgress);
             const newState: Partial<typeof lessonForm> = { videoUrl: result.url };
 
             if (result.fileType) {
@@ -95,6 +97,7 @@ const AddLesson = () => {
             toast({ title: 'File upload failed', variant: 'destructive' });
         } finally {
             setIsUploading(false);
+            setUploadProgress(null);
         }
     };
 
@@ -368,7 +371,25 @@ const AddLesson = () => {
                                     )}
                                 </Button>
                             </div>
-                            {lessonForm.videoUrl && (
+                            {isUploading && uploadProgress !== null && (
+                                <div>
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                                        <span>
+                                            {uploadProgress < 100
+                                                ? `Uploading ${lessonForm.type === 'video' ? 'video' : 'file'}…`
+                                                : 'Processing…'}
+                                        </span>
+                                        <span className="font-medium text-foreground tabular-nums">{uploadProgress}%</span>
+                                    </div>
+                                    <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                                        <div
+                                            className="h-full rounded-full bg-primary transition-all duration-200 ease-out"
+                                            style={{ width: `${uploadProgress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {!isUploading && lessonForm.videoUrl && (
                                 <p className="text-xs text-emerald-500 flex items-center gap-1">
                                     ✓ File uploaded successfully
                                 </p>

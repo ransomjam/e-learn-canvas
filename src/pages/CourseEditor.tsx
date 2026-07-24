@@ -49,6 +49,8 @@ const CourseEditor = () => {
     const [activeTab, setActiveTab] = useState('details');
     const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    // Real upload progress (0–100) for the lesson file/video upload.
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
     // Section/Lesson management state
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -404,8 +406,9 @@ const CourseEditor = () => {
 
     const handleVideoUpload = async (file: File) => {
         setIsUploading(true);
+        setUploadProgress(0);
         try {
-            const result = await instructorService.uploadFile(file);
+            const result = await instructorService.uploadFile(file, setUploadProgress);
             const newState: Partial<typeof lessonForm> = { videoUrl: result.url };
 
             // Auto-detect and set the lesson type based on the uploaded file
@@ -422,6 +425,7 @@ const CourseEditor = () => {
             toast({ title: 'File upload failed', variant: 'destructive' });
         } finally {
             setIsUploading(false);
+            setUploadProgress(null);
         }
     };
 
@@ -1193,6 +1197,24 @@ const CourseEditor = () => {
                                                                                                     )}
                                                                                                 </Button>
                                                                                             </div>
+                                                                                            {isUploading && uploadProgress !== null && (
+                                                                                                <div className="mt-2">
+                                                                                                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                                                                                                        <span>
+                                                                                                            {uploadProgress < 100
+                                                                                                                ? `Uploading ${lessonForm.type === 'video' ? 'video' : 'file'}…`
+                                                                                                                : 'Processing…'}
+                                                                                                        </span>
+                                                                                                        <span className="font-medium text-foreground tabular-nums">{uploadProgress}%</span>
+                                                                                                    </div>
+                                                                                                    <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                                                                                                        <div
+                                                                                                            className="h-full rounded-full bg-primary transition-all duration-200 ease-out"
+                                                                                                            style={{ width: `${uploadProgress}%` }}
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            )}
                                                                                         </div>
                                                                                     )}
                                                                                     <div>

@@ -36,6 +36,7 @@ const AdminPlatformVideo = () => {
     // Upload state
     const [uploadingVideo, setUploadingVideo] = useState(false);
     const [uploadingThumb, setUploadingThumb] = useState(false);
+    const [videoProgress, setVideoProgress] = useState<number | null>(null);
 
     const videoFileRef = useRef<HTMLInputElement>(null);
     const thumbFileRef = useRef<HTMLInputElement>(null);
@@ -90,8 +91,9 @@ const AdminPlatformVideo = () => {
         const file = e.target.files?.[0];
         if (!file) return;
         setUploadingVideo(true);
+        setVideoProgress(0);
         try {
-            const result = await instructorService.uploadFile(file);
+            const result = await instructorService.uploadFile(file, setVideoProgress);
             setVideoUrl(result.url);
             toast({ title: 'Video uploaded', description: 'Video file ready. Click "Save" to apply.' });
         } catch (err: any) {
@@ -102,6 +104,7 @@ const AdminPlatformVideo = () => {
             });
         } finally {
             setUploadingVideo(false);
+            setVideoProgress(null);
         }
     };
 
@@ -198,7 +201,21 @@ const AdminPlatformVideo = () => {
                                         <><Upload className="mr-2 h-4 w-4" /> Upload Video File</>
                                     )}
                                 </Button>
-                                {videoUrl && (
+                                {uploadingVideo && videoProgress !== null && (
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                                            <span>{videoProgress < 100 ? 'Uploading video…' : 'Processing…'}</span>
+                                            <span className="font-medium text-foreground tabular-nums">{videoProgress}%</span>
+                                        </div>
+                                        <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                                            <div
+                                                className="h-full rounded-full bg-primary transition-all duration-200 ease-out"
+                                                style={{ width: `${videoProgress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                                {!uploadingVideo && videoUrl && (
                                     <p className="text-xs text-emerald-400 flex items-center gap-1">
                                         <CheckCircle className="h-3.5 w-3.5" /> Video URL set
                                     </p>

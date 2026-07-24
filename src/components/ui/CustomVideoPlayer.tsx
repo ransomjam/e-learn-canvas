@@ -290,48 +290,89 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
         }
     };
 
+    // Enter fullscreen using the most reliable API for the platform.
+    // iOS Safari (iPhone) does NOT support the Fullscreen API on a <div>, and it
+    // renders <video> BLACK when an ancestor has a CSS transform — so a manual
+    // "rotate the div" approach fails on play. Instead we use the native video
+    // fullscreen player there, which plays correctly and auto-rotates to
+    // landscape when the phone is turned. Android/desktop/iPad use the standard
+    // Fullscreen API, optionally locking orientation to landscape.
+    const enterFullscreen = async (lockLandscape: boolean): Promise<boolean> => {
+        const video = videoRef.current as any;
+        const container = containerRef.current as any;
+
+        if (container?.requestFullscreen) {
+            try {
+                await container.requestFullscreen();
+                if (lockLandscape) {
+                    try { await (screen.orientation as any)?.lock?.('landscape'); } catch { /* not supported */ }
+                }
+                return true;
+            } catch { /* fall through to native video fullscreen */ }
+        }
+
+        // iPhone Safari: native fullscreen video player (auto-rotates to landscape).
+        // Once we know we're on this platform we NEVER fall back to CSS-rotate,
+        // because that renders the video black on iOS.
+        if (video && typeof video.webkitEnterFullscreen === 'function') {
+            try {
+                video.webkitEnterFullscreen();
+            } catch {
+                // Video may not have loaded metadata yet — kick it and retry once.
+                try { video.play().catch(() => { }); video.webkitEnterFullscreen(); } catch { /* ignore */ }
+            }
+            return true;
+        }
+
+        return false;
+    };
+
+    const exitFullscreen = async () => {
+        try { (screen.orientation as any)?.unlock?.(); } catch { /* ignore */ }
+        if (document.exitFullscreen) {
+            await document.exitFullscreen().catch(() => { });
+        }
+    };
+
     const toggleFullscreen = async () => {
-        if (!containerRef.current) return;
-        if (!document.fullscreenElement) {
-            await containerRef.current.requestFullscreen().catch(err => console.error(err));
-            setIsFullscreen(true);
+        if (document.fullscreenElement || isLandscape) {
+            await exitFullscreen();
+            setIsLandscape(false);
         } else {
-            await document.exitFullscreen();
-            setIsFullscreen(false);
+            const ok = await enterFullscreen(false);
+            if (!ok) setIsLandscape(true); // CSS-rotate fallback (old browsers only)
         }
         resetControlsTimeout();
     };
 
-    // Detect fullscreen change by OS/Escape key
+    // Detect fullscreen change by OS/Escape key; unlock orientation on exit.
     useEffect(() => {
-        const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+        const handleFullscreenChange = () => {
+            const fs = !!document.fullscreenElement;
+            setIsFullscreen(fs);
+            if (!fs) {
+                try { (screen.orientation as any)?.unlock?.(); } catch { /* ignore */ }
+            }
+        };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
+    // The rotate/landscape button — enters fullscreen locked to landscape (or the
+    // native iOS player, which handles rotation itself).
     const toggleLandscape = async (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        const next = !isLandscape;
-        // Capture current playback state before toggling
-        const wasPlaying = isPlaying;
-        const savedTime = videoRef.current?.currentTime || 0;
-        setIsLandscape(next);
-        try {
-            if (next && screen.orientation && 'lock' in screen.orientation) {
-                await (screen.orientation as any).lock('landscape');
-            } else if (!next && screen.orientation && 'unlock' in screen.orientation) {
-                (screen.orientation as any).unlock();
-            }
-        } catch { /* Fallback to CSS transform below if API fails/unsupported */ }
-        // Restore video position and playback after landscape toggle
-        setTimeout(() => {
-            if (videoRef.current) {
-                videoRef.current.currentTime = savedTime;
-                if (wasPlaying) {
-                    videoRef.current.play().catch(() => { });
-                }
-            }
-        }, 100);
+        if (document.fullscreenElement || isLandscape) {
+            await exitFullscreen();
+            setIsLandscape(false);
+            resetControlsTimeout();
+            return;
+        }
+        const ok = await enterFullscreen(true);
+        if (!ok) {
+            // Last-resort CSS rotate for browsers with no fullscreen support at all.
+            setIsLandscape(true);
+        }
         resetControlsTimeout();
     };
 

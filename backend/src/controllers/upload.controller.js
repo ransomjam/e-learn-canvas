@@ -706,6 +706,48 @@ const getUploadSignature = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Bunny encoding status ────────────────────────────────────────────────────
+// Bunny returns HTTP 403 on a video's playlist.m3u8 until transcoding is
+// finished (and permanently if it failed). The player uses this endpoint to
+// tell "still processing" apart from "genuinely broken", show a real progress
+// %, and auto-retry once the video becomes playable — instead of the misleading
+// "hosted externally" error.
+//   ready   — playlist should now play
+//   failed  — encoding failed / upload failed (needs re-upload)
+//   unknown — not a Bunny video, or status could not be determined (assume ready)
+const getVideoEncodingStatus = asyncHandler(async (req, res) => {
+  const { url, videoId } = req.query;
+
+  if (!bunny.isConfigured) {
+    return res.json({ success: true, data: { ready: true, unknown: true } });
+  }
+
+  const id = videoId || bunny.videoIdFromUrl(url || "");
+  if (!id) {
+    // Not a Bunny-hosted video (e.g. Cloudinary/MP4/external) — nothing to wait on.
+    return res.json({ success: true, data: { ready: true, unknown: true } });
+  }
+
+  try {
+    const info = await bunny.getVideoStatus(id);
+    const status = Number(info.status);
+    const encodeProgress = Number(info.encodeProgress) || 0;
+    // Bunny status: 5 = Error, 6 = UploadFailed
+    const failed = status === 5 || status === 6;
+    // Playable once transcoding reports finished. encodeProgress is the reliable
+    // cross-check regardless of the library's exact status numbering.
+    const ready = !failed && (status >= 4 || encodeProgress >= 100);
+    return res.json({
+      success: true,
+      data: { ready, failed, status, encodeProgress },
+    });
+  } catch (err) {
+    // If the Bunny API is unreachable, don't block playback — let the player try.
+    console.warn("Bunny status lookup failed:", err.message);
+    return res.json({ success: true, data: { ready: true, unknown: true } });
+  }
+});
+
 module.exports = {
   upload,
   projectUpload,
@@ -718,5 +760,6 @@ module.exports = {
   storageEnabled,
   handleMulterError,
   getUploadSignature,
+  getVideoEncodingStatus,
   signCloudinaryUrl,
 };

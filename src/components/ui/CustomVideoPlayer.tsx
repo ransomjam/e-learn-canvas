@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Smartphone, Settings, SkipBack, SkipForward, RotateCw } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Smartphone, Settings, SkipBack, SkipForward, RotateCw, Loader2, AlertTriangle } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { API_BASE_URL } from '@/lib/api';
 
 interface CustomVideoPlayerProps {
     src: string;
@@ -34,6 +34,8 @@ const getMimeType = (url: string): string => {
     return 'video/mp4';
 };
 
+type VideoErrorKind = 'processing' | 'failed' | 'unplayable';
+
 export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -47,8 +49,27 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
     const [isLandscape, setIsLandscape] = useState(false);
     const [showControls, setShowControls] = useState(true);
     const [videoError, setVideoError] = useState(false);
+    const [errorKind, setErrorKind] = useState<VideoErrorKind>('unplayable');
+    // While a Bunny video is still transcoding, show a real progress % instead
+    // of a misleading error, and re-init the stream once it becomes playable.
+    const [processing, setProcessing] = useState<{ active: boolean; percent: number }>({ active: false, percent: 0 });
+    const [retryKey, setRetryKey] = useState(0);
+    const autoRetryCountRef = useRef(0);
     const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const isMobile = useIsMobile();
+
+    // Touch/coarse-pointer detection, independent of viewport WIDTH. Rotating a
+    // phone into landscape widens the viewport past the CSS breakpoints, which is
+    // why width-based `sm:hidden` gating used to hide the rotate/mute buttons.
+    const [isTouch, setIsTouch] = useState(false);
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia('(pointer: coarse)');
+        const update = () =>
+            setIsTouch(mq.matches || 'ontouchstart' in window || navigator.maxTouchPoints > 0);
+        update();
+        mq.addEventListener?.('change', update);
+        return () => mq.removeEventListener?.('change', update);
+    }, []);
 
     const isExternal = src.startsWith('http://') || src.startsWith('https://');
 
@@ -57,6 +78,84 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
     // the source is wired up in the effect below instead.
     const isHls = /\.m3u8($|\?)/i.test(src);
 
+    // Ask the backend whether the video is simply still encoding (Bunny returns
+    // 403 on the playlist until transcoding finishes). Returns { ready, failed,
+    // encodeProgress, unknown }. On any failure we assume "ready" so we never
+    // block a video that is actually fine.
+    const checkEncodingStatus = useCallback(async (): Promise<{
+        ready?: boolean; failed?: boolean; encodeProgress?: number; unknown?: boolean;
+    }> => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/upload/video-status?url=${encodeURIComponent(src)}`);
+            const json = await res.json();
+            return json?.data ?? { ready: true, unknown: true };
+        } catch {
+            return { ready: true, unknown: true };
+        }
+    }, [src]);
+
+    // Called when the <video> element or hls.js reports a load error.
+    const handleMediaError = useCallback(async () => {
+        const st = await checkEncodingStatus();
+
+        if (st?.failed) {
+            setProcessing({ active: false, percent: 0 });
+            setErrorKind('failed');
+            setVideoError(true);
+            return;
+        }
+
+        if (st && st.ready === false) {
+            // Still transcoding — show progress and let the poll effect re-init
+            // the player once it's ready.
+            setVideoError(false);
+            setProcessing({ active: true, percent: st.encodeProgress || 0 });
+            return;
+        }
+
+        // Ready/unknown but still failed — could be a transient CDN/network blip.
+        // Retry a couple of times automatically before giving up.
+        if (autoRetryCountRef.current < 2) {
+            autoRetryCountRef.current += 1;
+            setTimeout(() => setRetryKey((k) => k + 1), 1500);
+            return;
+        }
+
+        setProcessing({ active: false, percent: 0 });
+        setErrorKind('unplayable');
+        setVideoError(true);
+    }, [checkEncodingStatus]);
+
+    // Poll Bunny while the video is transcoding, then re-init when it's playable.
+    useEffect(() => {
+        if (!processing.active) return;
+        let cancelled = false;
+        const tick = async () => {
+            const st = await checkEncodingStatus();
+            if (cancelled) return;
+            if (st?.failed) {
+                setProcessing({ active: false, percent: 0 });
+                setErrorKind('failed');
+                setVideoError(true);
+                return;
+            }
+            if (st && st.ready === false) {
+                setProcessing((p) => ({ active: true, percent: st.encodeProgress ?? p.percent }));
+                return;
+            }
+            // Ready — reload the stream.
+            setProcessing({ active: false, percent: 0 });
+            autoRetryCountRef.current = 0;
+            setRetryKey((k) => k + 1);
+        };
+        const interval = setInterval(tick, 8000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [processing.active, checkEncodingStatus]);
+
+    // Wire up the HLS source (re-runs on retry).
     useEffect(() => {
         const video = videoRef.current;
         if (!video || !isHls) return;
@@ -64,6 +163,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
         // Native HLS support (Safari, iOS browsers)
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = src;
+            video.load();
             return;
         }
 
@@ -76,10 +176,11 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 instance.loadSource(src);
                 instance.attachMedia(videoRef.current);
                 instance.on(Hls.Events.ERROR, (_evt, data) => {
-                    if (data.fatal) setVideoError(true);
+                    if (data.fatal) handleMediaError();
                 });
                 hls = instance;
             } else {
+                setErrorKind('unplayable');
                 setVideoError(true);
             }
         });
@@ -88,7 +189,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
             cancelled = true;
             if (hls) hls.destroy();
         };
-    }, [src, isHls]);
+    }, [src, isHls, retryKey, handleMediaError]);
 
     // Auto-hide controls
     const resetControlsTimeout = useCallback(() => {
@@ -234,12 +335,23 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
         resetControlsTimeout();
     };
 
+    const retryPlayback = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setVideoError(false);
+        setProcessing({ active: false, percent: 0 });
+        autoRetryCountRef.current = 0;
+        setRetryKey((k) => k + 1);
+    };
+
     useEffect(() => {
         // Reset playback state when source changes
         setIsPlaying(false);
         setCurrentTime(0);
         setShowControls(true);
         setVideoError(false);
+        setProcessing({ active: false, percent: 0 });
+        setErrorKind('unplayable');
+        autoRetryCountRef.current = 0;
     }, [src]);
 
     const displayLandscape = isLandscape && !isFullscreen;
@@ -247,10 +359,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
     const content = (
         <div
             ref={containerRef}
-            className={cn(
-                "relative flex flex-col bg-black overflow-hidden group font-sans w-full h-full",
-                displayLandscape && "fixed inset-0 z-[100]"
-            )}
+            className="relative flex flex-col bg-black overflow-hidden group font-sans w-full h-full"
             onMouseMove={resetControlsTimeout}
             onTouchStart={resetControlsTimeout}
             onMouseLeave={() => isPlaying && setShowControls(false)}
@@ -259,15 +368,12 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 ref={videoRef}
                 poster={poster}
                 crossOrigin={isExternal ? 'anonymous' : undefined}
-                className={cn(
-                    "w-full h-full object-contain cursor-pointer",
-                    displayLandscape ? "w-[100vh] h-[100vw]" : ""
-                )}
+                className="w-full h-full object-contain cursor-pointer"
                 onClick={handlePlayPause}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => setIsPlaying(false)}
-                onError={() => setVideoError(true)}
+                onError={handleMediaError}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 playsInline
@@ -283,29 +389,66 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                 Your browser does not support this video format.
             </video>
 
-            {/* Error fallback for external videos that cannot be played inline */}
+            {/* Still-encoding overlay — Bunny transcodes after upload */}
+            {processing.active && !videoError && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/90 text-white gap-4 p-6 text-center">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <div className="space-y-1">
+                        <p className="text-sm sm:text-base font-medium text-white/90">
+                            This video is still being processed
+                        </p>
+                        <p className="text-xs text-white/60">
+                            It will start playing automatically once ready
+                            {processing.percent > 0 ? ` — ${Math.round(processing.percent)}%` : '…'}
+                        </p>
+                    </div>
+                    {processing.percent > 0 && (
+                        <div className="h-1.5 w-48 overflow-hidden rounded-full bg-white/15">
+                            <div
+                                className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                                style={{ width: `${Math.min(100, Math.round(processing.percent))}%` }}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Error fallback */}
             {videoError && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/90 text-white gap-4 p-6 text-center">
                     <div className="bg-white/10 p-4 rounded-full">
-                        <Play className="h-10 w-10 text-white/60" />
+                        <AlertTriangle className="h-9 w-9 text-white/70" />
                     </div>
                     <p className="text-sm sm:text-base font-medium text-white/80 max-w-md">
-                        This video is hosted externally and cannot be played in the built-in player.
+                        {errorKind === 'failed'
+                            ? 'This video could not be processed. Please try re-uploading it.'
+                            : "This video couldn't be played. It may still be processing — try again in a moment."}
                     </p>
-                    <a
-                        href={src}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-lg transition-colors"
-                    >
-                        <Play className="h-4 w-4" />
-                        Open Video
-                    </a>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={retryPlayback}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-lg transition-colors"
+                        >
+                            <RotateCw className="h-4 w-4" />
+                            Try again
+                        </button>
+                        {isExternal && (
+                            <a
+                                href={src}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-lg transition-colors"
+                            >
+                                <Play className="h-4 w-4" />
+                                Open Video
+                            </a>
+                        )}
+                    </div>
                 </div>
             )}
 
             {/* Central play button when paused */}
-            {!isPlaying && (
+            {!isPlaying && !videoError && !processing.active && (
                 <div
                     className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/20 group/play"
                     onClick={handlePlayPause}
@@ -330,7 +473,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
             <div className={cn(
                 "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-300",
                 showControls ? "opacity-100" : "opacity-0 pointer-events-none",
-                isMobile ? "px-2.5 pb-2 pt-10" : "px-4 pb-4 pt-12"
+                isTouch ? "px-2.5 pb-2 pt-10" : "px-4 pb-4 pt-12"
             )}>
                 {/* Progress bar */}
                 <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
@@ -354,7 +497,7 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                             {isPlaying ? <Pause className="h-4 w-4 sm:h-5 sm:w-5" /> : <Play className="h-4 w-4 sm:h-5 sm:w-5" />}
                         </Button>
 
-                        {/* Skip back/forward — always visible on mobile for quick navigation */}
+                        {/* Skip back/forward — always visible for quick navigation */}
                         <Button variant="ghost" size="icon" onClick={() => skipTime(-10)} className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9">
                             <SkipBack className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
@@ -362,27 +505,31 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                             <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
 
-                        {/* Volume — desktop only (expandable) */}
-                        <div className="hidden sm:flex items-center gap-1 group/volume w-8 hover:w-32 transition-all duration-300 overflow-hidden">
-                            <Button variant="ghost" size="icon" onClick={toggleMute} className="text-white hover:bg-white/20 h-9 w-9 shrink-0">
-                                {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                            </Button>
-                            <Slider
-                                value={[isMuted ? 0 : volume]}
-                                max={1}
-                                step={0.05}
-                                onValueChange={handleVolumeChange}
-                                className="w-20 opacity-0 group-hover/volume:opacity-100 transition-opacity"
-                            />
-                        </div>
+                        {/* Volume — pointer devices only (expandable) */}
+                        {!isTouch && (
+                            <div className="flex items-center gap-1 group/volume w-8 hover:w-32 transition-all duration-300 overflow-hidden">
+                                <Button variant="ghost" size="icon" onClick={toggleMute} className="text-white hover:bg-white/20 h-9 w-9 shrink-0">
+                                    {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                                </Button>
+                                <Slider
+                                    value={[isMuted ? 0 : volume]}
+                                    max={1}
+                                    step={0.05}
+                                    onValueChange={handleVolumeChange}
+                                    className="w-20 opacity-0 group-hover/volume:opacity-100 transition-opacity"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Right controls */}
                     <div className="flex items-center gap-0.5 sm:gap-2">
-                        {/* Mute toggle for mobile */}
-                        <Button variant="ghost" size="icon" onClick={toggleMute} className="sm:hidden text-white hover:bg-white/20 h-8 w-8">
-                            {isMuted || volume === 0 ? <VolumeX className="h-4 w-4 text-white stroke-[2.5px]" /> : <Volume2 className="h-4 w-4 text-white stroke-[2.5px]" />}
-                        </Button>
+                        {/* Mute toggle for touch devices */}
+                        {isTouch && (
+                            <Button variant="ghost" size="icon" onClick={toggleMute} className="text-white hover:bg-white/20 h-8 w-8">
+                                {isMuted || volume === 0 ? <VolumeX className="h-4 w-4 text-white stroke-[2.5px]" /> : <Volume2 className="h-4 w-4 text-white stroke-[2.5px]" />}
+                            </Button>
+                        )}
 
                         {/* Playback speed */}
                         <DropdownMenu>
@@ -408,29 +555,31 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        {/* Settings (desktop) */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="hidden sm:flex text-white hover:bg-white/20 h-9 w-9">
-                                    <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-white stroke-[2.5px]" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-32 bg-black/90 text-white border-white/20">
-                                <div className="px-2 py-1.5 text-xs font-semibold text-white/50">Playback Speed</div>
-                                {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
-                                    <DropdownMenuItem
-                                        key={rate}
-                                        onClick={() => handlePlaybackRateChange(rate)}
-                                        className={cn(
-                                            "focus:bg-white/20 cursor-pointer text-sm",
-                                            playbackRate === rate && "bg-primary/40 focus:bg-primary/50"
-                                        )}
-                                    >
-                                        {rate}x {rate === 1 && '(Normal)'}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        {/* Settings (pointer devices) */}
+                        {!isTouch && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-9 w-9">
+                                        <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-white stroke-[2.5px]" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-32 bg-black/90 text-white border-white/20">
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-white/50">Playback Speed</div>
+                                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                                        <DropdownMenuItem
+                                            key={rate}
+                                            onClick={() => handlePlaybackRateChange(rate)}
+                                            className={cn(
+                                                "focus:bg-white/20 cursor-pointer text-sm",
+                                                playbackRate === rate && "bg-primary/40 focus:bg-primary/50"
+                                            )}
+                                        >
+                                            {rate}x {rate === 1 && '(Normal)'}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
 
                         {/* Fullscreen */}
                         <Button
@@ -442,16 +591,18 @@ export const CustomVideoPlayer = ({ src, poster, title }: CustomVideoPlayerProps
                             {isFullscreen ? <Minimize className="h-4 w-4 sm:h-5 sm:w-5 text-white stroke-[2.5px]" /> : <Maximize className="h-4 w-4 sm:h-5 sm:w-5 text-white stroke-[2.5px]" />}
                         </Button>
 
-                        {/* Landscape toggle — mobile only, prominent and far right */}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={toggleLandscape}
-                            className="sm:hidden text-white hover:bg-white/20 h-10 w-auto px-2 gap-1 rounded-md"
-                        >
-                            <RotateCw className="h-4 w-4 text-white stroke-[2.5px]" />
-                            <Smartphone className={cn("h-6 w-6 text-white stroke-[2px] transition-transform duration-300", isLandscape && "rotate-90")} />
-                        </Button>
+                        {/* Landscape toggle — touch devices only, prominent and far right */}
+                        {isTouch && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={toggleLandscape}
+                                className="text-white hover:bg-white/20 h-10 w-auto px-2 gap-1 rounded-md"
+                            >
+                                <RotateCw className="h-4 w-4 text-white stroke-[2.5px]" />
+                                <Smartphone className={cn("h-6 w-6 text-white stroke-[2px] transition-transform duration-300", isLandscape && "rotate-90")} />
+                            </Button>
+                        )}
                     </div>
                 </div>
 

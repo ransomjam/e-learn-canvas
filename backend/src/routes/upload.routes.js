@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { upload, uploadFile, downloadFile, handleMulterError, getUploadSignature } = require('../controllers/upload.controller');
+const { upload, uploadFile, downloadFile, handleMulterError, getUploadSignature, getVideoEncodingStatus } = require('../controllers/upload.controller');
 const { authenticate, optionalAuth } = require('../middleware/auth.middleware');
 
 /**
@@ -11,6 +11,17 @@ const { authenticate, optionalAuth } = require('../middleware/auth.middleware');
  * @access  Private
  */
 router.get('/sign', authenticate, getUploadSignature);
+
+/**
+ * @route   GET /api/v1/upload/video-status
+ * @desc    Report a Bunny video's encoding status so the player can show a
+ *          "still processing" state (with progress) and auto-retry, instead of
+ *          failing with a misleading "hosted externally" error.
+ * @query   url      — the stored playback URL (Bunny .m3u8)
+ * @query   videoId  — alternatively, the Bunny video guid
+ * @access  Public (optionalAuth — only exposes encoding progress)
+ */
+router.get('/video-status', optionalAuth, getVideoEncodingStatus);
 
 router.post('/', authenticate, handleMulterError(upload.single('file')), uploadFile);
 
